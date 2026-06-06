@@ -23,10 +23,15 @@ const carteraAcciones = [
   { ticker:"AVGO", nombre:"Broadcom Inc",            pnlEur:"-153€",  pnlPct:"-20.9%", pos:false, alerta:"VIGILAR"     },
 ];
 
-const cartCrypto = [
-  { ticker:"SOL", nombre:"Solana",   entrada:"120.00",actual:"165.20",valor:"1.850€",pnlEur:"+380€",pnlPct:"+20.5%",pos:true, target:"$500–800"  },
-  { ticker:"ETH", nombre:"Ethereum", entrada:"2.800", actual:"3.120", valor:"2.100€",pnlEur:"+245€",pnlPct:"+11.7%",pos:true, target:"$8.000–12.000"},
-  { ticker:"XRP", nombre:"Ripple",   entrada:"0.65",  actual:"0.58",  valor:"620€",  pnlEur:"-62€", pnlPct:"-9.1%", pos:false,target:"$5–10"     },
+const carteraCrypto = [
+  { coin:"SOL",  nombre:"Solana",    cantidad:10.22,   valor:644.99, pnl:-169.62, pnlPct:-20.8,  estado:"MANTENER",        target:"$500-800"      },
+  { coin:"XRP",  nombre:"Ripple",    cantidad:406.11,  valor:445.50, pnl:-174.11, pnlPct:-28.1,  estado:"MANTENER",        target:"$5-10"         },
+  { coin:"ETH",  nombre:"Ethereum",  cantidad:0.163,   valor:257.82, pnl:-64.07,  pnlPct:-19.9,  estado:"MANTENER",        target:"$8.000-12.000" },
+  { coin:"USDT", nombre:"Tether",    cantidad:178.72,  valor:178.58, pnl:0,       pnlPct:0,      estado:"LIQUIDEZ",        target:"—"             },
+  { coin:"DOGE", nombre:"Dogecoin",  cantidad:2079.12, valor:169.75, pnl:97.09,   pnlPct:134.2,  estado:"TOMAR PARCIALES", target:"—"             },
+  { coin:"DOT",  nombre:"Polkadot",  cantidad:112.81,  valor:106.42, pnl:-77.13,  pnlPct:-42.0,  estado:"REVISAR TESIS",   target:"—"             },
+  { coin:"LTC",  nombre:"Litecoin",  cantidad:1.71,    valor:73.48,  pnl:-25.85,  pnlPct:-26.0,  estado:"REVISAR TESIS",   target:"—"             },
+  { coin:"ADA",  nombre:"Cardano",   cantidad:238.44,  valor:37.70,  pnl:-31.11,  pnlPct:-45.2,  estado:"REVISAR TESIS",   target:"—"             },
 ];
 
 const dividendos = [
@@ -201,25 +206,69 @@ export default function TradingPage() {
 
       {/* Crypto */}
       {tab === "Crypto" && (
-        <div style={{ ...CARD, overflow:"hidden" }}>
-          <div style={{ padding:"16px 20px", borderBottom:"1px solid rgba(255,255,255,0.06)" }}><p style={LABEL}>Cartera Crypto</p></div>
-          <table style={{ width:"100%", borderCollapse:"collapse" }}>
-            <thead><tr>{["Token","Nombre","Entrada","Actual","Valor","P&L €","P&L %","Target"].map(h=><th key={h} style={TH}>{h}</th>)}</tr></thead>
-            <tbody>
-              {cartCrypto.map(({ ticker,nombre,entrada,actual,valor,pnlEur,pnlPct,pos,target }) => (
-                <tr key={ticker}>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#FFB800" }}>{ticker}</td>
-                  <td style={{ ...TD, fontSize:"13px", color:"#5A6470" }}>{nombre}</td>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"#5A6470" }}>{entrada}</td>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"13px", color:"#FFFFFF" }}>{actual}</td>
-                  <td style={{ ...TD, fontSize:"13px", color:"#9AA3AD" }}>{valor}</td>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pos ? "#00E676" : "#FF3D71" }}>{pnlEur}</td>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pos ? "#00E676" : "#FF3D71" }}>{pnlPct}</td>
-                  <td style={{ ...TD, fontSize:"12px", color:"#00C8FF" }}>{target}</td>
+        <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
+          {/* Resumen */}
+          <div style={{ ...CARD, padding:"20px 24px", display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"16px" }}>
+            {[
+              { label:"Total",     value:"$1.916",     color:"#FFFFFF"  },
+              { label:"PnL Total", value:"-$458",      color:"#FF3D71"  },
+              { label:"PnL hoy",   value:"-$166",      color:"#FF3D71"  },
+              { label:"Exchange",  value:"CoinEx Spot",color:"#5A6470"  },
+            ].map(({ label, value, color }) => (
+              <div key={label}>
+                <p style={{ ...LABEL, marginBottom:"8px" }}>{label}</p>
+                <p style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"18px", color }}>{value}</p>
+              </div>
+            ))}
+          </div>
+          {/* Tabla */}
+          <div style={{ ...CARD, overflow:"hidden" }}>
+            <div style={{ padding:"16px 20px", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+              <p style={LABEL}>Cartera Crypto — CoinEx Spot · 6 Jun 2026</p>
+            </div>
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+              <thead><tr>{["Coin","Nombre","Cantidad","Valor USD","PnL $","PnL %","Target","Estado"].map(h=><th key={h} style={TH}>{h}</th>)}</tr></thead>
+              <tbody>
+                {carteraCrypto.map(item => {
+                  const pnlColor = item.pnl > 0 ? "#00E676" : item.pnl < 0 ? "#FF3D71" : "#9AA3AD";
+                  const pnlSign  = item.pnl > 0 ? "+" : "";
+                  const badgeStyle: React.CSSProperties =
+                    item.estado === "MANTENER"       ? { background:"rgba(0,200,255,0.12)",  color:"#00C8FF", border:"1px solid rgba(0,200,255,0.25)"  } :
+                    item.estado === "LIQUIDEZ"        ? { background:"rgba(90,100,112,0.15)", color:"#9AA3AD", border:"1px solid rgba(90,100,112,0.3)"   } :
+                    item.estado === "TOMAR PARCIALES" ? { background:"rgba(255,184,0,0.12)",  color:"#FFB800", border:"1px solid rgba(255,184,0,0.25)"   } :
+                                                        { background:"rgba(255,61,113,0.12)", color:"#FF3D71", border:"1px solid rgba(255,61,113,0.25)"  };
+                  return (
+                    <tr key={item.coin}>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#FFB800" }}>{item.coin}</td>
+                      <td style={{ ...TD, fontSize:"13px", color:"#5A6470" }}>{item.nombre}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"#9AA3AD" }}>{item.cantidad}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"13px", color:"#FFFFFF" }}>${item.valor.toFixed(2)}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pnlColor }}>{pnlSign}${Math.abs(item.pnl).toFixed(2)}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pnlColor }}>{pnlSign}{item.pnlPct}%</td>
+                      <td style={{ ...TD, fontSize:"12px", color:"#00C8FF" }}>{item.target}</td>
+                      <td style={{ ...TD }}>
+                        <span style={{ fontSize:"10px", fontWeight:700, padding:"2px 7px", borderRadius:"3px", letterSpacing:"0.04em", ...badgeStyle }}>{item.estado}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                <tr>
+                  <td colSpan={3} style={{ padding:"12px 14px", fontWeight:700, color:"#FFFFFF", fontSize:"13px", borderTop:"1px solid rgba(255,255,255,0.08)" }}>TOTAL · 8 posiciones</td>
+                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#FFFFFF", borderTop:"1px solid rgba(255,255,255,0.08)" }}>$1.916</td>
+                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#FF3D71", borderTop:"1px solid rgba(255,255,255,0.08)" }}>-$458</td>
+                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#FF3D71", borderTop:"1px solid rgba(255,255,255,0.08)" }}>-20.99%</td>
+                  <td colSpan={2} style={{ borderTop:"1px solid rgba(255,255,255,0.08)" }}></td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+            <div style={{ padding:"12px 20px", borderTop:"1px solid rgba(255,255,255,0.04)", background:"rgba(255,255,255,0.01)" }}>
+              <p style={{ fontSize:"11px", color:"#5A6470", lineHeight:1.6, margin:0 }}>
+                <span style={{ color:"#00C8FF", fontWeight:600 }}>Largo plazo</span>: SOL · XRP · ETH — targets definidos, tesis activa.{" "}
+                <span style={{ color:"#FF3D71", fontWeight:600 }}>Revisar</span>: DOT · LTC · ADA — sin tesis clara, evaluar salida.{" "}
+                DOGE en profit +134%, considerar toma parcial.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
