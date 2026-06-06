@@ -2,11 +2,25 @@
 
 import { useState } from "react";
 
-const cartAcciones = [
-  { ticker:"SHLS", nombre:"Shoals Technologies", entrada:"12.80", actual:"14.20", valor:"2.340€", pnlEur:"+192€", pnlPct:"+8.2%",  pos:true  },
-  { ticker:"OLO",  nombre:"Olo Inc",             entrada:"9.20",  actual:"8.12",  valor:"1.100€", pnlEur:"-23€",  pnlPct:"-2.1%",  pos:false },
-  { ticker:"DTM",  nombre:"DT Midstream",         entrada:"45.60", actual:"46.20", valor:"890€",   pnlEur:"+12€",  pnlPct:"+1.3%",  pos:true  },
-  { ticker:"NVDA", nombre:"NVIDIA Corp",           entrada:"95.40", actual:"112.10",valor:"8.492€", pnlEur:"+493€", pnlPct:"+15.4%", pos:true  },
+const carteraAcciones = [
+  { ticker:"ENGI", nombre:"Engie SA",            pnlEur:"+152€",  pnlPct:"+24.9%", pos:true,  alerta:""            },
+  { ticker:"AI",   nombre:"C3.ai Inc",            pnlEur:"+126€",  pnlPct:"+22.8%", pos:true,  alerta:""            },
+  { ticker:"REP",  nombre:"Repsol SA",             pnlEur:"+98.6€", pnlPct:"+25.2%", pos:true,  alerta:""            },
+  { ticker:"FLEX", nombre:"Flex Ltd",              pnlEur:"+68.8€", pnlPct:"+13.7%", pos:true,  alerta:""            },
+  { ticker:"ENI",  nombre:"ENI SpA",               pnlEur:"+56.5€", pnlPct:"+9.9%",  pos:true,  alerta:""            },
+  { ticker:"FGR",  nombre:"Ferroglobe PLC",        pnlEur:"+54.6€", pnlPct:"+35.9%", pos:true,  alerta:""            },
+  { ticker:"LOG",  nombre:"Logitech Intl",         pnlEur:"+53.7€", pnlPct:"+17.3%", pos:true,  alerta:""            },
+  { ticker:"PHM7", nombre:"PHM Corp",              pnlEur:"+48.9€", pnlPct:"+12.5%", pos:true,  alerta:""            },
+  { ticker:"TBK",  nombre:"Triumph Bancorp",       pnlEur:"+29.2€", pnlPct:"+19.3%", pos:true,  alerta:""            },
+  { ticker:"VEEV", nombre:"Veeva Systems",          pnlEur:"+15.3€", pnlPct:"+4.7%",  pos:true,  alerta:""            },
+  { ticker:"BBVA", nombre:"Banco BBVA",             pnlEur:"+6.88€", pnlPct:"+1.8%",  pos:true,  alerta:""            },
+  { ticker:"KTOS", nombre:"Kratos Defense",         pnlEur:"+4.76€", pnlPct:"+2.1%",  pos:true,  alerta:""            },
+  { ticker:"CLSK", nombre:"CleanSpark Inc",         pnlEur:"-6.29€", pnlPct:"-3.6%",  pos:false, alerta:"VIGILAR"     },
+  { ticker:"BRKR", nombre:"Bruker Corp",            pnlEur:"-20.3€", pnlPct:"-4.9%",  pos:false, alerta:"VIGILAR"     },
+  { ticker:"HPE",  nombre:"HP Enterprise",          pnlEur:"-33.7€", pnlPct:"-12.3%", pos:false, alerta:"REVISAR STOP"},
+  { ticker:"HIMS", nombre:"Hims & Hers Health",     pnlEur:"-35.1€", pnlPct:"-7.0%",  pos:false, alerta:"REVISAR STOP"},
+  { ticker:"BBAI", nombre:"BigBear.ai Holdings",    pnlEur:"-74.2€", pnlPct:"-18.2%", pos:false, alerta:"STOP ACTIVO" },
+  { ticker:"AVGO", nombre:"Broadcom Inc",            pnlEur:"-153€",  pnlPct:"-20.9%", pos:false, alerta:"VIGILAR"     },
 ];
 
 const cartCrypto = [
@@ -73,10 +87,10 @@ const TH    = { padding:"10px 14px", textAlign:"left" as const, fontSize:"11px",
 const TD    = { padding:"12px 14px", borderBottom:"1px solid rgba(255,255,255,0.04)" };
 
 const statCards = [
-  { label:"P&L Total Hoy",  value:"+€ 188",  color:"#00E676" },
-  { label:"Cartera Total",  value:"12.822€", color:"#FFFFFF"  },
-  { label:"Mejor posición", value:"NVDA +15.4%", color:"#00E676" },
-  { label:"Peor posición",  value:"XRP −9.1%",   color:"#FF3D71" },
+  { label:"Capital",   value:"12.022,43€", color:"#FFFFFF"  },
+  { label:"Efectivo",  value:"4.920,81€",  color:"#9AA3AD"  },
+  { label:"PnL Total", value:"+357,90€",   color:"#00E676"  },
+  { label:"PnL hoy",   value:"-204,70€",   color:"#FF3D71"  },
 ];
 
 export default function TradingPage() {
@@ -96,16 +110,6 @@ export default function TradingPage() {
     <div style={{ padding:"32px 40px" }}>
       <h1 style={{ fontSize:"24px", fontWeight:600, color:"#FFFFFF", marginBottom:"24px" }}>Trading</h1>
 
-      {/* Stat cards */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"12px", marginBottom:"24px" }}>
-        {statCards.map(({ label, value, color }) => (
-          <div key={label} style={{ ...CARD, padding:"18px 20px" }}>
-            <p style={{ ...LABEL, marginBottom:"8px" }}>{label}</p>
-            <p style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"22px", color }}>{value}</p>
-          </div>
-        ))}
-      </div>
-
       {/* Tab bar */}
       <div style={{ display:"inline-flex", gap:"4px", padding:"4px", background:"#0a0a0a", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"8px", marginBottom:"20px" }}>
         {TABS.map(t => (
@@ -115,32 +119,83 @@ export default function TradingPage() {
 
       {/* Acciones */}
       {tab === "Acciones" && (
-        <div style={{ ...CARD, overflow:"hidden" }}>
-          <div style={{ padding:"16px 20px", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
-            <p style={LABEL}>Cartera Acciones — IBKR</p>
+        <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
+          {/* Mini-cards MEXEM */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"12px" }}>
+            {statCards.map(({ label, value, color }) => (
+              <div key={label} style={{ ...CARD, padding:"18px 20px" }}>
+                <p style={{ ...LABEL, marginBottom:"8px" }}>{label}</p>
+                <p style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"22px", color }}>{value}</p>
+              </div>
+            ))}
           </div>
-          <table style={{ width:"100%", borderCollapse:"collapse" }}>
-            <thead><tr>{["Ticker","Nombre","Entrada","Actual","Valor","P&L €","P&L %"].map(h=><th key={h} style={TH}>{h}</th>)}</tr></thead>
-            <tbody>
-              {cartAcciones.map(({ ticker,nombre,entrada,actual,valor,pnlEur,pnlPct,pos }) => (
-                <tr key={ticker}>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#00C8FF" }}>{ticker}</td>
-                  <td style={{ ...TD, fontSize:"13px", color:"#5A6470" }}>{nombre}</td>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"#5A6470" }}>{entrada}</td>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"13px", color:"#FFFFFF" }}>{actual}</td>
-                  <td style={{ ...TD, fontSize:"13px", color:"#9AA3AD" }}>{valor}</td>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pos ? "#00E676" : "#FF3D71" }}>{pnlEur}</td>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pos ? "#00E676" : "#FF3D71" }}>{pnlPct}</td>
+          {/* Alertas activas */}
+          <div style={{ display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap" }}>
+            <span style={LABEL}>Alertas activas:</span>
+            {carteraAcciones
+              .filter(a => a.alerta === "STOP ACTIVO" || a.alerta === "REVISAR STOP")
+              .map(a => (
+                <span key={a.ticker} style={{
+                  padding:"3px 10px", borderRadius:"3px", fontSize:"11px", fontWeight:700, letterSpacing:"0.04em",
+                  background: a.alerta === "STOP ACTIVO" ? "rgba(255,61,113,0.15)" : "rgba(255,184,0,0.15)",
+                  color:       a.alerta === "STOP ACTIVO" ? "#FF3D71" : "#FFB800",
+                  border:`1px solid ${a.alerta === "STOP ACTIVO" ? "rgba(255,61,113,0.3)" : "rgba(255,184,0,0.3)"}`,
+                }}>
+                  {a.ticker} — {a.alerta}
+                </span>
+              ))
+            }
+          </div>
+          {/* Tabla */}
+          <div style={{ ...CARD, overflow:"hidden" }}>
+            <div style={{ padding:"16px 20px", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+              <p style={LABEL}>Cartera Acciones — MEXEM · 6 Jun 2026</p>
+            </div>
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+              <thead><tr>{["Ticker","Empresa","PnL €","PnL %","Estado"].map(h=><th key={h} style={TH}>{h}</th>)}</tr></thead>
+              <tbody>
+                {carteraAcciones.flatMap((item, idx) => {
+                  const prevPos = idx > 0 ? carteraAcciones[idx - 1].pos : true;
+                  const showSep = !item.pos && prevPos;
+                  const rowBg = item.alerta === "STOP ACTIVO"  ? "rgba(255,61,113,0.05)"
+                              : item.alerta === "REVISAR STOP" ? "rgba(255,184,0,0.04)"
+                              : "transparent";
+                  const rows: React.ReactElement[] = [];
+                  if (showSep) rows.push(
+                    <tr key={`sep-${item.ticker}`}>
+                      <td colSpan={5} style={{ padding:"5px 14px", background:"rgba(255,255,255,0.015)", borderTop:"1px solid rgba(255,255,255,0.08)", borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
+                        <span style={{ fontSize:"10px", fontWeight:700, color:"#5A6470", letterSpacing:"0.12em" }}>── EN PÉRDIDAS ─────────────────────────────────</span>
+                      </td>
+                    </tr>
+                  );
+                  rows.push(
+                    <tr key={item.ticker} style={{ background: rowBg }}>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#00C8FF" }}>{item.ticker}</td>
+                      <td style={{ ...TD, fontSize:"13px", color:"#5A6470" }}>{item.nombre}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: item.pos ? "#00E676" : "#FF3D71" }}>{item.pnlEur}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: item.pos ? "#00E676" : "#FF3D71" }}>{item.pnlPct}</td>
+                      <td style={{ ...TD }}>
+                        {item.alerta && (
+                          <span style={{
+                            fontSize:"10px", fontWeight:700, padding:"2px 7px", borderRadius:"3px", letterSpacing:"0.04em",
+                            background: item.alerta === "STOP ACTIVO" ? "rgba(255,61,113,0.15)" : item.alerta === "REVISAR STOP" ? "rgba(255,184,0,0.15)" : "rgba(90,100,112,0.12)",
+                            color:       item.alerta === "STOP ACTIVO" ? "#FF3D71"              : item.alerta === "REVISAR STOP" ? "#FFB800"              : "#5A6470",
+                            border:`1px solid ${item.alerta === "STOP ACTIVO" ? "rgba(255,61,113,0.3)" : item.alerta === "REVISAR STOP" ? "rgba(255,184,0,0.3)" : "rgba(90,100,112,0.25)"}`,
+                          }}>{item.alerta}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                  return rows;
+                })}
+                <tr>
+                  <td colSpan={2} style={{ padding:"12px 14px", fontWeight:700, color:"#FFFFFF", fontSize:"13px", borderTop:"1px solid rgba(255,255,255,0.08)" }}>TOTAL · 18 posiciones</td>
+                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#00E676", borderTop:"1px solid rgba(255,255,255,0.08)" }}>+357,90€</td>
+                  <td colSpan={2} style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"#5A6470", borderTop:"1px solid rgba(255,255,255,0.08)" }}>Capital: 12.022,43€</td>
                 </tr>
-              ))}
-              <tr>
-                <td colSpan={4} style={{ padding:"12px 14px", fontWeight:700, color:"#FFFFFF", fontSize:"13px", borderTop:"1px solid rgba(255,255,255,0.06)" }}>TOTAL</td>
-                <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#FFFFFF", borderTop:"1px solid rgba(255,255,255,0.06)" }}>12.822€</td>
-                <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#00E676", borderTop:"1px solid rgba(255,255,255,0.06)" }}>+674€</td>
-                <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#00E676", borderTop:"1px solid rgba(255,255,255,0.06)" }}>+9.8%</td>
-              </tr>
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
