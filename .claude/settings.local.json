@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "PowerShell(npx create-next-app@latest . --typescript --tailwind --app --yes)",
-      "PowerShell(npm run *)"
+      "PowerShell(npm run *)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

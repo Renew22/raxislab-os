@@ -4,32 +4,42 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/clientes", label: "Clientes" },
-  { href: "/trading", label: "Trading" },
-  { href: "/leads", label: "Leads" },
-  { href: "/proyectos", label: "Proyectos" },
-  { href: "/automatizaciones", label: "Automatizaciones" },
-  { href: "/stokers", label: "Stokers Market" },
+  { href: "/dashboard",       label: "Dashboard" },
+  { href: "/clientes",        label: "Clientes" },
+  { href: "/contenido",       label: "Contenido" },
+  { href: "/trading",         label: "Trading" },
+  { href: "/stokers",         label: "Stokers Market" },
+  { href: "/leads",           label: "Leads" },
+  { href: "/proyectos",       label: "Proyectos" },
+  { href: "/automatizaciones",label: "Automatizaciones" },
+  { href: "/plan",            label: "Plan Personal" },
 ];
 
 export default function NavLinks() {
   const pathname = usePathname();
 
   return (
-    <ul className="space-y-1">
+    <ul style={{ listStyle: "none" }}>
       {links.map(({ href, label }) => {
         const active = pathname === href || pathname.startsWith(href + "/");
         return (
           <li key={href}>
             <Link
               href={href}
-              className="block px-3 py-2 rounded-sm text-sm transition-colors"
-              style={
-                active
-                  ? { background: "rgba(0,200,255,0.08)", color: "#00C8FF", fontWeight: "500" }
-                  : { color: "#5A6470" }
-              }
+              style={{
+                display: "block",
+                padding: "8px 12px",
+                paddingLeft: active ? "10px" : "12px",
+                marginBottom: "2px",
+                borderRadius: "4px",
+                fontSize: "13px",
+                fontWeight: active ? 500 : 400,
+                color: active ? "#FFFFFF" : "#5A6470",
+                borderLeft: active ? "2px solid #00C8FF" : "2px solid transparent",
+                background: active ? "rgba(0,200,255,0.05)" : "transparent",
+                textDecoration: "none",
+                transition: "color 0.15s, background 0.15s",
+              }}
             >
               {label}
             </Link>
