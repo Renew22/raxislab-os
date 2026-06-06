@@ -83,8 +83,180 @@ const PROMPTS = [
   "Pre-market resumen: earnings, macro, setups destacados para hoy",
 ];
 
-type Tab = "Acciones"|"Crypto"|"Dividendos"|"Diario"|"Setups";
-const TABS: Tab[] = ["Acciones","Crypto","Dividendos","Diario","Setups"];
+const TRADING_PROMPTS = [
+  { id:"P1",  titulo:"Macro diario",
+    prompt:`Eres mi analista macro senior. Dame el briefing completo de apertura de hoy:
+
+1. FUTUROS Y APERTURA: Estado actual de futuros US (ES, NQ, RTY), Europa (DAX, IBEX) y Asia cerrada
+2. MACRO DEL DÍA: Datos económicos publicados hoy y pendientes (hora, consenso, anterior)
+3. NARRATIVA DOMINANTE: Qué está moviendo el mercado hoy y por qué
+4. SECTORES: Top 3 sectores fuertes y top 3 débiles en la apertura
+5. SETUPS DESTACADOS: 3-5 tickers con movimiento relevante pre-market y por qué
+6. RIESGO DEL DÍA: Nivel de riesgo 1-10 y qué eventos podrían generar volatilidad
+
+Formato: secciones numeradas, datos concretos, sin texto de relleno.` },
+  { id:"P2",  titulo:"Empresa nueva",
+    prompt:`Analiza esta empresa para decidir si entra en la cartera Raxis Investor:
+Ticker: [TICKER]
+
+1. TESIS EN UNA LÍNEA: Por qué podría ser una buena inversión
+2. NEGOCIO: Qué hace, cómo gana dinero, moat, posición competitiva
+3. FINANCIERO: Revenue growth YoY, márgenes (bruto/operativo/neto), deuda/equity, FCF
+4. TÉCNICO: Tendencia principal, soporte/resistencia clave, volumen, RSI semanal
+5. CATALIZADORES: 3-5 catalizadores concretos próximos 6-12 meses
+6. RIESGOS: Top 3 riesgos que invalidarían la tesis
+7. VALORACIÓN: P/E, P/S, EV/EBITDA vs sector. ¿Cara, justa o barata?
+8. VEREDICTO: COMPRAR / VIGILAR / PASAR + nivel de convicción 1-10
+
+Respuesta estructurada, datos actualizados, sin fluff.` },
+  { id:"P3",  titulo:"Update posición",
+    prompt:`Tengo esta posición abierta y necesito un update completo:
+Ticker: [TICKER] | Entrada: [PRECIO] | Stop actual: [STOP] | Target: [TARGET]
+Tesis original: [DESCRIBE LA TESIS EN 1-2 LÍNEAS]
+
+1. QUÉ HA CAMBIADO: Noticias, earnings, sector desde mi entrada
+2. TESIS VIGENTE: ¿Sigue intacta? ¿Fortalecida o debilitada? Justifica
+3. TÉCNICO ACTUAL: Precio vs soporte/resistencia, tendencia, volumen
+4. CATALIZADORES PRÓXIMOS: Qué eventos pueden mover el precio en 1-4 semanas
+5. ESCENARIOS: A) Bull case: target y probabilidad | B) Bear case: invalidación
+6. ACCIÓN RECOMENDADA: Mantener / Reducir / Añadir / Cerrar + por qué
+
+Dame decisión clara y concisa. No repeats, no fluff.` },
+  { id:"P4",  titulo:"Screener sector",
+    prompt:`Haz un screener del sector [SECTOR] buscando las mejores oportunidades ahora:
+
+FILTROS CUANTITATIVOS:
+- Cap: preferiblemente $500M-$10B (small/mid cap con momentum)
+- Revenue growth >20% YoY o aceleración reciente
+- Márgenes mejorando o superiores al sector
+- Deuda manejable (D/E <1 o con FCF positivo)
+
+FILTROS TÉCNICOS:
+- Precio sobre media 50d y 200d (o en proceso de recuperación)
+- Volumen sobre media 20d en los últimos 5 días
+- RSI 40-70 (no sobrecomprado ni en caída libre)
+
+OUTPUT: Dame 5 nombres concretos con:
+Ticker | Por qué destaca | Nivel de entrada sugerido | Stop | Target 6-12 meses
+Ordena de mayor a menor convicción.` },
+  { id:"P5",  titulo:"Validar spike",
+    prompt:`El precio de [TICKER] acaba de moverse [X%] en [TIMEFRAME]. Necesito validación rápida:
+
+1. CAUSA: ¿Qué desencadenó el movimiento? (news, earnings, upgrade, rumor, macro)
+2. CALIDAD DEL MOVIMIENTO: ¿Volumen confirma? ¿Es sostenible o fade probable?
+3. CONTEXTO TÉCNICO: ¿Rompe nivel clave? ¿Qué hay arriba/abajo como resistencia/soporte?
+4. OPCIONES:
+   A) Perseguir — riesgos y setup
+   B) Esperar retroceso — niveles de entrada
+   C) Ignorar — si es ruido
+5. ACCIÓN: Recomendación concreta con entrada, stop y target si aplica
+
+Respuesta en menos de 5 minutos de lectura. Solo lo relevante.` },
+  { id:"P6",  titulo:"Semanal",
+    prompt:`Genera el análisis semanal completo de la cartera Raxis Investor:
+
+1. MERCADO LA SEMANA PASADA: SP500, Nasdaq, Russell — % cambio, narrativa, volumen
+2. REVIEW CARTERA: Para cada posición — qué pasó, tesis status (verde/amarillo/rojo)
+3. VIGILANCIA: Tickers en watchlist que tuvieron movimiento relevante esta semana
+4. AGENDA PRÓXIMA SEMANA: Earnings relevantes, datos macro, eventos Fed/BCE
+5. SETUPS PARA LA SEMANA: 3-5 ideas concretas con entrada, stop, target
+6. ROTACIONES: ¿Qué sectores están recibiendo/perdiendo flujo? ¿Qué implica?
+
+Cartera actual: [LISTA TUS POSICIONES AQUÍ]
+Formato tabla donde aplique. Conciso y accionable.` },
+  { id:"P7",  titulo:"Super Prompt 10 bloques",
+    prompt:`Análisis COMPLETO para decisión de inversión. Ticker: [TICKER]
+Genera los 10 bloques siguientes sin excepciones:
+
+BLOQUE 1 — TESIS: Una frase. ¿Por qué esta empresa puede multiplicar?
+BLOQUE 2 — NEGOCIO: Modelo de ingresos, ventaja competitiva, TAM, market share
+BLOQUE 3 — FINANCIERO: últimos 4 trimestres — Revenue, EPS, Margen Bruto, FCF
+BLOQUE 4 — VALORACIÓN: P/E, EV/EBITDA, P/S, DCF estimate vs precio actual
+BLOQUE 5 — TÉCNICO: Timeframe semanal + diario, niveles clave, tendencia, RSI, MACD
+BLOQUE 6 — CATALIZADORES: Lista con fecha estimada y impacto potencial %
+BLOQUE 7 — SENTIMIENTO: Short interest %, insider activity, analyst ratings recientes
+BLOQUE 8 — RIESGOS: Top 5 riesgos con probabilidad y severidad (matriz)
+BLOQUE 9 — COMPARABLES: 3 empresas similares — múltiplos y crecimiento vs [TICKER]
+BLOQUE 10 — PLAN: Entrada óptima | Stop | Target 1 (6m) | Target 2 (12m) | Tamaño %` },
+  { id:"P8",  titulo:"Fundamentales profundos",
+    prompt:`Análisis de fundamentales profundos para [TICKER]. Quiero el máximo detalle:
+
+1. CALIDAD DEL NEGOCIO (1-10): ROIC, ROAE, retention rate, pricing power, switching costs
+2. CRECIMIENTO: Revenue CAGR 3-5 años, aceleración o desaceleración, guidance management
+3. BALANCE: Cash, deuda total, deuda neta/EBITDA, vencimientos, covenants relevantes
+4. FREE CASH FLOW: FCF margin, conversión FCF/beneficio, uso del FCF (buybacks, dividendo, CAPEX)
+5. VALORACIÓN HISTÓRICA: Rango P/E y EV/EBITDA últimos 5 años — ¿está barato vs histórico?
+6. CALIDAD DEL MANAGEMENT: Track record, skin in the game (% ownership), capital allocation
+7. ALERTAS: Red flags contables, dilución excesiva, guidance cuts, cambios de auditor
+8. SCORE FINAL: /100 con desglose por categoría
+
+Quiero datos, no opiniones. Fuentes: últimos earnings, 10-K/10-Q, presentaciones inversores.` },
+  { id:"P9",  titulo:"SuperChart Pro (imagen)",
+    prompt:`[ADJUNTA CAPTURA DEL GRÁFICO]
+Analiza este gráfico como un trader profesional.
+Ticker: [TICKER] | Timeframe: [1D / 1W / ...]
+
+1. ESTRUCTURA DE MERCADO: Tendencia principal (alcista/bajista/lateral), HH/HL o LH/LL
+2. NIVELES CLAVE: Soportes y resistencias más importantes. ¿Dónde está el precio ahora?
+3. PATRONES: ¿Algún patrón en formación o completado? (flag, cup, H&S, wedge, triángulo...)
+4. INDICADORES: Lee RSI, MACD, volumen — ¿confirman o divergen del precio?
+5. ESCENARIOS:
+   A) Alcista — condición necesaria + target
+   B) Bajista — condición + nivel de invalidación
+6. TRADE SETUP: Entrada óptima | Stop (con justificación técnica) | Target 1 | Target 2 | R:R ratio
+
+Análisis técnico puro. No macro, no fundamentales. Solo lo que muestra el gráfico.` },
+  { id:"P10", titulo:"Pepine nocturno",
+    prompt:`Son las 22:00-23:00. Prepara el briefing nocturno para la sesión de mañana:
+
+1. CIERRE DE HOY: SP500, Nasdaq, Russell — cierre, % cambio, volumen relativo, breadth
+2. FUTUROS NOCHE: Movimiento actual de ES y NQ futuros + catalizador si hay
+3. WATCHLIST MAÑANA: 5-7 tickers para vigilar con el setup específico de cada uno
+4. RIESGO MACRO: Datos económicos mañana (hora ET, consenso, anterior, impacto esperado)
+5. SESGO DEL DÍA: Alcista / Bajista / Neutral para mañana y por qué en 2 líneas
+6. GESTIÓN CARTERA: ¿Alguna posición abierta que necesite revisión por lo ocurrido hoy?
+
+Cartera abierta: [LISTA POSICIONES]
+Respuesta concisa. Máximo 400 palabras. Solo lo accionable.` },
+  { id:"P11", titulo:"Analizar captura Finviz",
+    prompt:`[ADJUNTA CAPTURA DE FINVIZ DEL TICKER]
+Eres un analista value/growth. Extrae todo lo relevante de esta ficha Finviz:
+
+1. FUNDAMENTALES CLAVE: P/E, P/S, P/B, EV/EBITDA, Debt/Eq, ROE, ROI, Current Ratio
+2. SEÑALES TÉCNICAS: Performance (semana/mes/año), SMA 20/50/200, RSI, volatilidad (ATR, Beta)
+3. ANALISTAS: Precio objetivo consenso vs actual, % upside, recomendación, cambios recientes
+4. EARNINGS: Próxima fecha, EPS surprise histórico, guidance
+5. VALORACIÓN COMPARADA: ¿Caro o barato vs sector? Usa los múltiplos del Finviz
+6. SCORING RÁPIDO:
+   Fundamentales /10 | Técnico /10 | Valoración /10
+   VEREDICTO: COMPRAR / VIGILAR / PASAR
+
+Análisis objetivo basado en los datos del Finviz.` },
+  { id:"P12", titulo:"Cripto CoinEx",
+    prompt:`Analiza mi cartera crypto actual en CoinEx Spot (6 junio 2026):
+
+POSICIONES:
+- SOL:  10.22 unidades | Valor: $644.99  | PnL: -$169.62 (-20.8%)
+- XRP:  406.11 unidades | Valor: $445.50  | PnL: -$174.11 (-28.1%)
+- ETH:  0.163 unidades  | Valor: $257.82  | PnL: -$64.07  (-19.9%)
+- USDT: 178.72 unidades | Valor: $178.58  (liquidez)
+- DOGE: 2079.12 unidades| Valor: $169.75  | PnL: +$97.09  (+134.2%)
+- DOT:  112.81 unidades | Valor: $106.42  | PnL: -$77.13  (-42.0%)
+- LTC:  1.71 unidades   | Valor: $73.48   | PnL: -$25.85  (-26.0%)
+- ADA:  238.44 unidades | Valor: $37.70   | PnL: -$31.11  (-45.2%)
+TOTAL: $1.916 | PnL total: -$458 (-20.99%)
+
+1. ESTADO DEL MERCADO CRYPTO HOY: Sentimiento general, BTC dominance, Fear & Greed
+2. DECISIÓN POR MONEDA: Para cada posición — Mantener / Tomar parciales / Aumentar / Liquidar + por qué
+3. SUGERENCIAS DE ROTACIÓN: ¿Hay mejores oportunidades ahora?
+4. GESTIÓN DE RIESGO: ¿Concentración excesiva? ¿Optimizo el USDT?
+5. PRÓXIMOS CATALIZADORES: Eventos relevantes para cada moneda en cartera
+
+Respuesta estructurada, decisiones claras, sin teoría general de crypto.` },
+];
+
+type Tab = "Acciones"|"Crypto"|"Dividendos"|"Diario"|"Setups"|"Prompts";
+const TABS: Tab[] = ["Acciones","Crypto","Dividendos","Diario","Setups","Prompts"];
 
 const CARD  = { background:"#111111", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"6px" } as React.CSSProperties;
 const LABEL = { fontSize:"11px", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase" as const, color:"#5A6470" };
@@ -102,6 +274,11 @@ export default function TradingPage() {
   const [tab, setTab] = useState<Tab>("Acciones");
   const [newOp, setNewOp] = useState({ ticker:"", entrada:"", salida:"", tipo:"LONG" });
   const [ops, setOps] = useState(diarioOps);
+  const [modal, setModal] = useState({ open:false, title:"", content:"" });
+
+  function openModal(title: string, content: string) {
+    setModal({ open:true, title, content });
+  }
 
   function addOp() {
     if (!newOp.ticker || !newOp.entrada || !newOp.salida) return;
@@ -383,6 +560,50 @@ export default function TradingPage() {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Prompts */}
+      {tab === "Prompts" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"10px" }}>
+            {TRADING_PROMPTS.map(({ id, titulo, prompt }) => (
+              <button
+                key={id}
+                onClick={() => openModal(`${id} — ${titulo}`, prompt)}
+                style={{ textAlign:"left", padding:"16px 18px", borderRadius:"6px", border:"1px solid rgba(255,255,255,0.08)", background:"#111111", color:"#FFFFFF", cursor:"pointer", display:"flex", flexDirection:"column", gap:"6px" }}
+                onMouseEnter={e=>(e.currentTarget.style.borderColor="rgba(0,200,255,0.3)")}
+                onMouseLeave={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,0.08)")}
+              >
+                <span style={{ fontFamily:"'Space Mono', monospace", color:"#00C8FF", fontSize:"14px", fontWeight:700 }}>{id}</span>
+                <span style={{ fontSize:"13px", fontWeight:500, color:"#FFFFFF" }}>{titulo}</span>
+                <span style={{ fontSize:"11px", color:"#5A6470" }}>Ver prompt completo →</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal */}
+      {modal.open && (
+        <div
+          onClick={() => setModal(m => ({ ...m, open:false }))}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:"20px" }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background:"#111111", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"10px", padding:"28px", maxWidth:"660px", width:"100%", maxHeight:"82vh", overflowY:"auto" }}
+          >
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"20px" }}>
+              <h3 style={{ color:"#FFFFFF", margin:0, fontSize:"15px", fontWeight:600 }}>{modal.title}</h3>
+              <button onClick={() => setModal(m => ({ ...m, open:false }))} style={{ background:"none", border:"none", color:"#5A6470", cursor:"pointer", fontSize:"22px", lineHeight:1, padding:"0 4px" }}>✕</button>
+            </div>
+            <pre style={{ color:"#C4CDD5", fontSize:"12px", lineHeight:1.75, whiteSpace:"pre-wrap", fontFamily:"'Space Mono', monospace", margin:"0 0 24px 0" }}>{modal.content}</pre>
+            <button
+              onClick={() => navigator.clipboard.writeText(modal.content).then(() => alert("Copiado al portapapeles ✅"))}
+              style={{ padding:"9px 22px", background:"#00C8FF", color:"#000000", border:"none", borderRadius:"5px", cursor:"pointer", fontWeight:700, fontSize:"13px" }}
+            >Copiar prompt</button>
           </div>
         </div>
       )}
