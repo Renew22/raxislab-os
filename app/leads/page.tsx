@@ -81,10 +81,29 @@ He visto ${l.nombre} en ${l.ciudad} y creo que puedo ayudaros a conseguir más c
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>(LEADS_INITIAL);
   const [sectorFiltro, setSectorFiltro] = useState<Sector | "Todos">("Todos");
-  const [modal, setModal] = useState<{ lead: Lead; tipo: "email" | "wa" } | null>(null);
+  const [modal, setModal] = useState<{ lead: Lead; tipo: "email" | "wa"; content: string | null; loading: boolean } | null>(null);
 
   function cambiarEstado(id: string, estado: Estado) {
     setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, estado } : l)));
+  }
+
+  async function openModal(lead: Lead, tipo: "email" | "wa") {
+    if (tipo === "wa") {
+      setModal({ lead, tipo, content: generarWA(lead), loading: false });
+      return;
+    }
+    setModal({ lead, tipo, content: null, loading: true });
+    try {
+      const res = await fetch('/api/claude/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'email_lead', data: { empresa: lead.nombre, sector: lead.sector } }),
+      });
+      const json = await res.json();
+      setModal(prev => prev ? { ...prev, content: json.content, loading: false } : null);
+    } catch {
+      setModal(prev => prev ? { ...prev, content: generarEmail(lead), loading: false } : null);
+    }
   }
 
   const filtered = sectorFiltro === "Todos" ? leads : leads.filter((l) => l.sector === sectorFiltro);
@@ -173,14 +192,14 @@ export default function LeadsPage() {
                     </select>
 
                     <button
-                      onClick={() => setModal({ lead, tipo: "email" })}
+                      onClick={() => openModal(lead, "email")}
                       className="text-xs px-3 py-1.5 rounded-md font-medium transition-opacity hover:opacity-80"
                       style={{ background: "rgba(99,102,241,0.12)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.2)" }}
                     >
                       ✉ Email personalizado
                     </button>
                     <button
-                      onClick={() => setModal({ lead, tipo: "wa" })}
+                      onClick={() => openModal(lead, "wa")}
                       className="text-xs px-3 py-1.5 rounded-md font-medium transition-opacity hover:opacity-80"
                       style={{ background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)" }}
                     >
@@ -216,17 +235,18 @@ export default function LeadsPage() {
               className="text-xs leading-relaxed whitespace-pre-wrap p-4 rounded-lg overflow-auto"
               style={{ background: "rgba(255,255,255,0.03)", color: "#94a3b8", border: "1px solid #1a1a2e", maxHeight: "320px" }}
             >
-              {modal.tipo === "email" ? generarEmail(modal.lead) : generarWA(modal.lead)}
+              {modal.loading ? "Generando mensaje con IA..." : (modal.content ?? "")}
             </pre>
             <button
               onClick={() => {
-                const txt = modal.tipo === "email" ? generarEmail(modal.lead) : generarWA(modal.lead);
+                const txt = modal.content ?? "";
                 navigator.clipboard.writeText(txt).then(() => alert("Copiado al portapapeles ✅"));
               }}
+              disabled={modal.loading}
               className="mt-4 w-full py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
-              style={{ background: "#6366f1", color: "#fff" }}
+              style={{ background: modal.loading ? "#334155" : "#6366f1", color: "#fff" }}
             >
-              Copiar al portapapeles
+              {modal.loading ? "Generando..." : "Copiar al portapapeles"}
             </button>
           </div>
         </div>

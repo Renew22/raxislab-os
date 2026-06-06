@@ -85,6 +85,13 @@ const NICHOS = ["AI Tools / Productividad", "Local Business Marketing", "Meta Ad
 
 const CLIENTES_LIST = ["Identity Peluqueros", "Desancho Estilistas", "Malvarrosa CF", "Matías Benegas Tattoo"];
 
+const CLIENTES_SECTOR: Record<string, string> = {
+  "Identity Peluqueros": "Peluquería",
+  "Desancho Estilistas": "Peluquería",
+  "Malvarrosa CF": "Deporte",
+  "Matías Benegas Tattoo": "Estudio Tattoo",
+};
+
 const episodios = [
   { num:1, titulo:"Cómo monté mi agencia desde 0",                     estado:"GRABADO",        color:"#00E676" },
   { num:2, titulo:"El error que cometí con mi primer cliente",          estado:"EDICIÓN",        color:"#FFB800" },
@@ -105,22 +112,59 @@ export default function ContenidoPage() {
   const [tab, setTab] = useState<Tab>("Videos");
   const [guionAbierto, setGuionAbierto] = useState<string | null>(null);
   const [nicho, setNicho] = useState(NICHOS[0]);
-  const [articuloGenerado, setArticuloGenerado] = useState(false);
+  const [topicInput, setTopicInput] = useState("");
+  const [articuloTexto, setArticuloTexto] = useState<string | null>(null);
+  const [articuloLoading, setArticuloLoading] = useState(false);
   const [clienteSelected, setClienteSelected] = useState(CLIENTES_LIST[0]);
   const [contenidoCliente, setContenidoCliente] = useState<string | null>(null);
+  const [contenidoLoading, setContenidoLoading] = useState(false);
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
 
-  function generarArticulo() {
-    setArticuloGenerado(true);
+  async function generarArticulo() {
+    setArticuloLoading(true);
+    setArticuloTexto(null);
+    try {
+      const res = await fetch('/api/claude/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'blog_article', data: { topic: topicInput || nicho, keyword: nicho.split("/")[0].trim() } }),
+      });
+      const json = await res.json();
+      setArticuloTexto(json.content);
+    } catch {
+      setArticuloTexto('Error generando artículo. Inténtalo de nuevo.');
+    } finally {
+      setArticuloLoading(false);
+    }
   }
 
-  function generarContenidoCliente(tipo: string) {
-    const msgs: Record<string, string> = {
-      "Post GBP": `📍 ${clienteSelected}\n\n¿Buscas resultados reales?\n\nTrabajamos contigo desde el primer día con estrategia, creatividad y seguimiento constante.\n\n🔗 Reserva tu consulta gratuita en el enlace de bio.\n\n#MarketingDigital #Resultados`,
-      "Reel": `Guión reel 30seg para ${clienteSelected}:\n\n[0-3s] Hook visual: resultado antes/después\n[3-10s] Problema que resuelves\n[10-20s] Tu solución en 3 pasos\n[20-27s] Resultado y social proof\n[27-30s] CTA: "Link en bio"`,
-      "Reseña": `Hola, muchas gracias por tu reseña ⭐\n\nNos alegra mucho que hayas quedado satisfecho/a. En ${clienteSelected} trabajamos cada día para darte el mejor servicio.\n\n¡Te esperamos pronto!`,
+  async function generarContenidoCliente(tipo: string) {
+    setContenidoLoading(true);
+    setContenidoCliente(null);
+    const sector = CLIENTES_SECTOR[clienteSelected] ?? "local business";
+    const typeMap: Record<string, string> = {
+      "Post GBP": "gbp_post",
+      "Reel": "reel_script",
+      "Reseña": "review_response",
     };
-    setContenidoCliente(msgs[tipo] ?? "");
+    const dataMap: Record<string, object> = {
+      "Post GBP": { cliente: clienteSelected, sector },
+      "Reel": { cliente: clienteSelected, sector, topic: `servicios de ${sector}` },
+      "Reseña": { cliente: clienteSelected, review: "Excelente servicio, muy satisfecho con los resultados" },
+    };
+    try {
+      const res = await fetch('/api/claude/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: typeMap[tipo], data: dataMap[tipo] }),
+      });
+      const json = await res.json();
+      setContenidoCliente(json.content);
+    } catch {
+      setContenidoCliente('Error generando contenido. Inténtalo de nuevo.');
+    } finally {
+      setContenidoLoading(false);
+    }
   }
 
   return (
@@ -175,25 +219,27 @@ export default function ContenidoPage() {
               <p style={{ fontSize:"12px", color:"#5A6470", marginBottom:"8px" }}>Nicho</p>
               <div style={{ display:"flex", flexWrap:"wrap", gap:"8px" }}>
                 {NICHOS.map(n => (
-                  <button key={n} onClick={() => { setNicho(n); setArticuloGenerado(false); }} style={{ padding:"6px 12px", borderRadius:"4px", border:`1px solid ${nicho===n ? "rgba(0,200,255,0.3)" : "rgba(255,255,255,0.06)"}`, background: nicho===n ? "rgba(0,200,255,0.08)" : "transparent", color: nicho===n ? "#00C8FF" : "#5A6470", fontSize:"12px", cursor:"pointer" }}>{n}</button>
+                  <button key={n} onClick={() => { setNicho(n); setArticuloTexto(null); }} style={{ padding:"6px 12px", borderRadius:"4px", border:`1px solid ${nicho===n ? "rgba(0,200,255,0.3)" : "rgba(255,255,255,0.06)"}`, background: nicho===n ? "rgba(0,200,255,0.08)" : "transparent", color: nicho===n ? "#00C8FF" : "#5A6470", fontSize:"12px", cursor:"pointer" }}>{n}</button>
                 ))}
               </div>
             </div>
-            <button onClick={generarArticulo} style={{ width:"100%", padding:"12px", borderRadius:"6px", background:"#00C8FF", color:"#000", fontSize:"13px", fontWeight:600, border:"none", cursor:"pointer", marginBottom: articuloGenerado ? "16px" : "0" }}>
-              Generar artículo →
+            <div style={{ marginBottom:"16px" }}>
+              <p style={{ fontSize:"12px", color:"#5A6470", marginBottom:"8px" }}>Tema del artículo (opcional)</p>
+              <input
+                value={topicInput}
+                onChange={e => setTopicInput(e.target.value)}
+                placeholder={`${nicho.split("/")[0].trim()} strategies for local businesses...`}
+                style={{ width:"100%", padding:"8px 12px", borderRadius:"4px", border:"1px solid rgba(255,255,255,0.06)", background:"#161616", color:"#FFFFFF", fontSize:"12px", outline:"none" }}
+              />
+            </div>
+            <button onClick={generarArticulo} disabled={articuloLoading} style={{ width:"100%", padding:"12px", borderRadius:"6px", background: articuloLoading ? "#1a3340" : "#00C8FF", color: articuloLoading ? "#00C8FF" : "#000", fontSize:"13px", fontWeight:600, border:"none", cursor: articuloLoading ? "not-allowed" : "pointer", marginBottom: articuloTexto ? "16px" : "0" }}>
+              {articuloLoading ? "Generando artículo..." : "Generar artículo →"}
             </button>
-            {articuloGenerado && (
+            {articuloTexto && (
               <div style={{ padding:"14px", borderRadius:"5px", background:"rgba(0,200,255,0.04)", border:"1px solid rgba(0,200,255,0.12)" }}>
-                <p style={{ fontSize:"13px", fontWeight:600, color:"#FFFFFF", marginBottom:"8px" }}>
-                  Title: 7 Proven {nicho.split("/")[0].trim()} Strategies for Local Businesses in 2026
-                </p>
-                <p style={{ fontSize:"12px", color:"#5A6470", lineHeight:1.6 }}>
-                  Introduction: In a world where AI is reshaping how customers find local services, businesses that adapt early will capture the lion&apos;s share of organic traffic...
-                  <br /><br />
-                  <strong style={{ color:"#9AA3AD" }}>Sections:</strong> Why {nicho.split("/")[0].trim()} matters · Top 7 strategies · Real case studies · Implementation checklist · Tools and pricing
-                </p>
-                <button onClick={() => alert("Borrador creado en WordPress ✅")} style={{ marginTop:"12px", padding:"7px 14px", borderRadius:"4px", background:"rgba(0,200,255,0.08)", color:"#00C8FF", border:"1px solid rgba(0,200,255,0.2)", fontSize:"12px", cursor:"pointer" }}>
-                  Crear borrador WordPress →
+                <pre style={{ fontSize:"12px", color:"#9AA3AD", whiteSpace:"pre-wrap", lineHeight:1.6, fontFamily:"inherit" }}>{articuloTexto}</pre>
+                <button onClick={() => navigator.clipboard.writeText(articuloTexto).then(() => alert("Copiado ✅"))} style={{ marginTop:"12px", padding:"7px 14px", borderRadius:"4px", background:"rgba(0,200,255,0.08)", color:"#00C8FF", border:"1px solid rgba(0,200,255,0.2)", fontSize:"12px", cursor:"pointer" }}>
+                  Copiar artículo
                 </button>
               </div>
             )}
@@ -210,13 +256,13 @@ export default function ContenidoPage() {
               <p style={{ fontSize:"12px", color:"#5A6470", marginBottom:"8px" }}>Cliente</p>
               <div style={{ display:"flex", flexWrap:"wrap", gap:"8px" }}>
                 {CLIENTES_LIST.map(c => (
-                  <button key={c} onClick={() => { setClienteSelected(c); setContenidoCliente(null); }} style={{ padding:"6px 12px", borderRadius:"4px", border:`1px solid ${clienteSelected===c ? "rgba(0,200,255,0.3)" : "rgba(255,255,255,0.06)"}`, background: clienteSelected===c ? "rgba(0,200,255,0.08)" : "transparent", color: clienteSelected===c ? "#00C8FF" : "#5A6470", fontSize:"12px", cursor:"pointer" }}>{c}</button>
+                  <button key={c} onClick={() => { setClienteSelected(c); setContenidoCliente(null); setContenidoLoading(false); }} style={{ padding:"6px 12px", borderRadius:"4px", border:`1px solid ${clienteSelected===c ? "rgba(0,200,255,0.3)" : "rgba(255,255,255,0.06)"}`, background: clienteSelected===c ? "rgba(0,200,255,0.08)" : "transparent", color: clienteSelected===c ? "#00C8FF" : "#5A6470", fontSize:"12px", cursor:"pointer" }}>{c}</button>
                 ))}
               </div>
             </div>
             <div style={{ display:"flex", gap:"10px", flexWrap:"wrap", marginBottom:"16px" }}>
               {[["Post GBP","Generar post Google Business"],["Reel","Generar guión de reel"],["Reseña","Responder reseña reciente"]].map(([tipo,label]) => (
-                <button key={tipo} onClick={() => generarContenidoCliente(tipo)} style={{ padding:"9px 16px", borderRadius:"5px", border:"1px solid rgba(255,255,255,0.06)", background:"#161616", color:"#9AA3AD", fontSize:"12px", cursor:"pointer", fontWeight:500 }}>{label}</button>
+                <button key={tipo} onClick={() => generarContenidoCliente(tipo)} disabled={contenidoLoading} style={{ padding:"9px 16px", borderRadius:"5px", border:"1px solid rgba(255,255,255,0.06)", background:"#161616", color: contenidoLoading ? "#2A3040" : "#9AA3AD", fontSize:"12px", cursor: contenidoLoading ? "not-allowed" : "pointer", fontWeight:500 }}>{contenidoLoading ? "Generando..." : label}</button>
               ))}
             </div>
             {contenidoCliente && (

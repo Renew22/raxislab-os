@@ -40,13 +40,6 @@ const HISTORIAL: Record<string, { fecha: string; tipo: string; nota: string }[]>
   "Matías Benegas Tattoo": [{ fecha:"2026-05-30",tipo:"WhatsApp",nota:"Solicitud contenido booking adicional." }],
 };
 
-const TENDENCIAS_MOCK = [
-  "Cortes texturizados masculinos — tendencia +42%",
-  "Tratamientos queratina sin formol — búsquedas +31%",
-  "Balayage natural 2026 — interés en pico mensual",
-  "Barbería premium vintage — mercado en alza +18%",
-  "Coloración vegana sin amoniaco — demanda creciente",
-];
 
 const DOCS: Record<string, string[]> = {
   "Identity Peluqueros":   ["Contrato firmado","Propuesta inicial","Brief servicio"],
@@ -71,6 +64,9 @@ export default function ClientesPage() {
   const [nuevaTarea, setNuevaTarea] = useState("");
   const [tendencias, setTendencias] = useState<Record<string, string[] | null>>({});
   const [contenidoResult, setContenidoResult] = useState<{ tipo: string; texto: string } | null>(null);
+  const [contenidoLoading, setContenidoLoading] = useState(false);
+  const [tendenciasLoading, setTendenciasLoading] = useState(false);
+  const [reseñaInput, setReseñaInput] = useState("");
 
   function abrirPanel(c: Cliente) {
     setSelected(c);
@@ -95,18 +91,52 @@ export default function ClientesPage() {
     setNuevaTarea("");
   }
 
-  function buscarTendencias() {
+  async function buscarTendencias() {
     if (!selected) return;
-    setTendencias(prev => ({ ...prev, [selected.nombre]: TENDENCIAS_MOCK }));
+    setTendenciasLoading(true);
+    try {
+      const res = await fetch('/api/claude/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'tendencias', data: { sector: selected.sector } }),
+      });
+      const json = await res.json();
+      const lines = json.content.split('\n').filter((l: string) => l.trim()).slice(0, 8);
+      setTendencias(prev => ({ ...prev, [selected.nombre]: lines }));
+    } catch {
+      setTendencias(prev => ({ ...prev, [selected.nombre]: ['Error al cargar tendencias.'] }));
+    } finally {
+      setTendenciasLoading(false);
+    }
   }
 
-  function generarContenido(tipo: string) {
-    const mockTextos: Record<string, string> = {
-      "GBP Post": `✂️ ¿Buscas una transformación real?\n\nEn ${selected?.nombre} combinamos técnica profesional con productos premium para que salgas diferente.\n\n📍 ${selected?.sector} en Valencia\n📞 Reserva tu cita ahora\n\n#Peluquería #Valencia #${selected?.sector?.replace(" ", "")}`,
-      "Artículo Blog": `# Título: Cómo elegir la mejor peluquería en Valencia en 2026\n\n**Introducción:** Con tantas opciones disponibles, encontrar el salon perfecto puede ser abrumador...\n\n**Sección 1:** Qué buscar en una peluquería profesional\n**Sección 2:** Los servicios que no pueden faltar\n**Conclusión:** Por qué ${selected?.nombre} destaca en el sector`,
-      "Respuesta Reseña": `¡Muchas gracias por tu reseña! 🙏 Nos alegra mucho saber que disfrutaste de tu visita. En ${selected?.nombre} trabajamos cada día para ofrecerte la mejor experiencia. ¡Te esperamos pronto para tu próxima visita! ✂️✨`,
+  async function generarContenido(tipo: string) {
+    if (!selected) return;
+    setContenidoLoading(true);
+    setContenidoResult(null);
+    const typeMap: Record<string, string> = {
+      "GBP Post": "gbp_post",
+      "Artículo Blog": "blog_article",
+      "Respuesta Reseña": "review_response",
     };
-    setContenidoResult({ tipo, texto: mockTextos[tipo] ?? "Contenido generado..." });
+    const dataMap: Record<string, object> = {
+      "GBP Post": { cliente: selected.nombre, sector: selected.sector },
+      "Artículo Blog": { topic: `${selected.sector} en Valencia`, keyword: selected.sector },
+      "Respuesta Reseña": { cliente: selected.nombre, review: reseñaInput || "Excelente servicio, muy satisfecho con los resultados" },
+    };
+    try {
+      const res = await fetch('/api/claude/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: typeMap[tipo], data: dataMap[tipo] }),
+      });
+      const json = await res.json();
+      setContenidoResult({ tipo, texto: json.content });
+    } catch {
+      setContenidoResult({ tipo, texto: 'Error generando contenido. Inténtalo de nuevo.' });
+    } finally {
+      setContenidoLoading(false);
+    }
   }
 
   return (
@@ -266,9 +296,16 @@ export default function ClientesPage() {
               {/* Contenido */}
               {panelTab === "Contenido" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <textarea
+                    value={reseñaInput}
+                    onChange={e => setReseñaInput(e.target.value)}
+                    placeholder="Pega aquí la reseña a responder (opcional)..."
+                    rows={2}
+                    style={{ padding: "8px 12px", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.06)", background: "#161616", color: "#9AA3AD", fontSize: "12px", outline: "none", resize: "vertical", fontFamily: "inherit" }}
+                  />
                   {[["GBP Post","Generar post Google Business"],["Artículo Blog","Generar artículo de blog"],["Respuesta Reseña","Responder reseña reciente"]].map(([tipo, label]) => (
-                    <button key={tipo} onClick={() => generarContenido(tipo)} style={{ padding: "12px 16px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", background: "#161616", color: "#9AA3AD", fontSize: "13px", textAlign: "left", cursor: "pointer", fontWeight: 500 }}>
-                      {label} →
+                    <button key={tipo} onClick={() => generarContenido(tipo)} disabled={contenidoLoading} style={{ padding: "12px 16px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", background: "#161616", color: contenidoLoading ? "#2A3040" : "#9AA3AD", fontSize: "13px", textAlign: "left", cursor: contenidoLoading ? "not-allowed" : "pointer", fontWeight: 500 }}>
+                      {contenidoLoading ? "Generando..." : `${label} →`}
                     </button>
                   ))}
                   {contenidoResult && (
@@ -286,9 +323,10 @@ export default function ClientesPage() {
                 <div>
                   <button
                     onClick={buscarTendencias}
-                    style={{ width: "100%", padding: "12px", borderRadius: "6px", border: "1px solid rgba(0,200,255,0.2)", background: "rgba(0,200,255,0.06)", color: "#00C8FF", fontSize: "13px", cursor: "pointer", fontWeight: 500, marginBottom: "16px" }}
+                    disabled={tendenciasLoading}
+                    style={{ width: "100%", padding: "12px", borderRadius: "6px", border: "1px solid rgba(0,200,255,0.2)", background: "rgba(0,200,255,0.06)", color: tendenciasLoading ? "#2A3040" : "#00C8FF", fontSize: "13px", cursor: tendenciasLoading ? "not-allowed" : "pointer", fontWeight: 500, marginBottom: "16px" }}
                   >
-                    Buscar tendencias sector → {selected.sector}
+                    {tendenciasLoading ? "Buscando tendencias..." : `Buscar tendencias sector → ${selected.sector}`}
                   </button>
                   {tendencias[selected.nombre]?.map((t, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
