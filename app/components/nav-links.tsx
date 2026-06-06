@@ -10,6 +10,7 @@ const links = [
   { href: "/leads", label: "Leads" },
   { href: "/proyectos", label: "Proyectos" },
   { href: "/automatizaciones", label: "Automatizaciones" },
+  { href: "/stokers", label: "Stokers Market" },
 ];
 
 export default function NavLinks() {
