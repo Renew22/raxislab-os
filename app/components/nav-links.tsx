@@ -9,6 +9,7 @@ const links = [
   { href: "/contenido",       label: "Contenido" },
   { href: "/trading",         label: "Trading" },
   { href: "/stokers",         label: "Stokers Market" },
+  { href: "/raxis-investor",  label: "Raxis Investor" },
   { href: "/leads",           label: "Leads" },
   { href: "/proyectos",       label: "Proyectos" },
   { href: "/automatizaciones",label: "Automatizaciones" },
