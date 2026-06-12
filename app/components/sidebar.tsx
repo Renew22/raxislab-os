@@ -19,9 +19,9 @@ const NAV = [
   { href: "/raxis-investor",   label: "Raxis Investor",   Icon: TrendingUp      },
   { href: "/leads",            label: "Leads",            Icon: Target          },
   { href: "/proyectos",        label: "Proyectos",        Icon: FolderKanban    },
-  { href: "/automatizaciones", label: "Automatizaciones", Icon: Workflow        },
   { href: "/plan",             label: "Plan",             Icon: Calendar        },
   { href: "/finanzas",         label: "Finanzas",         Icon: Wallet          },
+  { href: "/automatizaciones", label: "Automatizaciones", Icon: Workflow        },
 ];
 
 export default function Sidebar() {
