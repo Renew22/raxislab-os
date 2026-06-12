@@ -39,13 +39,13 @@ const ESTADOS: Estado[] = ["Sin contactar", "Email 1", "Email 2", "Email 3", "Re
 const SECTORES: Sector[] = ["Taller", "Rent a Car", "Clínica", "Restaurante", "Peluquería"];
 
 const ESTADO_COLOR: Record<Estado, string> = {
-  "Sin contactar": "#475569",
-  "Email 1": "#818cf8",
-  "Email 2": "#a78bfa",
-  "Email 3": "#c084fc",
-  "Reunión": "#f59e0b",
-  "Cerrado": "#10b981",
-  "Descartado": "#334155",
+  "Sin contactar": "var(--text-muted)",
+  "Email 1": "var(--accent)",
+  "Email 2": "var(--accent)",
+  "Email 3": "var(--accent)",
+  "Reunión": "var(--amber)",
+  "Cerrado": "var(--green)",
+  "Descartado": "var(--text-muted)",
 };
 
 function generarEmail(l: Lead): string {
@@ -109,23 +109,27 @@ export default function LeadsPage() {
   const filtered = sectorFiltro === "Todos" ? leads : leads.filter((l) => l.sector === sectorFiltro);
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold" style={{ color: "#e2e8f0" }}>Leads — Prospecting System</h1>
-        <span className="text-xs" style={{ color: "#475569" }}>{filtered.length} leads</span>
+    <div style={{ padding: "32px 40px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
+        <h1 style={{ fontSize: "24px", fontWeight: 600, color: "var(--text)" }}>Leads — Prospecting System</h1>
+        <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{filtered.length} leads</span>
       </div>
 
       {/* Filtros por sector */}
-      <div className="flex gap-2 flex-wrap">
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "20px" }}>
         {(["Todos", ...SECTORES] as const).map((s) => (
           <button
             key={s}
             onClick={() => setSectorFiltro(s)}
-            className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
             style={{
-              background: sectorFiltro === s ? "#6366f1" : "rgba(255,255,255,0.04)",
-              color: sectorFiltro === s ? "#fff" : "#475569",
-              border: `1px solid ${sectorFiltro === s ? "transparent" : "#1a1a2e"}`,
+              fontSize: "12px",
+              padding: "6px 12px",
+              borderRadius: "8px",
+              fontWeight: 500,
+              cursor: "pointer",
+              border: `1px solid ${sectorFiltro === s ? "transparent" : "var(--border)"}`,
+              background: sectorFiltro === s ? "var(--accent)" : "var(--card)",
+              color: sectorFiltro === s ? "#fff" : "var(--text-muted)",
             }}
           >
             {s}
@@ -134,34 +138,32 @@ export default function LeadsPage() {
       </div>
 
       {/* Lista de leads */}
-      <div className="flex flex-col gap-3">
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         {filtered.map((lead) => {
           const score = calcScore(lead);
-          const scoreColor = score >= 8 ? "#10b981" : score >= 6 ? "#f59e0b" : "#ef4444";
+          const scoreColor = score >= 8 ? "var(--green)" : score >= 6 ? "var(--amber)" : "var(--red)";
           return (
             <div
               key={lead.id}
-              className="rounded-xl p-5"
-              style={{ background: "#111120", border: "1px solid #1a1a2e" }}
+              style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px" }}
             >
-              <div className="flex items-start gap-4">
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
                 {/* Score circle */}
                 <div
-                  className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold"
-                  style={{ background: `${scoreColor}15`, color: scoreColor, border: `2px solid ${scoreColor}40` }}
+                  style={{ flexShrink: 0, width: "48px", height: "48px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", fontWeight: 700, background: "var(--accent-dim)", color: scoreColor, border: `2px solid var(--border-accent)` }}
                 >
                   {score}
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2 flex-wrap">
-                    <span className="text-sm font-bold" style={{ color: "#e2e8f0" }}>{lead.nombre}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.1)", color: "#818cf8" }}>{lead.sector}</span>
-                    <span className="text-xs" style={{ color: "#475569" }}>{lead.ciudad}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>{lead.nombre}</span>
+                    <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "999px", background: "var(--accent-dim)", color: "var(--accent)" }}>{lead.sector}</span>
+                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{lead.ciudad}</span>
                   </div>
 
                   {/* Señales de scoring */}
-                  <div className="flex gap-2 mb-3 flex-wrap">
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "12px", flexWrap: "wrap" }}>
                     {[
                       { label: "Web",       val: lead.tieneWeb },
                       { label: "GMB",       val: lead.tieneGMB },
@@ -170,10 +172,12 @@ export default function LeadsPage() {
                     ].map(({ label, val }) => (
                       <span
                         key={label}
-                        className="text-xs px-2 py-0.5 rounded"
                         style={{
-                          background: val ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)",
-                          color: val ? "#10b981" : "#ef4444",
+                          fontSize: "11px",
+                          padding: "2px 8px",
+                          borderRadius: "4px",
+                          background: val ? "rgba(0,230,118,0.08)" : "rgba(255,61,113,0.08)",
+                          color: val ? "var(--green)" : "var(--red)",
                         }}
                       >
                         {val ? "✓" : "✗"} {label}
@@ -181,27 +185,24 @@ export default function LeadsPage() {
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                     <select
                       value={lead.estado}
                       onChange={(e) => cambiarEstado(lead.id, e.target.value as Estado)}
-                      className="text-xs px-2 py-1.5 rounded-md outline-none cursor-pointer"
-                      style={{ background: "rgba(255,255,255,0.04)", color: ESTADO_COLOR[lead.estado], border: "1px solid #1a1a2e" }}
+                      style={{ fontSize: "12px", padding: "6px 8px", borderRadius: "6px", outline: "none", cursor: "pointer", background: "var(--card-hover)", color: ESTADO_COLOR[lead.estado], border: "1px solid var(--border)" }}
                     >
                       {ESTADOS.map((e) => <option key={e} value={e}>{e}</option>)}
                     </select>
 
                     <button
                       onClick={() => openModal(lead, "email")}
-                      className="text-xs px-3 py-1.5 rounded-md font-medium transition-opacity hover:opacity-80"
-                      style={{ background: "rgba(99,102,241,0.12)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.2)" }}
+                      style={{ fontSize: "12px", padding: "6px 12px", borderRadius: "6px", fontWeight: 500, cursor: "pointer", background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--border-accent)" }}
                     >
                       ✉ Email personalizado
                     </button>
                     <button
                       onClick={() => openModal(lead, "wa")}
-                      className="text-xs px-3 py-1.5 rounded-md font-medium transition-opacity hover:opacity-80"
-                      style={{ background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)" }}
+                      style={{ fontSize: "12px", padding: "6px 12px", borderRadius: "6px", fontWeight: 500, cursor: "pointer", background: "rgba(0,230,118,0.08)", color: "var(--green)", border: "1px solid rgba(0,230,118,0.2)" }}
                     >
                       💬 WhatsApp
                     </button>
@@ -216,24 +217,21 @@ export default function LeadsPage() {
       {/* Modal mensaje generado */}
       {modal && (
         <div
-          className="fixed inset-0 flex items-center justify-center z-50 p-4"
-          style={{ background: "rgba(0,0,0,0.85)" }}
+          style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "16px", background: "rgba(0,0,0,0.75)" }}
           onClick={() => setModal(null)}
         >
           <div
-            className="rounded-xl p-6 w-full max-w-lg"
-            style={{ background: "#0a0a14", border: "1px solid #1a1a2e" }}
+            style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "24px", width: "100%", maxWidth: "520px" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold" style={{ color: "#e2e8f0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+              <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>
                 {modal.tipo === "email" ? "Email personalizado" : "Mensaje WhatsApp"} — {modal.lead.nombre}
               </h3>
-              <button onClick={() => setModal(null)} style={{ color: "#475569" }}>✕</button>
+              <button onClick={() => setModal(null)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "18px" }}>✕</button>
             </div>
             <pre
-              className="text-xs leading-relaxed whitespace-pre-wrap p-4 rounded-lg overflow-auto"
-              style={{ background: "rgba(255,255,255,0.03)", color: "#94a3b8", border: "1px solid #1a1a2e", maxHeight: "320px" }}
+              style={{ fontSize: "12px", lineHeight: 1.6, whiteSpace: "pre-wrap", padding: "16px", borderRadius: "8px", overflow: "auto", background: "var(--card-hover)", color: "var(--text-mid)", border: "1px solid var(--border)", maxHeight: "320px" }}
             >
               {modal.loading ? "Generando mensaje con IA..." : (modal.content ?? "")}
             </pre>
@@ -243,8 +241,7 @@ export default function LeadsPage() {
                 navigator.clipboard.writeText(txt).then(() => alert("Copiado al portapapeles ✅"));
               }}
               disabled={modal.loading}
-              className="mt-4 w-full py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
-              style={{ background: modal.loading ? "#334155" : "#6366f1", color: "#fff" }}
+              style={{ marginTop: "16px", width: "100%", padding: "10px", borderRadius: "8px", fontSize: "14px", fontWeight: 500, cursor: modal.loading ? "not-allowed" : "pointer", background: modal.loading ? "var(--border)" : "var(--accent)", color: "#fff", border: "none" }}
             >
               {modal.loading ? "Generando..." : "Copiar al portapapeles"}
             </button>

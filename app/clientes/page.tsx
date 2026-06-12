@@ -9,11 +9,11 @@ type Cliente = {
 };
 
 const clientes: Cliente[] = [
-  { nombre: "Identity Peluqueros",   precio: "550€", estado: "ACTIVO",   color: "#00E676", bg: "rgba(0,230,118,0.08)",   sector: "Peluquería",    fechaInicio: "Ene 2025", servicios: ["Meta Ads","Google Ads","Google Business"], proximaTarea: "Revisar creatividades junio" },
-  { nombre: "Desancho Estilistas",   precio: "550€", estado: "ACTIVO",   color: "#00E676", bg: "rgba(0,230,118,0.08)",   sector: "Peluquería",    fechaInicio: "Mar 2025", servicios: ["Meta Ads","Google Business"],               proximaTarea: "Actualizar fotos GMB" },
-  { nombre: "Last Mile Distribution",precio: "TBD",  estado: "EN CURSO", color: "#FFB800", bg: "rgba(255,184,0,0.08)",   sector: "Logística",     fechaInicio: "Jun 2025", servicios: ["Propuesta en preparación"],                 proximaTarea: "Enviar propuesta formal" },
-  { nombre: "Malvarrosa CF",         precio: "300€", estado: "ACTIVO",   color: "#00E676", bg: "rgba(0,230,118,0.08)",   sector: "Deporte",       fechaInicio: "Feb 2025", servicios: ["Meta Ads","Contenido redes"],                proximaTarea: "Creatividades torneo" },
-  { nombre: "Matías Benegas Tattoo", precio: "300€", estado: "ACTIVO",   color: "#00E676", bg: "rgba(0,230,118,0.08)",   sector: "Estudio Tattoo",fechaInicio: "Abr 2025", servicios: ["Meta Ads","Google Business","Contenido"],    proximaTarea: "Post de portfolio" },
+  { nombre: "Identity Peluqueros",   precio: "550€", estado: "ACTIVO",   color: "var(--green)", bg: "rgba(0,230,118,0.08)",   sector: "Peluquería",    fechaInicio: "Ene 2025", servicios: ["Meta Ads","Google Ads","Google Business"], proximaTarea: "Revisar creatividades junio" },
+  { nombre: "Desancho Estilistas",   precio: "550€", estado: "ACTIVO",   color: "var(--green)", bg: "rgba(0,230,118,0.08)",   sector: "Peluquería",    fechaInicio: "Mar 2025", servicios: ["Meta Ads","Google Business"],               proximaTarea: "Actualizar fotos GMB" },
+  { nombre: "Last Mile Distribution",precio: "TBD",  estado: "EN CURSO", color: "var(--amber)", bg: "rgba(255,184,0,0.08)",   sector: "Logística",     fechaInicio: "Jun 2025", servicios: ["Propuesta en preparación"],                 proximaTarea: "Enviar propuesta formal" },
+  { nombre: "Malvarrosa CF",         precio: "300€", estado: "ACTIVO",   color: "var(--green)", bg: "rgba(0,230,118,0.08)",   sector: "Deporte",       fechaInicio: "Feb 2025", servicios: ["Meta Ads","Contenido redes"],                proximaTarea: "Creatividades torneo" },
+  { nombre: "Matías Benegas Tattoo", precio: "300€", estado: "ACTIVO",   color: "var(--green)", bg: "rgba(0,230,118,0.08)",   sector: "Estudio Tattoo",fechaInicio: "Abr 2025", servicios: ["Meta Ads","Google Business","Contenido"],    proximaTarea: "Post de portfolio" },
 ];
 
 const METRICAS: Record<string, { cpl: string; roas: string; inversion: string; leads: string }> = {
@@ -40,7 +40,6 @@ const HISTORIAL: Record<string, { fecha: string; tipo: string; nota: string }[]>
   "Matías Benegas Tattoo": [{ fecha:"2026-05-30",tipo:"WhatsApp",nota:"Solicitud contenido booking adicional." }],
 };
 
-
 const DOCS: Record<string, string[]> = {
   "Identity Peluqueros":   ["Contrato firmado","Propuesta inicial","Brief servicio"],
   "Desancho Estilistas":   ["Contrato firmado","Propuesta inicial"],
@@ -52,8 +51,8 @@ const DOCS: Record<string, string[]> = {
 type PanelTab = "Resumen"|"Métricas"|"Tareas"|"Contenido"|"Tendencias"|"Documentos";
 const PANEL_TABS: PanelTab[] = ["Resumen","Métricas","Tareas","Contenido","Tendencias","Documentos"];
 
-const CARD  = { background: "#111111", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "6px" } as React.CSSProperties;
-const LABEL = { fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "#5A6470" };
+const CARD  = { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "6px" } as React.CSSProperties;
+const LABEL = { fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)" };
 
 export default function ClientesPage() {
   const [selected, setSelected] = useState<Cliente | null>(null);
@@ -142,15 +141,15 @@ export default function ClientesPage() {
   return (
     <div style={{ padding: "32px 40px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
-        <h1 style={{ fontSize: "24px", fontWeight: 600, color: "#FFFFFF" }}>Clientes</h1>
-        <span style={{ fontSize: "12px", color: "#5A6470" }}>{clientes.length} clientes · MRR 1.700€</span>
+        <h1 style={{ fontSize: "24px", fontWeight: 600, color: "var(--text)" }}>Clientes</h1>
+        <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{clientes.length} clientes · MRR 1.700€</span>
       </div>
 
       {/* Table */}
       <div style={{ ...CARD, overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <tr style={{ borderBottom: "1px solid var(--border)" }}>
               {["Cliente","Sector","MRR","Estado","Próxima tarea"].map(h => (
                 <th key={h} style={{ ...LABEL, padding: "12px 16px", textAlign: "left" }}>{h}</th>
               ))}
@@ -161,17 +160,17 @@ export default function ClientesPage() {
               <tr
                 key={c.nombre}
                 onClick={() => abrirPanel(c)}
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer", transition: "background 0.12s" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#161616")}
+                style={{ borderBottom: "1px solid var(--border)", cursor: "pointer", transition: "background 0.12s" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "var(--card-hover)")}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
               >
-                <td style={{ padding: "14px 16px", fontSize: "13px", fontWeight: 500, color: "#FFFFFF" }}>{c.nombre}</td>
-                <td style={{ padding: "14px 16px", fontSize: "12px", color: "#5A6470" }}>{c.sector}</td>
-                <td style={{ padding: "14px 16px", fontSize: "13px", fontFamily: "'Space Mono', monospace", fontWeight: 700, color: "#FFFFFF" }}>{c.precio}</td>
+                <td style={{ padding: "14px 16px", fontSize: "13px", fontWeight: 500, color: "var(--text)" }}>{c.nombre}</td>
+                <td style={{ padding: "14px 16px", fontSize: "12px", color: "var(--text-muted)" }}>{c.sector}</td>
+                <td style={{ padding: "14px 16px", fontSize: "13px", fontFamily: "'Space Mono', monospace", fontWeight: 700, color: "var(--text)" }}>{c.precio}</td>
                 <td style={{ padding: "14px 16px" }}>
                   <span style={{ fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px", color: c.color, background: c.bg }}>{c.estado}</span>
                 </td>
-                <td style={{ padding: "14px 16px", fontSize: "12px", color: "#5A6470" }}>{c.proximaTarea}</td>
+                <td style={{ padding: "14px 16px", fontSize: "12px", color: "var(--text-muted)" }}>{c.proximaTarea}</td>
               </tr>
             ))}
           </tbody>
@@ -187,24 +186,24 @@ export default function ClientesPage() {
           />
           <div style={{
             position: "fixed", right: 0, top: 0, bottom: 0, width: "480px", zIndex: 50,
-            background: "#0a0a0a", borderLeft: "1px solid rgba(255,255,255,0.06)",
+            background: "var(--surface)", borderLeft: "1px solid var(--border)",
             display: "flex", flexDirection: "column", overflow: "hidden",
           }}>
             {/* Panel header */}
-            <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "12px" }}>
               <button
                 onClick={() => setSelected(null)}
-                style={{ background: "none", border: "none", color: "#5A6470", cursor: "pointer", fontSize: "18px", lineHeight: 1, padding: "0 4px" }}
+                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "18px", lineHeight: 1, padding: "0 4px" }}
               >×</button>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "14px", fontWeight: 600, color: "#FFFFFF" }}>{selected.nombre}</div>
-                <div style={{ fontSize: "12px", color: "#5A6470", marginTop: "2px" }}>{selected.sector}</div>
+                <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>{selected.nombre}</div>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{selected.sector}</div>
               </div>
               <span style={{ fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px", color: selected.color, background: selected.bg }}>{selected.estado}</span>
             </div>
 
             {/* Tab bar */}
-            <div style={{ display: "flex", gap: "2px", padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", overflowX: "auto" }}>
+            <div style={{ display: "flex", gap: "2px", padding: "10px 16px", borderBottom: "1px solid var(--border)", overflowX: "auto" }}>
               {PANEL_TABS.map(t => (
                 <button
                   key={t}
@@ -212,9 +211,9 @@ export default function ClientesPage() {
                   style={{
                     padding: "6px 12px", borderRadius: "4px", border: "none", cursor: "pointer",
                     fontSize: "12px", fontWeight: panelTab === t ? 600 : 400, whiteSpace: "nowrap",
-                    background: panelTab === t ? "rgba(0,200,255,0.1)" : "transparent",
-                    color: panelTab === t ? "#00C8FF" : "#5A6470",
-                    outline: panelTab === t ? "1px solid rgba(0,200,255,0.2)" : "none",
+                    background: panelTab === t ? "var(--accent-dim)" : "transparent",
+                    color: panelTab === t ? "var(--accent)" : "var(--text-muted)",
+                    outline: panelTab === t ? "1px solid var(--border-accent)" : "none",
                   }}
                 >{t}</button>
               ))}
@@ -233,14 +232,14 @@ export default function ClientesPage() {
                   ].map(({ label, value }) => (
                     <div key={label}>
                       <p style={{ ...LABEL, marginBottom: "4px" }}>{label}</p>
-                      <p style={{ fontSize: "14px", color: "#FFFFFF" }}>{value}</p>
+                      <p style={{ fontSize: "14px", color: "var(--text)" }}>{value}</p>
                     </div>
                   ))}
                   <div>
                     <p style={{ ...LABEL, marginBottom: "8px" }}>Servicios activos</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                       {selected.servicios.map(s => (
-                        <span key={s} style={{ fontSize: "12px", padding: "4px 10px", borderRadius: "4px", background: "rgba(0,200,255,0.08)", color: "#00C8FF", border: "1px solid rgba(0,200,255,0.15)" }}>{s}</span>
+                        <span key={s} style={{ fontSize: "12px", padding: "4px 10px", borderRadius: "4px", background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--border-accent)" }}>{s}</span>
                       ))}
                     </div>
                   </div>
@@ -256,11 +255,11 @@ export default function ClientesPage() {
                       {[["CPL",m.cpl],["ROAS",m.roas],["Inversión semanal",m.inversion],["Leads generados",m.leads]].map(([l,v]) => (
                         <div key={l} style={{ ...CARD, padding: "14px" }}>
                           <p style={{ ...LABEL, marginBottom: "6px" }}>{l}</p>
-                          <p style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: "20px", color: "#FFFFFF" }}>{v}</p>
+                          <p style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: "20px", color: "var(--text)" }}>{v}</p>
                         </div>
                       ))}
                     </div>
-                    <button style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid rgba(0,200,255,0.2)", background: "rgba(0,200,255,0.06)", color: "#00C8FF", fontSize: "13px", cursor: "pointer", fontWeight: 500 }}>
+                    <button style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid var(--border-accent)", background: "var(--accent-dim)", color: "var(--accent)", fontSize: "13px", cursor: "pointer", fontWeight: 500 }}>
                       ↻ Actualizar métricas
                     </button>
                   </div>
@@ -273,10 +272,10 @@ export default function ClientesPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
                     {(tareas[selected.nombre] ?? []).map((t, i) => (
                       <div key={i} onClick={() => toggleTarea(i)} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
-                        <span style={{ width: "16px", height: "16px", borderRadius: "3px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", border: `1.5px solid ${t.done ? "#00E676" : "#2A3040"}`, background: t.done ? "#00E676" : "transparent" }}>
+                        <span style={{ width: "16px", height: "16px", borderRadius: "3px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", border: `1.5px solid ${t.done ? "var(--green)" : "var(--border)"}`, background: t.done ? "var(--green)" : "transparent" }}>
                           {t.done && <span style={{ color: "#000", fontSize: "10px", fontWeight: 700 }}>✓</span>}
                         </span>
-                        <span style={{ fontSize: "13px", color: t.done ? "#2A3040" : "#9AA3AD", textDecoration: t.done ? "line-through" : "none" }}>{t.texto}</span>
+                        <span style={{ fontSize: "13px", color: t.done ? "var(--text-muted)" : "var(--text-mid)", textDecoration: t.done ? "line-through" : "none" }}>{t.texto}</span>
                       </div>
                     ))}
                   </div>
@@ -286,9 +285,9 @@ export default function ClientesPage() {
                       onChange={e => setNuevaTarea(e.target.value)}
                       onKeyDown={e => e.key === "Enter" && addTarea()}
                       placeholder="Nueva tarea..."
-                      style={{ flex: 1, padding: "8px 12px", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.06)", background: "#161616", color: "#FFFFFF", fontSize: "12px", outline: "none" }}
+                      style={{ flex: 1, padding: "8px 12px", borderRadius: "4px", border: "1px solid var(--border)", background: "var(--card-hover)", color: "var(--text)", fontSize: "12px", outline: "none" }}
                     />
-                    <button onClick={addTarea} style={{ padding: "8px 14px", borderRadius: "4px", background: "#00C8FF", color: "#000", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer" }}>+</button>
+                    <button onClick={addTarea} style={{ padding: "8px 14px", borderRadius: "4px", background: "var(--accent)", color: "#fff", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer" }}>+</button>
                   </div>
                 </div>
               )}
@@ -301,18 +300,18 @@ export default function ClientesPage() {
                     onChange={e => setReseñaInput(e.target.value)}
                     placeholder="Pega aquí la reseña a responder (opcional)..."
                     rows={2}
-                    style={{ padding: "8px 12px", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.06)", background: "#161616", color: "#9AA3AD", fontSize: "12px", outline: "none", resize: "vertical", fontFamily: "inherit" }}
+                    style={{ padding: "8px 12px", borderRadius: "4px", border: "1px solid var(--border)", background: "var(--card-hover)", color: "var(--text-mid)", fontSize: "12px", outline: "none", resize: "vertical", fontFamily: "inherit" }}
                   />
                   {[["GBP Post","Generar post Google Business"],["Artículo Blog","Generar artículo de blog"],["Respuesta Reseña","Responder reseña reciente"]].map(([tipo, label]) => (
-                    <button key={tipo} onClick={() => generarContenido(tipo)} disabled={contenidoLoading} style={{ padding: "12px 16px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", background: "#161616", color: contenidoLoading ? "#2A3040" : "#9AA3AD", fontSize: "13px", textAlign: "left", cursor: contenidoLoading ? "not-allowed" : "pointer", fontWeight: 500 }}>
+                    <button key={tipo} onClick={() => generarContenido(tipo)} disabled={contenidoLoading} style={{ padding: "12px 16px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--card-hover)", color: contenidoLoading ? "var(--text-muted)" : "var(--text-mid)", fontSize: "13px", textAlign: "left", cursor: contenidoLoading ? "not-allowed" : "pointer", fontWeight: 500 }}>
                       {contenidoLoading ? "Generando..." : `${label} →`}
                     </button>
                   ))}
                   {contenidoResult && (
-                    <div style={{ marginTop: "8px", padding: "14px", borderRadius: "6px", border: "1px solid rgba(0,200,255,0.15)", background: "rgba(0,200,255,0.04)" }}>
+                    <div style={{ marginTop: "8px", padding: "14px", borderRadius: "6px", border: "1px solid var(--border-accent)", background: "var(--accent-dim)" }}>
                       <p style={{ ...LABEL, marginBottom: "8px" }}>{contenidoResult.tipo}</p>
-                      <pre style={{ fontSize: "12px", color: "#9AA3AD", whiteSpace: "pre-wrap", lineHeight: 1.6, fontFamily: "inherit" }}>{contenidoResult.texto}</pre>
-                      <button onClick={() => navigator.clipboard.writeText(contenidoResult.texto).then(() => alert("Copiado ✅"))} style={{ marginTop: "10px", padding: "6px 12px", borderRadius: "4px", background: "rgba(0,200,255,0.1)", color: "#00C8FF", border: "1px solid rgba(0,200,255,0.2)", fontSize: "12px", cursor: "pointer" }}>Copiar</button>
+                      <pre style={{ fontSize: "12px", color: "var(--text-mid)", whiteSpace: "pre-wrap", lineHeight: 1.6, fontFamily: "inherit" }}>{contenidoResult.texto}</pre>
+                      <button onClick={() => navigator.clipboard.writeText(contenidoResult.texto).then(() => alert("Copiado ✅"))} style={{ marginTop: "10px", padding: "6px 12px", borderRadius: "4px", background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--border-accent)", fontSize: "12px", cursor: "pointer" }}>Copiar</button>
                     </div>
                   )}
                 </div>
@@ -324,14 +323,14 @@ export default function ClientesPage() {
                   <button
                     onClick={buscarTendencias}
                     disabled={tendenciasLoading}
-                    style={{ width: "100%", padding: "12px", borderRadius: "6px", border: "1px solid rgba(0,200,255,0.2)", background: "rgba(0,200,255,0.06)", color: tendenciasLoading ? "#2A3040" : "#00C8FF", fontSize: "13px", cursor: tendenciasLoading ? "not-allowed" : "pointer", fontWeight: 500, marginBottom: "16px" }}
+                    style={{ width: "100%", padding: "12px", borderRadius: "6px", border: "1px solid var(--border-accent)", background: "var(--accent-dim)", color: tendenciasLoading ? "var(--text-muted)" : "var(--accent)", fontSize: "13px", cursor: tendenciasLoading ? "not-allowed" : "pointer", fontWeight: 500, marginBottom: "16px" }}
                   >
                     {tendenciasLoading ? "Buscando tendencias..." : `Buscar tendencias sector → ${selected.sector}`}
                   </button>
                   {tendencias[selected.nombre]?.map((t, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: "#5A6470", width: "18px", flexShrink: 0 }}>{i+1}</span>
-                      <span style={{ fontSize: "13px", color: "#9AA3AD" }}>{t}</span>
+                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: "var(--text-muted)", width: "18px", flexShrink: 0 }}>{i+1}</span>
+                      <span style={{ fontSize: "13px", color: "var(--text-mid)" }}>{t}</span>
                     </div>
                   ))}
                 </div>
@@ -341,18 +340,18 @@ export default function ClientesPage() {
               {panelTab === "Documentos" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {(DOCS[selected.nombre] ?? []).map(doc => (
-                    <div key={doc} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", background: "#161616" }}>
-                      <span style={{ color: "#5A6470", fontSize: "16px" }}>📄</span>
-                      <span style={{ flex: 1, fontSize: "13px", color: "#9AA3AD" }}>{doc}</span>
-                      <span style={{ fontSize: "11px", color: "#2A3040" }}>Google Drive</span>
+                    <div key={doc} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--card-hover)" }}>
+                      <span style={{ color: "var(--text-muted)", fontSize: "16px" }}>📄</span>
+                      <span style={{ flex: 1, fontSize: "13px", color: "var(--text-mid)" }}>{doc}</span>
+                      <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Google Drive</span>
                     </div>
                   ))}
                   {HISTORIAL[selected.nombre]?.map((h, i) => (
-                    <div key={i} style={{ marginTop: "4px", display: "flex", gap: "10px", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, padding: "2px 6px", borderRadius: "3px", background: "rgba(0,200,255,0.08)", color: "#00C8FF", flexShrink: 0, height: "fit-content" }}>{h.tipo}</span>
+                    <div key={i} style={{ marginTop: "4px", display: "flex", gap: "10px", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 600, padding: "2px 6px", borderRadius: "3px", background: "var(--accent-dim)", color: "var(--accent)", flexShrink: 0, height: "fit-content" }}>{h.tipo}</span>
                       <div>
-                        <p style={{ fontSize: "11px", color: "#2A3040", marginBottom: "2px", fontFamily: "'Space Mono', monospace" }}>{h.fecha}</p>
-                        <p style={{ fontSize: "12px", color: "#5A6470" }}>{h.nota}</p>
+                        <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "2px", fontFamily: "'Space Mono', monospace" }}>{h.fecha}</p>
+                        <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>{h.nota}</p>
                       </div>
                     </div>
                   ))}

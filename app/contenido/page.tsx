@@ -93,11 +93,11 @@ const CLIENTES_SECTOR: Record<string, string> = {
 };
 
 const episodios = [
-  { num:1, titulo:"Cómo monté mi agencia desde 0",                     estado:"GRABADO",        color:"#00E676" },
-  { num:2, titulo:"El error que cometí con mi primer cliente",          estado:"EDICIÓN",        color:"#FFB800" },
-  { num:3, titulo:"Meta Ads vs Google Ads para negocios locales",       estado:"GUIÓN LISTO",    color:"#00C8FF" },
-  { num:4, titulo:"Trading y emprendimiento: ¿son compatibles?",        estado:"PLANIFICADO",    color:"#5A6470" },
-  { num:5, titulo:"Automatizaciones con IA: mi stack actual 2026",      estado:"PLANIFICADO",    color:"#5A6470" },
+  { num:1, titulo:"Cómo monté mi agencia desde 0",                     estado:"GRABADO",        color:"var(--green)" },
+  { num:2, titulo:"El error que cometí con mi primer cliente",          estado:"EDICIÓN",        color:"var(--amber)" },
+  { num:3, titulo:"Meta Ads vs Google Ads para negocios locales",       estado:"GUIÓN LISTO",    color:"var(--accent)" },
+  { num:4, titulo:"Trading y emprendimiento: ¿son compatibles?",        estado:"PLANIFICADO",    color:"var(--text-muted)" },
+  { num:5, titulo:"Automatizaciones con IA: mi stack actual 2026",      estado:"PLANIFICADO",    color:"var(--text-muted)" },
 ];
 
 const checklistProd = ["Grabar audio","Editar en Audacity","Crear thumbnail","Subir a Spotify/iVoox","Post en redes"];
@@ -105,8 +105,8 @@ const checklistProd = ["Grabar audio","Editar en Audacity","Crear thumbnail","Su
 type Tab = "Videos"|"Blog EN"|"Clientes"|"Podcast";
 const TABS: Tab[] = ["Videos","Blog EN","Clientes","Podcast"];
 
-const CARD  = { background:"#111111", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"6px" } as React.CSSProperties;
-const LABEL = { fontSize:"11px", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase" as const, color:"#5A6470" };
+const CARD  = { background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px" } as React.CSSProperties;
+const LABEL = { fontSize:"11px", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase" as const, color:"var(--text-muted)" };
 
 export default function ContenidoPage() {
   const [tab, setTab] = useState<Tab>("Videos");
@@ -169,12 +169,12 @@ export default function ContenidoPage() {
 
   return (
     <div style={{ padding:"32px 40px" }}>
-      <h1 style={{ fontSize:"24px", fontWeight:600, color:"#FFFFFF", marginBottom:"24px" }}>Contenido</h1>
+      <h1 style={{ fontSize:"24px", fontWeight:600, color:"var(--text)", marginBottom:"24px" }}>Contenido</h1>
 
       {/* Tab bar */}
-      <div style={{ display:"inline-flex", gap:"4px", padding:"4px", background:"#0a0a0a", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"8px", marginBottom:"20px" }}>
+      <div style={{ display:"inline-flex", gap:"4px", padding:"4px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"8px", marginBottom:"20px" }}>
         {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding:"7px 16px", borderRadius:"5px", border:"none", cursor:"pointer", fontSize:"13px", fontWeight: tab===t ? 600 : 400, background: tab===t ? "rgba(0,200,255,0.1)" : "transparent", color: tab===t ? "#00C8FF" : "#5A6470", outline: tab===t ? "1px solid rgba(0,200,255,0.2)" : "none" }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding:"7px 16px", borderRadius:"5px", border:"none", cursor:"pointer", fontSize:"13px", fontWeight: tab===t ? 600 : 400, background: tab===t ? "var(--accent-dim)" : "transparent", color: tab===t ? "var(--accent)" : "var(--text-muted)", outline: tab===t ? "1px solid var(--border-accent)" : "none" }}>{t}</button>
         ))}
       </div>
 
@@ -186,22 +186,22 @@ export default function ContenidoPage() {
               <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:"16px", marginBottom:"10px" }}>
                 <div style={{ flex:1 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"6px" }}>
-                    <span style={{ fontSize:"11px", fontWeight:600, padding:"2px 7px", borderRadius:"3px", background:"rgba(0,230,118,0.08)", color:"#00E676", border:"1px solid rgba(0,230,118,0.15)" }}>{g.estado}</span>
-                    <span style={{ fontSize:"11px", color:"#5A6470", fontFamily:"'Space Mono', monospace" }}>{g.duracion}</span>
+                    <span style={{ fontSize:"11px", fontWeight:600, padding:"2px 7px", borderRadius:"3px", background:"rgba(0,230,118,0.08)", color:"var(--green)", border:"1px solid rgba(0,230,118,0.15)" }}>{g.estado}</span>
+                    <span style={{ fontSize:"11px", color:"var(--text-muted)", fontFamily:"'Space Mono', monospace" }}>{g.duracion}</span>
                   </div>
-                  <h3 style={{ fontSize:"14px", fontWeight:600, color:"#FFFFFF", marginBottom:"4px" }}>{g.titulo}</h3>
-                  <p style={{ fontSize:"12px", color:"#5A6470", marginBottom:"4px" }}>Hook: {g.hook}</p>
-                  <p style={{ fontSize:"12px", color:"#5A6470" }}>Dolor: {g.dolor}</p>
+                  <h3 style={{ fontSize:"14px", fontWeight:600, color:"var(--text)", marginBottom:"4px" }}>{g.titulo}</h3>
+                  <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"4px" }}>Hook: {g.hook}</p>
+                  <p style={{ fontSize:"12px", color:"var(--text-muted)" }}>Dolor: {g.dolor}</p>
                 </div>
                 <button
                   onClick={() => setGuionAbierto(guionAbierto === g.titulo ? null : g.titulo)}
-                  style={{ padding:"7px 14px", borderRadius:"5px", border:"1px solid rgba(255,255,255,0.06)", background:"#161616", color:"#9AA3AD", fontSize:"12px", cursor:"pointer", flexShrink:0 }}
+                  style={{ padding:"7px 14px", borderRadius:"5px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text-mid)", fontSize:"12px", cursor:"pointer", flexShrink:0 }}
                 >
                   {guionAbierto === g.titulo ? "Cerrar" : "Ver guión"}
                 </button>
               </div>
               {guionAbierto === g.titulo && (
-                <pre style={{ marginTop:"10px", padding:"14px", borderRadius:"5px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.04)", fontSize:"12px", color:"#9AA3AD", whiteSpace:"pre-wrap", lineHeight:1.6, fontFamily:"inherit" }}>
+                <pre style={{ marginTop:"10px", padding:"14px", borderRadius:"5px", background:"var(--accent-dim)", border:"1px solid var(--border)", fontSize:"12px", color:"var(--text-mid)", whiteSpace:"pre-wrap", lineHeight:1.6, fontFamily:"inherit" }}>
                   {g.guion}
                 </pre>
               )}
@@ -216,29 +216,29 @@ export default function ContenidoPage() {
           <div style={{ ...CARD, padding:"24px" }}>
             <p style={{ ...LABEL, marginBottom:"16px" }}>Generar artículo en inglés</p>
             <div style={{ marginBottom:"16px" }}>
-              <p style={{ fontSize:"12px", color:"#5A6470", marginBottom:"8px" }}>Nicho</p>
+              <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"8px" }}>Nicho</p>
               <div style={{ display:"flex", flexWrap:"wrap", gap:"8px" }}>
                 {NICHOS.map(n => (
-                  <button key={n} onClick={() => { setNicho(n); setArticuloTexto(null); }} style={{ padding:"6px 12px", borderRadius:"4px", border:`1px solid ${nicho===n ? "rgba(0,200,255,0.3)" : "rgba(255,255,255,0.06)"}`, background: nicho===n ? "rgba(0,200,255,0.08)" : "transparent", color: nicho===n ? "#00C8FF" : "#5A6470", fontSize:"12px", cursor:"pointer" }}>{n}</button>
+                  <button key={n} onClick={() => { setNicho(n); setArticuloTexto(null); }} style={{ padding:"6px 12px", borderRadius:"4px", border:`1px solid ${nicho===n ? "var(--border-accent)" : "var(--border)"}`, background: nicho===n ? "var(--accent-dim)" : "transparent", color: nicho===n ? "var(--accent)" : "var(--text-muted)", fontSize:"12px", cursor:"pointer" }}>{n}</button>
                 ))}
               </div>
             </div>
             <div style={{ marginBottom:"16px" }}>
-              <p style={{ fontSize:"12px", color:"#5A6470", marginBottom:"8px" }}>Tema del artículo (opcional)</p>
+              <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"8px" }}>Tema del artículo (opcional)</p>
               <input
                 value={topicInput}
                 onChange={e => setTopicInput(e.target.value)}
                 placeholder={`${nicho.split("/")[0].trim()} strategies for local businesses...`}
-                style={{ width:"100%", padding:"8px 12px", borderRadius:"4px", border:"1px solid rgba(255,255,255,0.06)", background:"#161616", color:"#FFFFFF", fontSize:"12px", outline:"none" }}
+                style={{ width:"100%", padding:"8px 12px", borderRadius:"4px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text)", fontSize:"12px", outline:"none" }}
               />
             </div>
-            <button onClick={generarArticulo} disabled={articuloLoading} style={{ width:"100%", padding:"12px", borderRadius:"6px", background: articuloLoading ? "#1a3340" : "#00C8FF", color: articuloLoading ? "#00C8FF" : "#000", fontSize:"13px", fontWeight:600, border:"none", cursor: articuloLoading ? "not-allowed" : "pointer", marginBottom: articuloTexto ? "16px" : "0" }}>
+            <button onClick={generarArticulo} disabled={articuloLoading} style={{ width:"100%", padding:"12px", borderRadius:"6px", background: articuloLoading ? "var(--surface)" : "var(--accent)", color: articuloLoading ? "var(--text-muted)" : "#fff", fontSize:"13px", fontWeight:600, border:"none", cursor: articuloLoading ? "not-allowed" : "pointer", marginBottom: articuloTexto ? "16px" : "0" }}>
               {articuloLoading ? "Generando artículo..." : "Generar artículo →"}
             </button>
             {articuloTexto && (
-              <div style={{ padding:"14px", borderRadius:"5px", background:"rgba(0,200,255,0.04)", border:"1px solid rgba(0,200,255,0.12)" }}>
-                <pre style={{ fontSize:"12px", color:"#9AA3AD", whiteSpace:"pre-wrap", lineHeight:1.6, fontFamily:"inherit" }}>{articuloTexto}</pre>
-                <button onClick={() => navigator.clipboard.writeText(articuloTexto).then(() => alert("Copiado ✅"))} style={{ marginTop:"12px", padding:"7px 14px", borderRadius:"4px", background:"rgba(0,200,255,0.08)", color:"#00C8FF", border:"1px solid rgba(0,200,255,0.2)", fontSize:"12px", cursor:"pointer" }}>
+              <div style={{ padding:"14px", borderRadius:"5px", background:"var(--accent-dim)", border:"1px solid var(--border-accent)" }}>
+                <pre style={{ fontSize:"12px", color:"var(--text-mid)", whiteSpace:"pre-wrap", lineHeight:1.6, fontFamily:"inherit" }}>{articuloTexto}</pre>
+                <button onClick={() => navigator.clipboard.writeText(articuloTexto).then(() => alert("Copiado ✅"))} style={{ marginTop:"12px", padding:"7px 14px", borderRadius:"4px", background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--border-accent)", fontSize:"12px", cursor:"pointer" }}>
                   Copiar artículo
                 </button>
               </div>
@@ -253,29 +253,29 @@ export default function ContenidoPage() {
           <div style={{ ...CARD, padding:"24px" }}>
             <p style={{ ...LABEL, marginBottom:"16px" }}>Contenido para cliente</p>
             <div style={{ marginBottom:"16px" }}>
-              <p style={{ fontSize:"12px", color:"#5A6470", marginBottom:"8px" }}>Cliente</p>
+              <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"8px" }}>Cliente</p>
               <div style={{ display:"flex", flexWrap:"wrap", gap:"8px" }}>
                 {CLIENTES_LIST.map(c => (
-                  <button key={c} onClick={() => { setClienteSelected(c); setContenidoCliente(null); setContenidoLoading(false); }} style={{ padding:"6px 12px", borderRadius:"4px", border:`1px solid ${clienteSelected===c ? "rgba(0,200,255,0.3)" : "rgba(255,255,255,0.06)"}`, background: clienteSelected===c ? "rgba(0,200,255,0.08)" : "transparent", color: clienteSelected===c ? "#00C8FF" : "#5A6470", fontSize:"12px", cursor:"pointer" }}>{c}</button>
+                  <button key={c} onClick={() => { setClienteSelected(c); setContenidoCliente(null); setContenidoLoading(false); }} style={{ padding:"6px 12px", borderRadius:"4px", border:`1px solid ${clienteSelected===c ? "var(--border-accent)" : "var(--border)"}`, background: clienteSelected===c ? "var(--accent-dim)" : "transparent", color: clienteSelected===c ? "var(--accent)" : "var(--text-muted)", fontSize:"12px", cursor:"pointer" }}>{c}</button>
                 ))}
               </div>
             </div>
             <div style={{ display:"flex", gap:"10px", flexWrap:"wrap", marginBottom:"16px" }}>
               {[["Post GBP","Generar post Google Business"],["Reel","Generar guión de reel"],["Reseña","Responder reseña reciente"]].map(([tipo,label]) => (
-                <button key={tipo} onClick={() => generarContenidoCliente(tipo)} disabled={contenidoLoading} style={{ padding:"9px 16px", borderRadius:"5px", border:"1px solid rgba(255,255,255,0.06)", background:"#161616", color: contenidoLoading ? "#2A3040" : "#9AA3AD", fontSize:"12px", cursor: contenidoLoading ? "not-allowed" : "pointer", fontWeight:500 }}>{contenidoLoading ? "Generando..." : label}</button>
+                <button key={tipo} onClick={() => generarContenidoCliente(tipo)} disabled={contenidoLoading} style={{ padding:"9px 16px", borderRadius:"5px", border:"1px solid var(--border)", background:"var(--card-hover)", color: contenidoLoading ? "var(--text-muted)" : "var(--text-mid)", fontSize:"12px", cursor: contenidoLoading ? "not-allowed" : "pointer", fontWeight:500 }}>{contenidoLoading ? "Generando..." : label}</button>
               ))}
             </div>
             {contenidoCliente && (
-              <div style={{ padding:"14px", borderRadius:"5px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)" }}>
-                <pre style={{ fontSize:"12px", color:"#9AA3AD", whiteSpace:"pre-wrap", lineHeight:1.6, fontFamily:"inherit" }}>{contenidoCliente}</pre>
-                <button onClick={() => navigator.clipboard.writeText(contenidoCliente).then(() => alert("Copiado ✅"))} style={{ marginTop:"10px", padding:"6px 12px", borderRadius:"4px", background:"rgba(0,200,255,0.08)", color:"#00C8FF", border:"1px solid rgba(0,200,255,0.15)", fontSize:"12px", cursor:"pointer" }}>Copiar</button>
+              <div style={{ padding:"14px", borderRadius:"5px", background:"var(--accent-dim)", border:"1px solid var(--border)" }}>
+                <pre style={{ fontSize:"12px", color:"var(--text-mid)", whiteSpace:"pre-wrap", lineHeight:1.6, fontFamily:"inherit" }}>{contenidoCliente}</pre>
+                <button onClick={() => navigator.clipboard.writeText(contenidoCliente).then(() => alert("Copiado ✅"))} style={{ marginTop:"10px", padding:"6px 12px", borderRadius:"4px", background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--border-accent)", fontSize:"12px", cursor:"pointer" }}>Copiar</button>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Podcast Jorge */}
+      {/* Podcast */}
       {tab === "Podcast" && (
         <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:"20px" }}>
           <div>
@@ -283,9 +283,9 @@ export default function ContenidoPage() {
             <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
               {episodios.map(({ num,titulo,estado,color }) => (
                 <div key={num} style={{ ...CARD, padding:"14px 18px", display:"flex", alignItems:"center", gap:"14px" }}>
-                  <span style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"13px", color:"#5A6470", width:"24px", flexShrink:0 }}>E{num}</span>
-                  <span style={{ flex:1, fontSize:"13px", color:"#9AA3AD" }}>{titulo}</span>
-                  <span style={{ fontSize:"11px", fontWeight:600, padding:"2px 8px", borderRadius:"3px", color, background:`${color}12`, border:`1px solid ${color}25`, whiteSpace:"nowrap" }}>{estado}</span>
+                  <span style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"13px", color:"var(--text-muted)", width:"24px", flexShrink:0 }}>E{num}</span>
+                  <span style={{ flex:1, fontSize:"13px", color:"var(--text-mid)" }}>{titulo}</span>
+                  <span style={{ fontSize:"11px", fontWeight:600, padding:"2px 8px", borderRadius:"3px", color, background:"var(--accent-dim)", border:"1px solid var(--border-accent)", whiteSpace:"nowrap" }}>{estado}</span>
                 </div>
               ))}
             </div>
@@ -296,11 +296,11 @@ export default function ContenidoPage() {
               {checklistProd.map(item => {
                 const done = checklist[item] ?? false;
                 return (
-                  <div key={item} onClick={() => setChecklist(p => ({ ...p, [item]: !done }))} style={{ display:"flex", alignItems:"center", gap:"10px", padding:"8px 0", borderBottom:"1px solid rgba(255,255,255,0.04)", cursor:"pointer" }}>
-                    <span style={{ width:"15px", height:"15px", borderRadius:"3px", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", border:`1.5px solid ${done ? "#00E676" : "#2A3040"}`, background: done ? "#00E676" : "transparent" }}>
+                  <div key={item} onClick={() => setChecklist(p => ({ ...p, [item]: !done }))} style={{ display:"flex", alignItems:"center", gap:"10px", padding:"8px 0", borderBottom:"1px solid var(--border)", cursor:"pointer" }}>
+                    <span style={{ width:"15px", height:"15px", borderRadius:"3px", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", border:`1.5px solid ${done ? "var(--green)" : "var(--border)"}`, background: done ? "var(--green)" : "transparent" }}>
                       {done && <span style={{ color:"#000", fontSize:"9px", fontWeight:700 }}>✓</span>}
                     </span>
-                    <span style={{ fontSize:"12px", color: done ? "#2A3040" : "#9AA3AD", textDecoration: done ? "line-through" : "none" }}>{item}</span>
+                    <span style={{ fontSize:"12px", color: done ? "var(--text-muted)" : "var(--text-mid)", textDecoration: done ? "line-through" : "none" }}>{item}</span>
                   </div>
                 );
               })}

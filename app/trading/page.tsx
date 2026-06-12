@@ -258,16 +258,16 @@ Respuesta estructurada, decisiones claras, sin teoría general de crypto.` },
 type Tab = "Acciones"|"Crypto"|"Dividendos"|"Diario"|"Setups"|"Prompts";
 const TABS: Tab[] = ["Acciones","Crypto","Dividendos","Diario","Setups","Prompts"];
 
-const CARD  = { background:"#111111", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"6px" } as React.CSSProperties;
-const LABEL = { fontSize:"11px", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase" as const, color:"#5A6470" };
-const TH    = { padding:"10px 14px", textAlign:"left" as const, fontSize:"11px", fontWeight:600, letterSpacing:"0.06em", color:"#5A6470", borderBottom:"1px solid rgba(255,255,255,0.06)" };
-const TD    = { padding:"12px 14px", borderBottom:"1px solid rgba(255,255,255,0.04)" };
+const CARD  = { background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px" } as React.CSSProperties;
+const LABEL = { fontSize:"11px", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase" as const, color:"var(--text-muted)" };
+const TH    = { padding:"10px 14px", textAlign:"left" as const, fontSize:"11px", fontWeight:600, letterSpacing:"0.06em", color:"var(--text-muted)", borderBottom:"1px solid var(--border)" };
+const TD    = { padding:"12px 14px", borderBottom:"1px solid var(--border)" };
 
 const statCards = [
-  { label:"Capital",   value:"12.022,43€", color:"#FFFFFF"  },
-  { label:"Efectivo",  value:"4.920,81€",  color:"#9AA3AD"  },
-  { label:"PnL Total", value:"+357,90€",   color:"#00E676"  },
-  { label:"PnL hoy",   value:"-204,70€",   color:"#FF3D71"  },
+  { label:"Capital",   value:"12.022,43€", color:"var(--text)"  },
+  { label:"Efectivo",  value:"4.920,81€",  color:"var(--text-mid)"  },
+  { label:"PnL Total", value:"+357,90€",   color:"var(--green)"  },
+  { label:"PnL hoy",   value:"-204,70€",   color:"var(--red)"  },
 ];
 
 export default function TradingPage() {
@@ -290,19 +290,18 @@ export default function TradingPage() {
 
   return (
     <div style={{ padding:"32px 40px" }}>
-      <h1 style={{ fontSize:"24px", fontWeight:600, color:"#FFFFFF", marginBottom:"24px" }}>Trading</h1>
+      <h1 style={{ fontSize:"24px", fontWeight:600, color:"var(--text)", marginBottom:"24px" }}>Trading</h1>
 
       {/* Tab bar */}
-      <div style={{ display:"inline-flex", gap:"4px", padding:"4px", background:"#0a0a0a", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"8px", marginBottom:"20px" }}>
+      <div style={{ display:"inline-flex", gap:"4px", padding:"4px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"8px", marginBottom:"20px" }}>
         {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding:"7px 16px", borderRadius:"5px", border:"none", cursor:"pointer", fontSize:"13px", fontWeight: tab===t ? 600 : 400, background: tab===t ? "rgba(0,200,255,0.1)" : "transparent", color: tab===t ? "#00C8FF" : "#5A6470", outline: tab===t ? "1px solid rgba(0,200,255,0.2)" : "none" }}>{t}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding:"7px 16px", borderRadius:"5px", border:"none", cursor:"pointer", fontSize:"13px", fontWeight: tab===t ? 600 : 400, background: tab===t ? "var(--accent-dim)" : "transparent", color: tab===t ? "var(--accent)" : "var(--text-muted)", outline: tab===t ? "1px solid var(--border-accent)" : "none" }}>{t}</button>
         ))}
       </div>
 
       {/* Acciones */}
       {tab === "Acciones" && (
         <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
-          {/* Mini-cards MEXEM */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"12px" }}>
             {statCards.map(({ label, value, color }) => (
               <div key={label} style={{ ...CARD, padding:"18px 20px" }}>
@@ -311,7 +310,6 @@ export default function TradingPage() {
               </div>
             ))}
           </div>
-          {/* Alertas activas */}
           <div style={{ display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap" }}>
             <span style={LABEL}>Alertas activas:</span>
             {carteraAcciones
@@ -320,7 +318,7 @@ export default function TradingPage() {
                 <span key={a.ticker} style={{
                   padding:"3px 10px", borderRadius:"3px", fontSize:"11px", fontWeight:700, letterSpacing:"0.04em",
                   background: a.alerta === "STOP ACTIVO" ? "rgba(255,61,113,0.15)" : "rgba(255,184,0,0.15)",
-                  color:       a.alerta === "STOP ACTIVO" ? "#FF3D71" : "#FFB800",
+                  color:       a.alerta === "STOP ACTIVO" ? "var(--red)" : "var(--amber)",
                   border:`1px solid ${a.alerta === "STOP ACTIVO" ? "rgba(255,61,113,0.3)" : "rgba(255,184,0,0.3)"}`,
                 }}>
                   {a.ticker} — {a.alerta}
@@ -328,9 +326,8 @@ export default function TradingPage() {
               ))
             }
           </div>
-          {/* Tabla */}
           <div style={{ ...CARD, overflow:"hidden" }}>
-            <div style={{ padding:"16px 20px", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+            <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)" }}>
               <p style={LABEL}>Cartera Acciones — MEXEM · 6 Jun 2026</p>
             </div>
             <table style={{ width:"100%", borderCollapse:"collapse" }}>
@@ -345,24 +342,24 @@ export default function TradingPage() {
                   const rows: React.ReactElement[] = [];
                   if (showSep) rows.push(
                     <tr key={`sep-${item.ticker}`}>
-                      <td colSpan={5} style={{ padding:"5px 14px", background:"rgba(255,255,255,0.015)", borderTop:"1px solid rgba(255,255,255,0.08)", borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
-                        <span style={{ fontSize:"10px", fontWeight:700, color:"#5A6470", letterSpacing:"0.12em" }}>── EN PÉRDIDAS ─────────────────────────────────</span>
+                      <td colSpan={5} style={{ padding:"5px 14px", background:"var(--accent-dim)", borderTop:"1px solid var(--border)", borderBottom:"1px solid var(--border)" }}>
+                        <span style={{ fontSize:"10px", fontWeight:700, color:"var(--text-muted)", letterSpacing:"0.12em" }}>── EN PÉRDIDAS ─────────────────────────────────</span>
                       </td>
                     </tr>
                   );
                   rows.push(
                     <tr key={item.ticker} style={{ background: rowBg }}>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#00C8FF" }}>{item.ticker}</td>
-                      <td style={{ ...TD, fontSize:"13px", color:"#5A6470" }}>{item.nombre}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: item.pos ? "#00E676" : "#FF3D71" }}>{item.pnlEur}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: item.pos ? "#00E676" : "#FF3D71" }}>{item.pnlPct}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--accent)" }}>{item.ticker}</td>
+                      <td style={{ ...TD, fontSize:"13px", color:"var(--text-muted)" }}>{item.nombre}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: item.pos ? "var(--green)" : "var(--red)" }}>{item.pnlEur}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: item.pos ? "var(--green)" : "var(--red)" }}>{item.pnlPct}</td>
                       <td style={{ ...TD }}>
                         {item.alerta && (
                           <span style={{
                             fontSize:"10px", fontWeight:700, padding:"2px 7px", borderRadius:"3px", letterSpacing:"0.04em",
-                            background: item.alerta === "STOP ACTIVO" ? "rgba(255,61,113,0.15)" : item.alerta === "REVISAR STOP" ? "rgba(255,184,0,0.15)" : "rgba(90,100,112,0.12)",
-                            color:       item.alerta === "STOP ACTIVO" ? "#FF3D71"              : item.alerta === "REVISAR STOP" ? "#FFB800"              : "#5A6470",
-                            border:`1px solid ${item.alerta === "STOP ACTIVO" ? "rgba(255,61,113,0.3)" : item.alerta === "REVISAR STOP" ? "rgba(255,184,0,0.3)" : "rgba(90,100,112,0.25)"}`,
+                            background: item.alerta === "STOP ACTIVO" ? "rgba(255,61,113,0.15)" : item.alerta === "REVISAR STOP" ? "rgba(255,184,0,0.15)" : "var(--accent-dim)",
+                            color:       item.alerta === "STOP ACTIVO" ? "var(--red)"              : item.alerta === "REVISAR STOP" ? "var(--amber)"              : "var(--text-muted)",
+                            border:`1px solid ${item.alerta === "STOP ACTIVO" ? "rgba(255,61,113,0.3)" : item.alerta === "REVISAR STOP" ? "rgba(255,184,0,0.3)" : "var(--border)"}`,
                           }}>{item.alerta}</span>
                         )}
                       </td>
@@ -371,9 +368,9 @@ export default function TradingPage() {
                   return rows;
                 })}
                 <tr>
-                  <td colSpan={2} style={{ padding:"12px 14px", fontWeight:700, color:"#FFFFFF", fontSize:"13px", borderTop:"1px solid rgba(255,255,255,0.08)" }}>TOTAL · 18 posiciones</td>
-                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#00E676", borderTop:"1px solid rgba(255,255,255,0.08)" }}>+357,90€</td>
-                  <td colSpan={2} style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"#5A6470", borderTop:"1px solid rgba(255,255,255,0.08)" }}>Capital: 12.022,43€</td>
+                  <td colSpan={2} style={{ padding:"12px 14px", fontWeight:700, color:"var(--text)", fontSize:"13px", borderTop:"1px solid var(--border)" }}>TOTAL · 18 posiciones</td>
+                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--green)", borderTop:"1px solid var(--border)" }}>+357,90€</td>
+                  <td colSpan={2} style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--text-muted)", borderTop:"1px solid var(--border)" }}>Capital: 12.022,43€</td>
                 </tr>
               </tbody>
             </table>
@@ -384,13 +381,12 @@ export default function TradingPage() {
       {/* Crypto */}
       {tab === "Crypto" && (
         <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
-          {/* Resumen */}
           <div style={{ ...CARD, padding:"20px 24px", display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"16px" }}>
             {[
-              { label:"Total",     value:"$1.916",     color:"#FFFFFF"  },
-              { label:"PnL Total", value:"-$458",      color:"#FF3D71"  },
-              { label:"PnL hoy",   value:"-$166",      color:"#FF3D71"  },
-              { label:"Exchange",  value:"CoinEx Spot",color:"#5A6470"  },
+              { label:"Total",     value:"$1.916",     color:"var(--text)"  },
+              { label:"PnL Total", value:"-$458",      color:"var(--red)"  },
+              { label:"PnL hoy",   value:"-$166",      color:"var(--red)"  },
+              { label:"Exchange",  value:"CoinEx Spot",color:"var(--text-muted)"  },
             ].map(({ label, value, color }) => (
               <div key={label}>
                 <p style={{ ...LABEL, marginBottom:"8px" }}>{label}</p>
@@ -398,31 +394,30 @@ export default function TradingPage() {
               </div>
             ))}
           </div>
-          {/* Tabla */}
           <div style={{ ...CARD, overflow:"hidden" }}>
-            <div style={{ padding:"16px 20px", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+            <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)" }}>
               <p style={LABEL}>Cartera Crypto — CoinEx Spot · 6 Jun 2026</p>
             </div>
             <table style={{ width:"100%", borderCollapse:"collapse" }}>
               <thead><tr>{["Coin","Nombre","Cantidad","Valor USD","PnL $","PnL %","Target","Estado"].map(h=><th key={h} style={TH}>{h}</th>)}</tr></thead>
               <tbody>
                 {carteraCrypto.map(item => {
-                  const pnlColor = item.pnl > 0 ? "#00E676" : item.pnl < 0 ? "#FF3D71" : "#9AA3AD";
+                  const pnlColor = item.pnl > 0 ? "var(--green)" : item.pnl < 0 ? "var(--red)" : "var(--text-mid)";
                   const pnlSign  = item.pnl > 0 ? "+" : "";
                   const badgeStyle: React.CSSProperties =
-                    item.estado === "MANTENER"       ? { background:"rgba(0,200,255,0.12)",  color:"#00C8FF", border:"1px solid rgba(0,200,255,0.25)"  } :
-                    item.estado === "LIQUIDEZ"        ? { background:"rgba(90,100,112,0.15)", color:"#9AA3AD", border:"1px solid rgba(90,100,112,0.3)"   } :
-                    item.estado === "TOMAR PARCIALES" ? { background:"rgba(255,184,0,0.12)",  color:"#FFB800", border:"1px solid rgba(255,184,0,0.25)"   } :
-                                                        { background:"rgba(255,61,113,0.12)", color:"#FF3D71", border:"1px solid rgba(255,61,113,0.25)"  };
+                    item.estado === "MANTENER"       ? { background:"var(--accent-dim)",  color:"var(--accent)", border:"1px solid var(--border-accent)"  } :
+                    item.estado === "LIQUIDEZ"        ? { background:"var(--accent-dim)", color:"var(--text-mid)", border:"1px solid var(--border)"   } :
+                    item.estado === "TOMAR PARCIALES" ? { background:"rgba(255,184,0,0.12)",  color:"var(--amber)", border:"1px solid rgba(255,184,0,0.25)"   } :
+                                                        { background:"rgba(255,61,113,0.12)", color:"var(--red)", border:"1px solid rgba(255,61,113,0.25)"  };
                   return (
                     <tr key={item.coin}>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#FFB800" }}>{item.coin}</td>
-                      <td style={{ ...TD, fontSize:"13px", color:"#5A6470" }}>{item.nombre}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"#9AA3AD" }}>{item.cantidad}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"13px", color:"#FFFFFF" }}>${item.valor.toFixed(2)}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--amber)" }}>{item.coin}</td>
+                      <td style={{ ...TD, fontSize:"13px", color:"var(--text-muted)" }}>{item.nombre}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--text-mid)" }}>{item.cantidad}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"13px", color:"var(--text)" }}>${item.valor.toFixed(2)}</td>
                       <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pnlColor }}>{pnlSign}${Math.abs(item.pnl).toFixed(2)}</td>
                       <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pnlColor }}>{pnlSign}{item.pnlPct}%</td>
-                      <td style={{ ...TD, fontSize:"12px", color:"#00C8FF" }}>{item.target}</td>
+                      <td style={{ ...TD, fontSize:"12px", color:"var(--accent)" }}>{item.target}</td>
                       <td style={{ ...TD }}>
                         <span style={{ fontSize:"10px", fontWeight:700, padding:"2px 7px", borderRadius:"3px", letterSpacing:"0.04em", ...badgeStyle }}>{item.estado}</span>
                       </td>
@@ -430,18 +425,18 @@ export default function TradingPage() {
                   );
                 })}
                 <tr>
-                  <td colSpan={3} style={{ padding:"12px 14px", fontWeight:700, color:"#FFFFFF", fontSize:"13px", borderTop:"1px solid rgba(255,255,255,0.08)" }}>TOTAL · 8 posiciones</td>
-                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#FFFFFF", borderTop:"1px solid rgba(255,255,255,0.08)" }}>$1.916</td>
-                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#FF3D71", borderTop:"1px solid rgba(255,255,255,0.08)" }}>-$458</td>
-                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#FF3D71", borderTop:"1px solid rgba(255,255,255,0.08)" }}>-20.99%</td>
-                  <td colSpan={2} style={{ borderTop:"1px solid rgba(255,255,255,0.08)" }}></td>
+                  <td colSpan={3} style={{ padding:"12px 14px", fontWeight:700, color:"var(--text)", fontSize:"13px", borderTop:"1px solid var(--border)" }}>TOTAL · 8 posiciones</td>
+                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--text)", borderTop:"1px solid var(--border)" }}>$1.916</td>
+                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--red)", borderTop:"1px solid var(--border)" }}>-$458</td>
+                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--red)", borderTop:"1px solid var(--border)" }}>-20.99%</td>
+                  <td colSpan={2} style={{ borderTop:"1px solid var(--border)" }}></td>
                 </tr>
               </tbody>
             </table>
-            <div style={{ padding:"12px 20px", borderTop:"1px solid rgba(255,255,255,0.04)", background:"rgba(255,255,255,0.01)" }}>
-              <p style={{ fontSize:"11px", color:"#5A6470", lineHeight:1.6, margin:0 }}>
-                <span style={{ color:"#00C8FF", fontWeight:600 }}>Largo plazo</span>: SOL · XRP · ETH — targets definidos, tesis activa.{" "}
-                <span style={{ color:"#FF3D71", fontWeight:600 }}>Revisar</span>: DOT · LTC · ADA — sin tesis clara, evaluar salida.{" "}
+            <div style={{ padding:"12px 20px", borderTop:"1px solid var(--border)", background:"var(--accent-dim)" }}>
+              <p style={{ fontSize:"11px", color:"var(--text-muted)", lineHeight:1.6, margin:0 }}>
+                <span style={{ color:"var(--accent)", fontWeight:600 }}>Largo plazo</span>: SOL · XRP · ETH — targets definidos, tesis activa.{" "}
+                <span style={{ color:"var(--red)", fontWeight:600 }}>Revisar</span>: DOT · LTC · ADA — sin tesis clara, evaluar salida.{" "}
                 DOGE en profit +134%, considerar toma parcial.
               </p>
             </div>
@@ -452,23 +447,23 @@ export default function TradingPage() {
       {/* Dividendos */}
       {tab === "Dividendos" && (
         <div style={{ ...CARD, overflow:"hidden" }}>
-          <div style={{ padding:"16px 20px", borderBottom:"1px solid rgba(255,255,255,0.06)" }}><p style={LABEL}>Cartera Dividendos — Yield anual estimado</p></div>
+          <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)" }}><p style={LABEL}>Cartera Dividendos — Yield anual estimado</p></div>
           <table style={{ width:"100%", borderCollapse:"collapse" }}>
             <thead><tr>{["Ticker","Nombre","Acciones","Precio","Yield","Ingreso Anual"].map(h=><th key={h} style={TH}>{h}</th>)}</tr></thead>
             <tbody>
               {dividendos.map(({ t,n,a,p,y,ingreso }) => (
                 <tr key={t}>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#00E676" }}>{t}</td>
-                  <td style={{ ...TD, fontSize:"12px", color:"#5A6470" }}>{n}</td>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"#9AA3AD" }}>{a}</td>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"#9AA3AD" }}>${p}</td>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#00E676" }}>{y}</td>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#FFFFFF" }}>{ingreso}</td>
+                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--green)" }}>{t}</td>
+                  <td style={{ ...TD, fontSize:"12px", color:"var(--text-muted)" }}>{n}</td>
+                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--text-mid)" }}>{a}</td>
+                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--text-mid)" }}>${p}</td>
+                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--green)" }}>{y}</td>
+                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--text)" }}>{ingreso}</td>
                 </tr>
               ))}
               <tr>
-                <td colSpan={5} style={{ padding:"12px 14px", fontWeight:700, color:"#FFFFFF", fontSize:"13px", borderTop:"1px solid rgba(255,255,255,0.06)" }}>TOTAL ANUAL ESTIMADO</td>
-                <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#00E676", borderTop:"1px solid rgba(255,255,255,0.06)" }}>611€</td>
+                <td colSpan={5} style={{ padding:"12px 14px", fontWeight:700, color:"var(--text)", fontSize:"13px", borderTop:"1px solid var(--border)" }}>TOTAL ANUAL ESTIMADO</td>
+                <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--green)", borderTop:"1px solid var(--border)" }}>611€</td>
               </tr>
             </tbody>
           </table>
@@ -478,43 +473,41 @@ export default function TradingPage() {
       {/* Diario */}
       {tab === "Diario" && (
         <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
-          {/* Formulario */}
           <div style={{ ...CARD, padding:"16px 20px" }}>
             <p style={{ ...LABEL, marginBottom:"14px" }}>Nueva operación</p>
             <div style={{ display:"flex", gap:"10px", flexWrap:"wrap", alignItems:"flex-end" }}>
               {[["Ticker","ticker","NVDA"],["Entrada","entrada","112.00"],["Salida","salida","115.50"]].map(([label, key, ph]) => (
                 <div key={key}>
-                  <p style={{ fontSize:"11px", color:"#5A6470", marginBottom:"4px" }}>{label}</p>
+                  <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>{label}</p>
                   <input
                     value={(newOp as Record<string, string>)[key]}
                     onChange={e => setNewOp(prev => ({ ...prev, [key]: e.target.value }))}
                     placeholder={ph}
-                    style={{ padding:"7px 10px", borderRadius:"4px", border:"1px solid rgba(255,255,255,0.06)", background:"#161616", color:"#FFFFFF", fontSize:"13px", width: key==="ticker" ? "90px" : "110px", outline:"none" }}
+                    style={{ padding:"7px 10px", borderRadius:"4px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text)", fontSize:"13px", width: key==="ticker" ? "90px" : "110px", outline:"none" }}
                   />
                 </div>
               ))}
               <div>
-                <p style={{ fontSize:"11px", color:"#5A6470", marginBottom:"4px" }}>Tipo</p>
-                <select value={newOp.tipo} onChange={e => setNewOp(p=>({...p,tipo:e.target.value}))} style={{ padding:"7px 10px", borderRadius:"4px", border:"1px solid rgba(255,255,255,0.06)", background:"#161616", color:"#FFFFFF", fontSize:"13px", outline:"none" }}>
+                <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Tipo</p>
+                <select value={newOp.tipo} onChange={e => setNewOp(p=>({...p,tipo:e.target.value}))} style={{ padding:"7px 10px", borderRadius:"4px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text)", fontSize:"13px", outline:"none" }}>
                   <option>LONG</option><option>SHORT</option>
                 </select>
               </div>
-              <button onClick={addOp} style={{ padding:"8px 16px", borderRadius:"4px", background:"#00C8FF", color:"#000", fontSize:"13px", fontWeight:600, border:"none", cursor:"pointer" }}>Añadir</button>
+              <button onClick={addOp} style={{ padding:"8px 16px", borderRadius:"4px", background:"var(--accent)", color:"#fff", fontSize:"13px", fontWeight:600, border:"none", cursor:"pointer" }}>Añadir</button>
             </div>
           </div>
-          {/* Log */}
           <div style={{ ...CARD, overflow:"hidden" }}>
             <table style={{ width:"100%", borderCollapse:"collapse" }}>
               <thead><tr>{["Fecha","Ticker","Tipo","Entrada","Salida","Resultado"].map(h=><th key={h} style={TH}>{h}</th>)}</tr></thead>
               <tbody>
                 {ops.map((op,i) => (
                   <tr key={i}>
-                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"11px", color:"#5A6470" }}>{op.fecha}</td>
-                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#00C8FF" }}>{op.ticker}</td>
-                    <td style={{ ...TD }}><span style={{ fontSize:"11px", fontWeight:600, padding:"2px 6px", borderRadius:"3px", background:"rgba(0,200,255,0.08)", color:"#00C8FF" }}>{op.tipo}</span></td>
-                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"#9AA3AD" }}>{op.entrada}</td>
-                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"#9AA3AD" }}>{op.salida}</td>
-                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: op.ganancia ? "#00E676" : "#FF3D71" }}>{op.resultado}</td>
+                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"11px", color:"var(--text-muted)" }}>{op.fecha}</td>
+                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--accent)" }}>{op.ticker}</td>
+                    <td style={{ ...TD }}><span style={{ fontSize:"11px", fontWeight:600, padding:"2px 6px", borderRadius:"3px", background:"var(--accent-dim)", color:"var(--accent)" }}>{op.tipo}</span></td>
+                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--text-mid)" }}>{op.entrada}</td>
+                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--text-mid)" }}>{op.salida}</td>
+                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: op.ganancia ? "var(--green)" : "var(--red)" }}>{op.resultado}</td>
                   </tr>
                 ))}
               </tbody>
@@ -532,13 +525,13 @@ export default function TradingPage() {
               {setups.map(({ ticker,razon,entrada,stop,objetivo }) => (
                 <div key={ticker} style={{ ...CARD, padding:"14px 16px" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"6px" }}>
-                    <span style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#00C8FF" }}>{ticker}</span>
-                    <button onClick={() => alert(`${ticker} publicado en Telegram ✅`)} style={{ fontSize:"11px", padding:"3px 8px", borderRadius:"3px", background:"rgba(0,200,255,0.08)", color:"#00C8FF", border:"1px solid rgba(0,200,255,0.15)", cursor:"pointer" }}>Publicar Telegram</button>
+                    <span style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--accent)" }}>{ticker}</span>
+                    <button onClick={() => alert(`${ticker} publicado en Telegram ✅`)} style={{ fontSize:"11px", padding:"3px 8px", borderRadius:"3px", background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--border-accent)", cursor:"pointer" }}>Publicar Telegram</button>
                   </div>
-                  <p style={{ fontSize:"12px", color:"#5A6470", marginBottom:"10px" }}>{razon}</p>
+                  <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"10px" }}>{razon}</p>
                   <div style={{ display:"flex", gap:"16px" }}>
-                    {[["Entrada",entrada,"#FFFFFF"],["Stop",stop,"#FF3D71"],["Objetivo",objetivo,"#00E676"]].map(([l,v,c])=>(
-                      <div key={l}><span style={{ fontSize:"11px", color:"#5A6470" }}>{l} </span><span style={{ fontFamily:"'Space Mono', monospace", fontSize:"12px", fontWeight:700, color:c }}>{v}</span></div>
+                    {[["Entrada",entrada,"var(--text)"],["Stop",stop,"var(--red)"],["Objetivo",objetivo,"var(--green)"]].map(([l,v,c])=>(
+                      <div key={l}><span style={{ fontSize:"11px", color:"var(--text-muted)" }}>{l} </span><span style={{ fontFamily:"'Space Mono', monospace", fontSize:"12px", fontWeight:700, color:c }}>{v}</span></div>
                     ))}
                   </div>
                 </div>
@@ -552,11 +545,11 @@ export default function TradingPage() {
                 <button
                   key={i}
                   onClick={() => navigator.clipboard.writeText(p).then(() => alert("Prompt copiado ✅"))}
-                  style={{ textAlign:"left", padding:"10px 12px", borderRadius:"5px", border:"1px solid rgba(255,255,255,0.06)", background:"#161616", color:"#9AA3AD", fontSize:"12px", cursor:"pointer", lineHeight:1.4 }}
-                  onMouseEnter={e=>(e.currentTarget.style.borderColor="rgba(0,200,255,0.2)")}
-                  onMouseLeave={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,0.06)")}
+                  style={{ textAlign:"left", padding:"10px 12px", borderRadius:"5px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text-mid)", fontSize:"12px", cursor:"pointer", lineHeight:1.4 }}
+                  onMouseEnter={e=>(e.currentTarget.style.borderColor="var(--border-accent)")}
+                  onMouseLeave={e=>(e.currentTarget.style.borderColor="var(--border)")}
                 >
-                  <span style={{ fontFamily:"'Space Mono', monospace", color:"#5A6470", marginRight:"8px" }}>{String(i+1).padStart(2,"0")}</span>{p}
+                  <span style={{ fontFamily:"'Space Mono', monospace", color:"var(--text-muted)", marginRight:"8px" }}>{String(i+1).padStart(2,"0")}</span>{p}
                 </button>
               ))}
             </div>
@@ -572,13 +565,13 @@ export default function TradingPage() {
               <button
                 key={id}
                 onClick={() => openModal(`${id} — ${titulo}`, prompt)}
-                style={{ textAlign:"left", padding:"16px 18px", borderRadius:"6px", border:"1px solid rgba(255,255,255,0.08)", background:"#111111", color:"#FFFFFF", cursor:"pointer", display:"flex", flexDirection:"column", gap:"6px" }}
-                onMouseEnter={e=>(e.currentTarget.style.borderColor="rgba(0,200,255,0.3)")}
-                onMouseLeave={e=>(e.currentTarget.style.borderColor="rgba(255,255,255,0.08)")}
+                style={{ textAlign:"left", padding:"16px 18px", borderRadius:"6px", border:"1px solid var(--border)", background:"var(--card)", color:"var(--text)", cursor:"pointer", display:"flex", flexDirection:"column", gap:"6px" }}
+                onMouseEnter={e=>(e.currentTarget.style.borderColor="var(--border-accent)")}
+                onMouseLeave={e=>(e.currentTarget.style.borderColor="var(--border)")}
               >
-                <span style={{ fontFamily:"'Space Mono', monospace", color:"#00C8FF", fontSize:"14px", fontWeight:700 }}>{id}</span>
-                <span style={{ fontSize:"13px", fontWeight:500, color:"#FFFFFF" }}>{titulo}</span>
-                <span style={{ fontSize:"11px", color:"#5A6470" }}>Ver prompt completo →</span>
+                <span style={{ fontFamily:"'Space Mono', monospace", color:"var(--accent)", fontSize:"14px", fontWeight:700 }}>{id}</span>
+                <span style={{ fontSize:"13px", fontWeight:500, color:"var(--text)" }}>{titulo}</span>
+                <span style={{ fontSize:"11px", color:"var(--text-muted)" }}>Ver prompt completo →</span>
               </button>
             ))}
           </div>
@@ -593,16 +586,16 @@ export default function TradingPage() {
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background:"#111111", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"10px", padding:"28px", maxWidth:"660px", width:"100%", maxHeight:"82vh", overflowY:"auto" }}
+            style={{ background:"var(--card)", border:"1px solid var(--border)", borderRadius:"10px", padding:"28px", maxWidth:"660px", width:"100%", maxHeight:"82vh", overflowY:"auto" }}
           >
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"20px" }}>
-              <h3 style={{ color:"#FFFFFF", margin:0, fontSize:"15px", fontWeight:600 }}>{modal.title}</h3>
-              <button onClick={() => setModal(m => ({ ...m, open:false }))} style={{ background:"none", border:"none", color:"#5A6470", cursor:"pointer", fontSize:"22px", lineHeight:1, padding:"0 4px" }}>✕</button>
+              <h3 style={{ color:"var(--text)", margin:0, fontSize:"15px", fontWeight:600 }}>{modal.title}</h3>
+              <button onClick={() => setModal(m => ({ ...m, open:false }))} style={{ background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", fontSize:"22px", lineHeight:1, padding:"0 4px" }}>✕</button>
             </div>
-            <pre style={{ color:"#C4CDD5", fontSize:"12px", lineHeight:1.75, whiteSpace:"pre-wrap", fontFamily:"'Space Mono', monospace", margin:"0 0 24px 0" }}>{modal.content}</pre>
+            <pre style={{ color:"var(--text-mid)", fontSize:"12px", lineHeight:1.75, whiteSpace:"pre-wrap", fontFamily:"'Space Mono', monospace", margin:"0 0 24px 0" }}>{modal.content}</pre>
             <button
               onClick={() => navigator.clipboard.writeText(modal.content).then(() => alert("Copiado al portapapeles ✅"))}
-              style={{ padding:"9px 22px", background:"#00C8FF", color:"#000000", border:"none", borderRadius:"5px", cursor:"pointer", fontWeight:700, fontSize:"13px" }}
+              style={{ padding:"9px 22px", background:"var(--accent)", color:"#fff", border:"none", borderRadius:"5px", cursor:"pointer", fontWeight:700, fontSize:"13px" }}
             >Copiar prompt</button>
           </div>
         </div>

@@ -1,6 +1,12 @@
 @import "tailwindcss";
 
 :root {
+  --radius: 6px;
+  --font-sans: 'Space Grotesk', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+}
+
+:root[data-theme="dark"] {
   --bg: #000000;
   --surface: #0a0a0a;
   --card: #111111;
@@ -15,9 +21,23 @@
   --text: #FFFFFF;
   --text-muted: #5A6470;
   --text-mid: #9AA3AD;
-  --radius: 6px;
-  --font-sans: 'Space Grotesk', sans-serif;
-  --font-mono: 'Space Mono', monospace;
+}
+
+:root[data-theme="light"] {
+  --bg: #F7F7F9;
+  --surface: #FFFFFF;
+  --card: #FFFFFF;
+  --card-hover: #F0F0F3;
+  --border: rgba(0,0,0,0.08);
+  --border-accent: rgba(0,102,255,0.25);
+  --accent: #0066FF;
+  --accent-dim: rgba(0,102,255,0.06);
+  --green: #00A152;
+  --red: #E5394B;
+  --amber: #C77700;
+  --text: #0A0A0F;
+  --text-muted: #8A8F98;
+  --text-mid: #4A4F58;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -27,4 +47,5 @@ body {
   color: var(--text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  transition: background 0.2s, color 0.2s;
 }

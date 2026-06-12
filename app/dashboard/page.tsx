@@ -16,14 +16,14 @@ const agenda = [
 ];
 
 const alertas = [
-  { text: "Identity Peluqueros — reseña sin responder", color: "#FFB800" },
-  { text: "Desancho Estilistas — CPL subió 40%",        color: "#FF3D71" },
-  { text: "IBKR SHLS +3.2% — cerca de objetivo",        color: "#00E676" },
-  { text: "Flow 04 Briefing — ejecutado hoy 08:45",     color: "#00C8FF" },
+  { text: "Identity Peluqueros — reseña sin responder", color: "var(--amber)" },
+  { text: "Desancho Estilistas — CPL subió 40%",        color: "var(--red)" },
+  { text: "IBKR SHLS +3.2% — cerca de objetivo",        color: "var(--green)" },
+  { text: "Flow 04 Briefing — ejecutado hoy 08:45",     color: "var(--accent)" },
 ];
 
-const CARD = { background: "#111111", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "6px", padding: "20px" } as React.CSSProperties;
-const LABEL = { fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "#5A6470", marginBottom: "8px" };
+const CARD = { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "6px", padding: "20px" } as React.CSSProperties;
+const LABEL = { fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", marginBottom: "8px" };
 const NUM   = { fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: "28px", lineHeight: 1, marginBottom: "8px" };
 
 export default function DashboardPage() {
@@ -44,10 +44,10 @@ export default function DashboardPage() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "32px" }}>
         <div>
-          <h1 style={{ fontSize: "24px", fontWeight: 600, color: "#FFFFFF", marginBottom: "4px" }}>{greeting}, Rene</h1>
-          <p style={{ fontSize: "13px", color: "#5A6470" }}>{dateStr}</p>
+          <h1 style={{ fontSize: "24px", fontWeight: 600, color: "var(--text)", marginBottom: "4px" }}>{greeting}, Rene</h1>
+          <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>{dateStr}</p>
         </div>
-        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "22px", fontWeight: 700, color: "#00C8FF", letterSpacing: "0.05em" }}>
+        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "22px", fontWeight: 700, color: "var(--accent)", letterSpacing: "0.05em" }}>
           {timeStr}
         </span>
       </div>
@@ -57,33 +57,33 @@ export default function DashboardPage() {
         {/* MRR */}
         <div style={CARD}>
           <p style={LABEL}>MRR</p>
-          <p style={{ ...NUM, color: "#00E676" }}>1.100€</p>
-          <p style={{ fontSize: "12px", color: "#5A6470", marginBottom: "12px" }}>meta 5.000€/mes</p>
-          <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: "3px", height: "3px" }}>
-            <div style={{ width: "22%", height: "100%", background: "#00E676", borderRadius: "3px" }} />
+          <p style={{ ...NUM, color: "var(--green)" }}>1.100€</p>
+          <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px" }}>meta 5.000€/mes</p>
+          <div style={{ background: "var(--border)", borderRadius: "3px", height: "3px" }}>
+            <div style={{ width: "22%", height: "100%", background: "var(--green)", borderRadius: "3px" }} />
           </div>
-          <p style={{ fontSize: "11px", color: "#00E676", marginTop: "4px", fontFamily: "'Space Mono', monospace" }}>22%</p>
+          <p style={{ fontSize: "11px", color: "var(--green)", marginTop: "4px", fontFamily: "'Space Mono', monospace" }}>22%</p>
         </div>
 
         {/* P&L HOY */}
         <div style={CARD}>
           <p style={LABEL}>P&L Hoy</p>
-          <p style={{ ...NUM, color: "#00C8FF" }}>+127€</p>
-          <p style={{ fontSize: "12px", color: "#5A6470" }}>Cartera: 12.822€</p>
+          <p style={{ ...NUM, color: "var(--accent)" }}>+127€</p>
+          <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>Cartera: 12.822€</p>
         </div>
 
         {/* LEADS */}
         <div style={CARD}>
           <p style={LABEL}>Leads Activos</p>
-          <p style={{ ...NUM, color: "#FFB800" }}>3</p>
-          <p style={{ fontSize: "12px", color: "#5A6470" }}>Taller García · Rent-a-Car Sol</p>
+          <p style={{ ...NUM, color: "var(--amber)" }}>3</p>
+          <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>Taller García · Rent-a-Car Sol</p>
         </div>
 
         {/* TAREAS */}
         <div style={CARD}>
           <p style={LABEL}>Tareas Urgentes</p>
-          <p style={{ ...NUM, color: "#FF3D71" }}>4</p>
-          <p style={{ fontSize: "12px", color: "#5A6470" }}>Identity · Desancho · Video · n8n</p>
+          <p style={{ ...NUM, color: "var(--red)" }}>4</p>
+          <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>Identity · Desancho · Video · n8n</p>
         </div>
       </div>
 
@@ -98,9 +98,9 @@ export default function DashboardPage() {
               const isCurrent = h === blockH || h === blockH + 1;
               return (
                 <li key={time} style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", width: "44px", flexShrink: 0, color: isPast ? "#2A3040" : isCurrent ? "#00C8FF" : "#5A6470" }}>{time}</span>
-                  <span style={{ width: "5px", height: "5px", borderRadius: "50%", flexShrink: 0, background: isPast ? "#1a2030" : isCurrent ? "#00C8FF" : "#2A3040" }} />
-                  <span style={{ fontSize: "13px", color: isPast ? "#2A3040" : isCurrent ? "#FFFFFF" : "#9AA3AD" }}>{label}</span>
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "12px", width: "44px", flexShrink: 0, color: isPast ? "var(--text-muted)" : isCurrent ? "var(--accent)" : "var(--text-muted)", opacity: isPast ? 0.4 : 1 }}>{time}</span>
+                  <span style={{ width: "5px", height: "5px", borderRadius: "50%", flexShrink: 0, background: isPast ? "var(--border)" : isCurrent ? "var(--accent)" : "var(--border)" }} />
+                  <span style={{ fontSize: "13px", color: isPast ? "var(--text-muted)" : isCurrent ? "var(--text)" : "var(--text-mid)", opacity: isPast ? 0.4 : 1 }}>{label}</span>
                 </li>
               );
             })}
@@ -113,7 +113,7 @@ export default function DashboardPage() {
             {alertas.map(({ text, color }) => (
               <li key={text} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
                 <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: color, flexShrink: 0, marginTop: "5px" }} />
-                <span style={{ fontSize: "13px", color: "#9AA3AD" }}>{text}</span>
+                <span style={{ fontSize: "13px", color: "var(--text-mid)" }}>{text}</span>
               </li>
             ))}
           </ul>

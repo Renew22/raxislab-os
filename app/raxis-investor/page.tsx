@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 
-// ─── STATIC DATA ──────────────────────────────────────────────────────────────
-
 const trackRecord = [
   { ticker:"ENGI", decision:"COMPRA",  entrada:21.42, actual:26.76, pnlPct: 24.9, estado:"ABIERTA" },
   { ticker:"REP",  decision:"COMPRA",  entrada:18.33, actual:22.95, pnlPct: 25.2, estado:"ABIERTA" },
@@ -24,13 +22,11 @@ const initialSignals = [
   { coin:"DOGE", tipo:"LONG", entrada:"$0.036", actual:"$0.081", stop:"—",      target:"—",      pnlPct:134.2, nota:"Considerando parciales" },
 ];
 
-// ─── STYLES ───────────────────────────────────────────────────────────────────
-
-const CARD  = { background:"#111111", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"6px" } as React.CSSProperties;
-const LABEL = { fontSize:"11px", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase" as const, color:"#5A6470" };
-const TH    = { padding:"10px 14px", textAlign:"left" as const, fontSize:"11px", fontWeight:600, letterSpacing:"0.06em", color:"#5A6470", borderBottom:"1px solid rgba(255,255,255,0.06)" };
-const TD    = { padding:"12px 14px", borderBottom:"1px solid rgba(255,255,255,0.04)" };
-const INPUT = { padding:"8px 10px", borderRadius:"4px", border:"1px solid rgba(255,255,255,0.08)", background:"#161616", color:"#FFFFFF", fontSize:"13px", outline:"none", width:"100%" } as React.CSSProperties;
+const CARD  = { background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px" } as React.CSSProperties;
+const LABEL = { fontSize:"11px", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase" as const, color:"var(--text-muted)" };
+const TH    = { padding:"10px 14px", textAlign:"left" as const, fontSize:"11px", fontWeight:600, letterSpacing:"0.06em", color:"var(--text-muted)", borderBottom:"1px solid var(--border)" };
+const TD    = { padding:"12px 14px", borderBottom:"1px solid var(--border)" };
+const INPUT = { padding:"8px 10px", borderRadius:"4px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text)", fontSize:"13px", outline:"none", width:"100%" } as React.CSSProperties;
 
 type Tab = "Publicar" | "TrackRecord" | "YouTube" | "CryptoSignals" | "Métricas";
 const TABS: Tab[] = ["Publicar", "TrackRecord", "YouTube", "CryptoSignals", "Métricas"];
@@ -41,8 +37,6 @@ const TAB_LABELS: Record<Tab, string> = {
   CryptoSignals: "Crypto Signals",
   Métricas:      "Métricas Canal",
 };
-
-// ─── COMPONENT ────────────────────────────────────────────────────────────────
 
 export default function RaxisInvestorPage() {
   const [tab, setTab]       = useState<Tab>("Publicar");
@@ -115,14 +109,14 @@ export default function RaxisInvestorPage() {
     <div style={{ padding:"32px 40px" }}>
       {/* Header */}
       <div style={{ marginBottom:"24px" }}>
-        <h1 style={{ fontSize:"24px", fontWeight:600, color:"#FFFFFF", margin:"0 0 4px 0" }}>Raxis Investor</h1>
-        <p style={{ fontSize:"13px", color:"#5A6470", margin:0 }}>Análisis · Publicación · Tracking</p>
+        <h1 style={{ fontSize:"24px", fontWeight:600, color:"var(--text)", margin:"0 0 4px 0" }}>Raxis Investor</h1>
+        <p style={{ fontSize:"13px", color:"var(--text-muted)", margin:0 }}>Análisis · Publicación · Tracking</p>
       </div>
 
       {/* Tab bar */}
-      <div style={{ display:"inline-flex", gap:"4px", padding:"4px", background:"#0a0a0a", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"8px", marginBottom:"24px" }}>
+      <div style={{ display:"inline-flex", gap:"4px", padding:"4px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"8px", marginBottom:"24px" }}>
         {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding:"7px 16px", borderRadius:"5px", border:"none", cursor:"pointer", fontSize:"13px", fontWeight: tab===t ? 600 : 400, background: tab===t ? "rgba(0,200,255,0.1)" : "transparent", color: tab===t ? "#00C8FF" : "#5A6470", outline: tab===t ? "1px solid rgba(0,200,255,0.2)" : "none", whiteSpace:"nowrap" }}>
+          <button key={t} onClick={() => setTab(t)} style={{ padding:"7px 16px", borderRadius:"5px", border:"none", cursor:"pointer", fontSize:"13px", fontWeight: tab===t ? 600 : 400, background: tab===t ? "var(--accent-dim)" : "transparent", color: tab===t ? "var(--accent)" : "var(--text-muted)", outline: tab===t ? "1px solid var(--border-accent)" : "none", whiteSpace:"nowrap" }}>
             {TAB_LABELS[t]}
           </button>
         ))}
@@ -138,7 +132,7 @@ export default function RaxisInvestorPage() {
             <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"12px", marginBottom:"12px" }}>
               {([ ["ticker","Ticker"], ["empresa","Empresa"], ["precioActual","Precio actual"], ["entrada","Entrada"] ] as [string,string][]).map(([k, l]) => (
                 <div key={k}>
-                  <p style={{ fontSize:"11px", color:"#5A6470", marginBottom:"4px" }}>{l}</p>
+                  <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>{l}</p>
                   <input value={(form as Record<string,string>)[k]} onChange={e => setField(k, e.target.value)} style={INPUT} />
                 </div>
               ))}
@@ -148,7 +142,7 @@ export default function RaxisInvestorPage() {
             <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"12px", marginBottom:"12px" }}>
               {([ ["stop","Stop"], ["target1","Target 1"], ["target2","Target 2"], ["riesgo","Riesgo"] ] as [string,string][]).map(([k, l]) => (
                 <div key={k}>
-                  <p style={{ fontSize:"11px", color:"#5A6470", marginBottom:"4px" }}>{l}</p>
+                  <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>{l}</p>
                   <input value={(form as Record<string,string>)[k]} onChange={e => setField(k, e.target.value)} style={INPUT} />
                 </div>
               ))}
@@ -156,31 +150,31 @@ export default function RaxisInvestorPage() {
 
             {/* Tesis */}
             <div style={{ marginBottom:"12px" }}>
-              <p style={{ fontSize:"11px", color:"#5A6470", marginBottom:"4px" }}>Tesis</p>
+              <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Tesis</p>
               <textarea value={form.tesis} onChange={e => setField("tesis", e.target.value)} rows={3} style={{ ...INPUT, resize:"vertical" as const }} />
             </div>
 
             {/* Fila 3 — selects + radio */}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"12px", marginBottom:"20px" }}>
               <div>
-                <p style={{ fontSize:"11px", color:"#5A6470", marginBottom:"4px" }}>Catalizador</p>
+                <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Catalizador</p>
                 <select value={form.catalizador} onChange={e => setField("catalizador", e.target.value)} style={INPUT}>
                   {["Insider Buy","Contrato gobierno","Earnings","Volumen inusual","Otro"].map(o => <option key={o}>{o}</option>)}
                 </select>
               </div>
               <div>
-                <p style={{ fontSize:"11px", color:"#5A6470", marginBottom:"4px" }}>Timeframe</p>
+                <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Timeframe</p>
                 <select value={form.timeframe} onChange={e => setField("timeframe", e.target.value)} style={INPUT}>
                   {["Corto","Medio","Largo"].map(o => <option key={o}>{o}</option>)}
                 </select>
               </div>
               <div>
-                <p style={{ fontSize:"11px", color:"#5A6470", marginBottom:"8px" }}>Decisión</p>
+                <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"8px" }}>Decisión</p>
                 <div style={{ display:"flex", gap:"14px", paddingTop:"4px" }}>
                   {(["COMPRA","VIGILAR","EVITAR"] as const).map(d => (
                     <label key={d} style={{ display:"flex", alignItems:"center", gap:"5px", cursor:"pointer" }}>
-                      <input type="radio" name="decision" value={d} checked={form.decision === d} onChange={() => setField("decision", d)} style={{ accentColor:"#00C8FF" }} />
-                      <span style={{ fontSize:"12px", fontWeight:600, color: d==="COMPRA" ? "#00E676" : d==="EVITAR" ? "#FF3D71" : "#FFB800" }}>{d}</span>
+                      <input type="radio" name="decision" value={d} checked={form.decision === d} onChange={() => setField("decision", d)} style={{ accentColor:"var(--accent)" }} />
+                      <span style={{ fontSize:"12px", fontWeight:600, color: d==="COMPRA" ? "var(--green)" : d==="EVITAR" ? "var(--red)" : "var(--amber)" }}>{d}</span>
                     </label>
                   ))}
                 </div>
@@ -190,7 +184,7 @@ export default function RaxisInvestorPage() {
             <button
               onClick={generarContenido}
               disabled={loading}
-              style={{ padding:"10px 24px", background: loading ? "#1a1a1a" : "#00C8FF", color: loading ? "#5A6470" : "#000000", border:"none", borderRadius:"5px", cursor: loading ? "default" : "pointer", fontWeight:700, fontSize:"14px" }}
+              style={{ padding:"10px 24px", background: loading ? "var(--card-hover)" : "var(--accent)", color: loading ? "var(--text-muted)" : "var(--bg)", border:"none", borderRadius:"5px", cursor: loading ? "default" : "pointer", fontWeight:700, fontSize:"14px" }}
             >
               {loading ? "Generando..." : "Generar contenido →"}
             </button>
@@ -207,9 +201,9 @@ export default function RaxisInvestorPage() {
                 <div key={titulo} style={{ ...CARD, padding:"18px", display:"flex", flexDirection:"column", gap:"12px" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <p style={LABEL}>{titulo}</p>
-                    <button onClick={() => navigator.clipboard.writeText(contenido).then(() => alert("Copiado ✅"))} style={{ fontSize:"11px", padding:"3px 8px", borderRadius:"3px", background:"rgba(0,200,255,0.08)", color:"#00C8FF", border:"1px solid rgba(0,200,255,0.15)", cursor:"pointer" }}>Copiar</button>
+                    <button onClick={() => navigator.clipboard.writeText(contenido).then(() => alert("Copiado ✅"))} style={{ fontSize:"11px", padding:"3px 8px", borderRadius:"3px", background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--border-accent)", cursor:"pointer" }}>Copiar</button>
                   </div>
-                  <pre style={{ fontSize:"12px", color:"#C4CDD5", lineHeight:1.6, whiteSpace:"pre-wrap", fontFamily:"'Space Mono', monospace", margin:0, maxHeight:"220px", overflowY:"auto" }}>{contenido}</pre>
+                  <pre style={{ fontSize:"12px", color:"var(--text-mid)", lineHeight:1.6, whiteSpace:"pre-wrap", fontFamily:"'Space Mono', monospace", margin:0, maxHeight:"220px", overflowY:"auto" }}>{contenido}</pre>
                 </div>
               ))}
             </div>
@@ -222,9 +216,9 @@ export default function RaxisInvestorPage() {
         <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"12px" }}>
             {[
-              { label:"Win Rate",       value:"67%",  color:"#00E676" },
-              { label:"Ganancia media", value:"+25%", color:"#00E676" },
-              { label:"Pérdida media",  value:"-14%", color:"#FF3D71" },
+              { label:"Win Rate",       value:"67%",  color:"var(--green)" },
+              { label:"Ganancia media", value:"+25%", color:"var(--green)" },
+              { label:"Pérdida media",  value:"-14%", color:"var(--red)"   },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ ...CARD, padding:"18px 20px" }}>
                 <p style={{ ...LABEL, marginBottom:"8px" }}>{label}</p>
@@ -233,7 +227,7 @@ export default function RaxisInvestorPage() {
             ))}
           </div>
           <div style={{ ...CARD, overflow:"hidden" }}>
-            <div style={{ padding:"16px 20px", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+            <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)" }}>
               <p style={LABEL}>Historial de análisis publicados</p>
             </div>
             <table style={{ width:"100%", borderCollapse:"collapse" }}>
@@ -241,18 +235,21 @@ export default function RaxisInvestorPage() {
               <tbody>
                 {trackRecord.map(({ ticker, decision, entrada, actual, pnlPct, estado }) => {
                   const pos = pnlPct >= 0;
-                  const dc  = decision === "COMPRA" ? "#00E676" : decision === "EVITAR" ? "#FF3D71" : "#FFB800";
+                  const [dcColor, dcBg, dcBorder] =
+                    decision === "COMPRA"  ? ["var(--green)", "rgba(0,230,118,0.1)",  "rgba(0,230,118,0.25)"] :
+                    decision === "EVITAR"  ? ["var(--red)",   "rgba(255,61,113,0.1)", "rgba(255,61,113,0.25)"] :
+                                            ["var(--amber)",  "rgba(255,184,0,0.1)",  "rgba(255,184,0,0.25)"];
                   return (
                     <tr key={ticker}>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#00C8FF" }}>{ticker}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--accent)" }}>{ticker}</td>
                       <td style={{ ...TD }}>
-                        <span style={{ fontSize:"11px", fontWeight:700, padding:"2px 7px", borderRadius:"3px", background:`${dc}18`, color:dc, border:`1px solid ${dc}40` }}>{decision}</span>
+                        <span style={{ fontSize:"11px", fontWeight:700, padding:"2px 7px", borderRadius:"3px", background:dcBg, color:dcColor, border:`1px solid ${dcBorder}` }}>{decision}</span>
                       </td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"13px", color:"#9AA3AD" }}>{entrada}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"13px", color:"#FFFFFF" }}>{actual}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pos ? "#00E676" : "#FF3D71" }}>{pos ? "+" : ""}{pnlPct}%</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"13px", color:"var(--text-mid)" }}>{entrada}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"13px", color:"var(--text)" }}>{actual}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pos ? "var(--green)" : "var(--red)" }}>{pos ? "+" : ""}{pnlPct}%</td>
                       <td style={{ ...TD }}>
-                        <span style={{ fontSize:"11px", padding:"2px 7px", borderRadius:"3px", background:"rgba(0,200,255,0.08)", color:"#00C8FF" }}>{estado}</span>
+                        <span style={{ fontSize:"11px", padding:"2px 7px", borderRadius:"3px", background:"var(--accent-dim)", color:"var(--accent)" }}>{estado}</span>
                       </td>
                     </tr>
                   );
@@ -273,16 +270,16 @@ export default function RaxisInvestorPage() {
             return (
               <div key={i} style={{ ...CARD, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"16px", opacity: grabado ? 0.45 : 1 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:"12px", flex:1, minWidth:0 }}>
-                  <span style={{ fontSize:"11px", fontWeight:700, padding:"2px 8px", borderRadius:"3px", whiteSpace:"nowrap", background: listo ? "rgba(0,230,118,0.12)" : "rgba(255,184,0,0.12)", color: listo ? "#00E676" : "#FFB800", border:`1px solid ${listo ? "rgba(0,230,118,0.25)" : "rgba(255,184,0,0.25)"}` }}>
+                  <span style={{ fontSize:"11px", fontWeight:700, padding:"2px 8px", borderRadius:"3px", whiteSpace:"nowrap", background: listo ? "rgba(0,230,118,0.12)" : "rgba(255,184,0,0.12)", color: listo ? "var(--green)" : "var(--amber)", border:`1px solid ${listo ? "rgba(0,230,118,0.25)" : "rgba(255,184,0,0.25)"}` }}>
                     {listo ? "GUIÓN LISTO" : "PENDIENTE"}
                   </span>
-                  <p style={{ margin:0, fontSize:"13px", color: grabado ? "#5A6470" : "#FFFFFF", textDecoration: grabado ? "line-through" : "none", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{titulo}</p>
+                  <p style={{ margin:0, fontSize:"13px", color: grabado ? "var(--text-muted)" : "var(--text)", textDecoration: grabado ? "line-through" : "none", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{titulo}</p>
                 </div>
                 <div style={{ display:"flex", gap:"8px", flexShrink:0 }}>
-                  <button style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"3px", background:"rgba(0,200,255,0.08)", color:"#00C8FF", border:"1px solid rgba(0,200,255,0.15)", cursor:"pointer", whiteSpace:"nowrap" }}>Generar guión</button>
+                  <button style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"3px", background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--border-accent)", cursor:"pointer", whiteSpace:"nowrap" }}>Generar guión</button>
                   <button
                     onClick={() => setGrabados(g => g.includes(i) ? g.filter(x => x !== i) : [...g, i])}
-                    style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"3px", cursor:"pointer", whiteSpace:"nowrap", background: grabado ? "rgba(255,255,255,0.04)" : "rgba(0,230,118,0.08)", color: grabado ? "#5A6470" : "#00E676", border:`1px solid ${grabado ? "rgba(255,255,255,0.06)" : "rgba(0,230,118,0.15)"}` }}
+                    style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"3px", cursor:"pointer", whiteSpace:"nowrap", background: grabado ? "var(--accent-dim)" : "rgba(0,230,118,0.08)", color: grabado ? "var(--text-muted)" : "var(--green)", border:`1px solid ${grabado ? "var(--border)" : "rgba(0,230,118,0.15)"}` }}
                   >{grabado ? "Desmarcar" : "✓ Grabado"}</button>
                 </div>
               </div>
@@ -296,7 +293,7 @@ export default function RaxisInvestorPage() {
         <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <p style={LABEL}>Señales activas · {signals.length} posiciones</p>
-            <button onClick={() => setShowSignalForm(s => !s)} style={{ padding:"7px 16px", borderRadius:"4px", background:"rgba(0,200,255,0.1)", color:"#00C8FF", border:"1px solid rgba(0,200,255,0.2)", cursor:"pointer", fontSize:"12px", fontWeight:600 }}>+ Nueva señal</button>
+            <button onClick={() => setShowSignalForm(s => !s)} style={{ padding:"7px 16px", borderRadius:"4px", background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--border-accent)", cursor:"pointer", fontSize:"12px", fontWeight:600 }}>+ Nueva señal</button>
           </div>
 
           {showSignalForm && (
@@ -305,17 +302,17 @@ export default function RaxisInvestorPage() {
               <div style={{ display:"flex", gap:"10px", flexWrap:"wrap", alignItems:"flex-end" }}>
                 {([ ["coin","Coin"], ["entrada","Entrada"], ["stop","Stop"], ["target","Target"] ] as [string,string][]).map(([k, l]) => (
                   <div key={k}>
-                    <p style={{ fontSize:"11px", color:"#5A6470", marginBottom:"4px" }}>{l}</p>
-                    <input value={(newSignal as Record<string,string>)[k]} onChange={e => setNewSignal(s => ({ ...s, [k]: e.target.value }))} style={{ padding:"7px 10px", borderRadius:"4px", border:"1px solid rgba(255,255,255,0.08)", background:"#161616", color:"#FFFFFF", fontSize:"13px", width: k==="coin" ? "80px" : "100px", outline:"none" }} />
+                    <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>{l}</p>
+                    <input value={(newSignal as Record<string,string>)[k]} onChange={e => setNewSignal(s => ({ ...s, [k]: e.target.value }))} style={{ padding:"7px 10px", borderRadius:"4px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text)", fontSize:"13px", width: k==="coin" ? "80px" : "100px", outline:"none" }} />
                   </div>
                 ))}
                 <div>
-                  <p style={{ fontSize:"11px", color:"#5A6470", marginBottom:"4px" }}>Tipo</p>
-                  <select value={newSignal.tipo} onChange={e => setNewSignal(s => ({ ...s, tipo: e.target.value }))} style={{ padding:"7px 10px", borderRadius:"4px", border:"1px solid rgba(255,255,255,0.08)", background:"#161616", color:"#FFFFFF", fontSize:"13px", outline:"none" }}>
+                  <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Tipo</p>
+                  <select value={newSignal.tipo} onChange={e => setNewSignal(s => ({ ...s, tipo: e.target.value }))} style={{ padding:"7px 10px", borderRadius:"4px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text)", fontSize:"13px", outline:"none" }}>
                     <option>LONG</option><option>SHORT</option>
                   </select>
                 </div>
-                <button onClick={addSignal} style={{ padding:"8px 16px", borderRadius:"4px", background:"#00C8FF", color:"#000", fontSize:"13px", fontWeight:600, border:"none", cursor:"pointer" }}>Añadir</button>
+                <button onClick={addSignal} style={{ padding:"8px 16px", borderRadius:"4px", background:"var(--accent)", color:"var(--bg)", fontSize:"13px", fontWeight:600, border:"none", cursor:"pointer" }}>Añadir</button>
               </div>
             </div>
           )}
@@ -328,14 +325,14 @@ export default function RaxisInvestorPage() {
                   const pos = pnlPct >= 0;
                   return (
                     <tr key={coin}>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"#FFB800" }}>{coin}</td>
-                      <td style={{ ...TD }}><span style={{ fontSize:"11px", fontWeight:700, padding:"2px 6px", borderRadius:"3px", background:"rgba(0,200,255,0.08)", color:"#00C8FF" }}>{tipo}</span></td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"#9AA3AD" }}>{entrada}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"13px", color:"#FFFFFF" }}>{actual}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"#FF3D71" }}>{stop}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"#00C8FF" }}>{target}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pos ? "#00E676" : "#FF3D71" }}>{pos ? "+" : ""}{pnlPct}%</td>
-                      <td style={{ ...TD, fontSize:"12px", color:"#5A6470" }}>{nota}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--amber)" }}>{coin}</td>
+                      <td style={{ ...TD }}><span style={{ fontSize:"11px", fontWeight:700, padding:"2px 6px", borderRadius:"3px", background:"var(--accent-dim)", color:"var(--accent)" }}>{tipo}</span></td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--text-mid)" }}>{entrada}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"13px", color:"var(--text)" }}>{actual}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--red)" }}>{stop}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--accent)" }}>{target}</td>
+                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pos ? "var(--green)" : "var(--red)" }}>{pos ? "+" : ""}{pnlPct}%</td>
+                      <td style={{ ...TD, fontSize:"12px", color:"var(--text-muted)" }}>{nota}</td>
                     </tr>
                   );
                 })}
@@ -349,10 +346,10 @@ export default function RaxisInvestorPage() {
       {tab === "Métricas" && (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:"16px" }}>
           {[
-            { label:"X / Twitter", actual:0, meta:1000, unidad:"seguidores",  plazo:"3 meses", color:"#00C8FF" },
-            { label:"YouTube",     actual:0, meta:100,  unidad:"suscriptores",plazo:"3 meses", color:"#FF3D71" },
-            { label:"Telegram",    actual:0, meta:500,  unidad:"miembros",    plazo:"3 meses", color:"#7C5CBF" },
-            { label:"Ingresos",    actual:0, meta:500,  unidad:"€/mes",       plazo:"6 meses", color:"#00E676" },
+            { label:"X / Twitter", actual:0, meta:1000, unidad:"seguidores",  plazo:"3 meses", color:"var(--accent)" },
+            { label:"YouTube",     actual:0, meta:100,  unidad:"suscriptores",plazo:"3 meses", color:"var(--red)"    },
+            { label:"Telegram",    actual:0, meta:500,  unidad:"miembros",    plazo:"3 meses", color:"#7C5CBF"       },
+            { label:"Ingresos",    actual:0, meta:500,  unidad:"€/mes",       plazo:"6 meses", color:"var(--green)"  },
           ].map(({ label, actual, meta, unidad, plazo, color }) => {
             const pct = Math.round((actual / meta) * 100);
             return (
@@ -360,17 +357,17 @@ export default function RaxisInvestorPage() {
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"16px" }}>
                   <div>
                     <p style={{ ...LABEL, marginBottom:"6px" }}>{label}</p>
-                    <p style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"28px", color:"#FFFFFF", margin:0 }}>{actual.toLocaleString()}</p>
+                    <p style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"28px", color:"var(--text)", margin:0 }}>{actual.toLocaleString()}</p>
                   </div>
                   <div style={{ textAlign:"right" }}>
-                    <p style={{ fontSize:"11px", color:"#5A6470", margin:"0 0 4px 0" }}>Meta · {plazo}</p>
+                    <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:"0 0 4px 0" }}>Meta · {plazo}</p>
                     <p style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"18px", color, margin:0 }}>{meta.toLocaleString()} {unidad}</p>
                   </div>
                 </div>
-                <div style={{ background:"rgba(255,255,255,0.06)", borderRadius:"4px", height:"6px", overflow:"hidden" }}>
+                <div style={{ background:"var(--border)", borderRadius:"4px", height:"6px", overflow:"hidden" }}>
                   <div style={{ width:`${pct}%`, height:"100%", background:color, borderRadius:"4px" }}></div>
                 </div>
-                <p style={{ fontSize:"11px", color:"#5A6470", margin:"8px 0 0 0" }}>{pct}% completado</p>
+                <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:"8px 0 0 0" }}>{pct}% completado</p>
               </div>
             );
           })}

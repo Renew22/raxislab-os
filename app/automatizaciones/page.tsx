@@ -86,56 +86,46 @@ export default function AutomatizacionesPage() {
   const activos = flows.filter((f) => f.activo).length;
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold" style={{ color: "#e2e8f0" }}>Automatizaciones</h1>
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full" style={{ background: "#10b981", boxShadow: "0 0 6px #10b981" }} />
-          <span className="text-xs" style={{ color: "#475569" }}>{activos} de {flows.length} activos</span>
+    <div style={{ padding: "32px 40px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
+        <h1 style={{ fontSize: "24px", fontWeight: 600, color: "var(--text)" }}>Automatizaciones</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--green)", boxShadow: "0 0 6px var(--green)", flexShrink: 0 }} />
+          <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{activos} de {flows.length} activos</span>
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         {flows.map(({ id, nombre, descripcion, stack, activo, ultimaEjecucion }) => (
           <div
             key={id}
-            className="rounded-xl p-5 flex items-start gap-5 transition-all"
-            style={{ background: "#111120", border: `1px solid ${activo ? "rgba(99,102,241,0.25)" : "#1a1a2e"}` }}
+            style={{ background: "var(--card)", border: `1px solid ${activo ? "var(--border-accent)" : "var(--border)"}`, borderRadius: "12px", padding: "20px", display: "flex", alignItems: "flex-start", gap: "20px", transition: "border-color 0.2s" }}
           >
             {/* Toggle */}
             <button
               onClick={() => toggleFlow(id)}
-              className="flex-shrink-0 w-11 h-6 rounded-full relative transition-colors mt-0.5"
-              style={{ background: activo ? "#6366f1" : "#1a1a2e" }}
+              style={{ flexShrink: 0, width: "44px", height: "24px", borderRadius: "999px", position: "relative", background: activo ? "var(--accent)" : "var(--border)", border: "none", cursor: "pointer", transition: "background 0.2s", marginTop: "2px", outline: "none" }}
               aria-label={activo ? "Desactivar" : "Activar"}
             >
               <span
-                className="absolute top-0.5 w-5 h-5 rounded-full transition-all duration-200"
-                style={{ left: activo ? "calc(100% - 22px)" : "2px", background: activo ? "#fff" : "#475569" }}
+                style={{ position: "absolute", top: "2px", width: "20px", height: "20px", borderRadius: "50%", background: "#ffffff", transition: "left 0.2s", left: activo ? "calc(100% - 22px)" : "2px" }}
               />
             </button>
 
             {/* Info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 mb-1 flex-wrap">
-                <span className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{nombre}</span>
-                <span
-                  className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                  style={{
-                    color: activo ? "#10b981" : "#475569",
-                    background: activo ? "rgba(16,185,129,0.1)" : "rgba(71,85,105,0.1)",
-                  }}
-                >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "4px", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--text)" }}>{nombre}</span>
+                <span style={{ fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "999px", color: activo ? "var(--green)" : "var(--text-muted)", background: activo ? "rgba(0,230,118,0.08)" : "var(--accent-dim)" }}>
                   {activo ? "ACTIVO" : "INACTIVO"}
                 </span>
               </div>
-              <p className="text-xs mb-2" style={{ color: "#94a3b8" }}>{descripcion}</p>
-              <div className="flex flex-wrap gap-1">
+              <p style={{ fontSize: "12px", marginBottom: "8px", color: "var(--text-mid)" }}>{descripcion}</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
                 {stack.split(" + ").map((s) => (
                   <span
                     key={s}
-                    className="text-xs px-2 py-0.5 rounded"
-                    style={{ background: "rgba(99,102,241,0.08)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.15)" }}
+                    style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "4px", background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--border-accent)" }}
                   >
                     {s}
                   </span>
@@ -144,9 +134,9 @@ export default function AutomatizacionesPage() {
             </div>
 
             {/* Última ejecución */}
-            <div className="flex-shrink-0 text-right">
-              <p className="text-xs" style={{ color: "#475569" }}>Última ejecución</p>
-              <p className="text-xs font-medium mt-0.5" style={{ color: ultimaEjecucion ? "#94a3b8" : "#1e293b" }}>
+            <div style={{ flexShrink: 0, textAlign: "right" }}>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)" }}>Última ejecución</p>
+              <p style={{ fontSize: "12px", fontWeight: 500, marginTop: "2px", color: ultimaEjecucion ? "var(--text-mid)" : "var(--border)" }}>
                 {ultimaEjecucion ?? "Nunca"}
               </p>
             </div>

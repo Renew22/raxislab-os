@@ -7,8 +7,8 @@ const PROJECTS = [
     nombre: "OpsIQ SaaS",
     progreso: 25,
     estado: "EN DESARROLLO",
-    color: "#3b82f6",
-    bg: "rgba(59,130,246,0.1)",
+    color: "var(--accent)",
+    bg: "var(--accent-dim)",
     proximo: "cliente piloto taller",
     acciones: ["Definir MVP features", "Montar landing page", "Captar cliente piloto taller"],
   },
@@ -16,8 +16,8 @@ const PROJECTS = [
     nombre: "Curso Jorge",
     progreso: 5,
     estado: "PLANIFICANDO",
-    color: "#f59e0b",
-    bg: "rgba(245,158,11,0.1)",
+    color: "var(--amber)",
+    bg: "var(--accent-dim)",
     proximo: "reunión con Jorge",
     acciones: ["Reunión con Jorge", "Definir temario", "Crear estructura módulos"],
   },
@@ -25,8 +25,8 @@ const PROJECTS = [
     nombre: "Blog EN AdSense",
     progreso: 0,
     estado: "ARRANCAR",
-    color: "#ef4444",
-    bg: "rgba(239,68,68,0.1)",
+    color: "var(--red)",
+    bg: "var(--accent-dim)",
     proximo: "registrar dominio",
     acciones: ["Registrar dominio", "Instalar WordPress", "Publicar primer artículo"],
   },
@@ -34,8 +34,8 @@ const PROJECTS = [
     nombre: "YouTube Auto",
     progreso: 0,
     estado: "PLANIFICANDO",
-    color: "#f59e0b",
-    bg: "rgba(245,158,11,0.1)",
+    color: "var(--amber)",
+    bg: "var(--accent-dim)",
     proximo: "definir nicho",
     acciones: ["Definir nicho", "Crear canal", "Primer video guión"],
   },
@@ -49,82 +49,72 @@ export default function ProyectosPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <h1 className="text-2xl font-semibold" style={{ color: "#e2e8f0" }}>Proyectos</h1>
+    <div style={{ padding: "32px 40px" }}>
+      <h1 style={{ fontSize: "24px", fontWeight: 600, color: "var(--text)", marginBottom: "24px" }}>Proyectos</h1>
 
-      <div className="grid grid-cols-2 gap-5">
-        {PROJECTS.map(({ nombre, progreso, estado, color, bg, proximo, acciones }) => (
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+        {PROJECTS.map(({ nombre, progreso, estado, color, proximo, acciones }) => (
           <div
             key={nombre}
-            className="rounded-xl p-6 flex flex-col gap-4"
-            style={{ background: "#111120", border: "1px solid #1a1a2e" }}
+            style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "12px", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}
           >
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="text-base font-semibold" style={{ color: "#e2e8f0" }}>{nombre}</h3>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
+              <h3 style={{ fontSize: "15px", fontWeight: 600, color: "var(--text)" }}>{nombre}</h3>
               <span
-                className="flex-shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full"
-                style={{ color, background: bg, border: `1px solid ${color}33` }}
+                style={{ flexShrink: 0, fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "999px", color, background: "var(--accent-dim)", border: `1px solid var(--border-accent)` }}
               >
                 {estado}
               </span>
             </div>
 
             <div>
-              <div className="flex justify-between mb-1.5">
-                <span className="text-xs" style={{ color: "#475569" }}>Progreso</span>
-                <span className="text-xs font-mono font-medium" style={{ color }}>{progreso}%</span>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Progreso</span>
+                <span style={{ fontSize: "12px", fontFamily: "'Space Mono', monospace", fontWeight: 500, color }}>{progreso}%</span>
               </div>
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "#1a1a2e" }}>
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: `${progreso}%`, background: color, minWidth: progreso > 0 ? "0" : "0" }}
-                />
+              <div style={{ height: "6px", borderRadius: "999px", overflow: "hidden", background: "var(--border)" }}>
+                <div style={{ width: `${progreso}%`, height: "100%", borderRadius: "999px", background: color }} />
               </div>
             </div>
 
             <div>
-              <p className="text-xs mb-0.5" style={{ color: "#475569" }}>Próximo paso</p>
-              <p className="text-xs font-medium" style={{ color: "#94a3b8" }}>{proximo}</p>
+              <p style={{ fontSize: "12px", marginBottom: "2px", color: "var(--text-muted)" }}>Próximo paso</p>
+              <p style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-mid)" }}>{proximo}</p>
             </div>
 
             <div>
-              <p className="text-xs font-medium mb-2.5" style={{ color: "#475569" }}>Próximas acciones</p>
-              <ul className="space-y-2">
+              <p style={{ fontSize: "12px", fontWeight: 500, marginBottom: "10px", color: "var(--text-muted)" }}>Próximas acciones</p>
+              <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "8px" }}>
                 {acciones.map((accion, i) => {
                   const key = `${nombre}-${i}`;
                   const done = checked[key];
                   return (
                     <li
                       key={i}
-                      className="flex items-center gap-2.5 cursor-pointer select-none"
+                      style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", userSelect: "none" }}
                       onClick={() => toggle(key)}
                     >
                       <span
-                        className="flex-shrink-0 w-4 h-4 rounded flex items-center justify-center transition-all"
                         style={{
+                          flexShrink: 0,
+                          width: "16px",
+                          height: "16px",
+                          borderRadius: "4px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
                           background: done ? color : "transparent",
-                          border: `1px solid ${done ? color : "#1a1a2e"}`,
+                          border: `1px solid ${done ? color : "var(--border)"}`,
+                          transition: "all 0.15s",
                         }}
                       >
                         {done && (
                           <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                            <path
-                              d="M1 4L3.5 6.5L9 1"
-                              stroke="#0a0a0f"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
+                            <path d="M1 4L3.5 6.5L9 1" stroke="var(--bg)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
                       </span>
-                      <span
-                        className="text-sm transition-all"
-                        style={{
-                          color: done ? "#475569" : "#94a3b8",
-                          textDecoration: done ? "line-through" : "none",
-                        }}
-                      >
+                      <span style={{ fontSize: "13px", color: done ? "var(--text-muted)" : "var(--text-mid)", textDecoration: done ? "line-through" : "none", transition: "all 0.15s" }}>
                         {accion}
                       </span>
                     </li>
