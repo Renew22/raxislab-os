@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import "./globals.css";
 import NavLinks from "./components/nav-links";
 import { ThemeProvider } from "./components/theme-provider";
 import ThemeToggle from "./components/theme-toggle";
 
-export const metadata: Metadata = { title: "Raxislab OS" };
+export const metadata: Metadata = {
+  title: "Raxislab OS",
+  icons: { icon: "/logo.png" },
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -27,11 +31,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             background: "var(--surface)",
             borderRight: "1px solid var(--border)",
           }}>
-            <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)" }}>
-              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "13px", fontWeight: 700, letterSpacing: "0.12em" }}>
-                <span style={{ color: "var(--accent)" }}>R</span>
-                <span style={{ color: "var(--text)" }}>AXISLAB OS</span>
-              </span>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "10px" }}>
+              <Image src="/logo.png" alt="Raxislab" width={32} height={32} style={{ borderRadius: "6px", flexShrink: 0 }} />
+              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "14px", fontWeight: 700, color: "var(--text)", letterSpacing: "0.04em" }}>RAXISLAB OS</span>
             </div>
 
             <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "center" }}>
