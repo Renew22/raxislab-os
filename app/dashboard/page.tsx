@@ -1,6 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import SparkLine from "../components/spark-line";
+
+const SPARK = {
+  mrr:    [820, 880, 900, 940, 970, 1050, 1100],
+  pnl:    [42,  78, -18, 115,  62,   88,  127],
+  leads:  [1,   1,   2,   2,   3,    3,    3],
+  tareas: [2,   3,   4,   5,   5,    4,    4],
+};
 
 const DIAS  = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
 const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
@@ -58,8 +66,9 @@ export default function DashboardPage() {
         <div style={CARD}>
           <p style={LABEL}>MRR</p>
           <p style={{ ...NUM, color: "var(--green)" }}>1.100€</p>
-          <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px" }}>meta 5.000€/mes</p>
-          <div style={{ background: "var(--border)", borderRadius: "3px", height: "3px" }}>
+          <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px" }}>meta 5.000€/mes</p>
+          <SparkLine data={SPARK.mrr} id="mrr" />
+          <div style={{ background: "var(--border)", borderRadius: "3px", height: "3px", marginTop: "8px" }}>
             <div style={{ width: "22%", height: "100%", background: "var(--green)", borderRadius: "3px" }} />
           </div>
           <p style={{ fontSize: "11px", color: "var(--green)", marginTop: "4px", fontFamily: "'Space Mono', monospace" }}>22%</p>
@@ -69,21 +78,24 @@ export default function DashboardPage() {
         <div style={CARD}>
           <p style={LABEL}>P&L Hoy</p>
           <p style={{ ...NUM, color: "var(--accent)" }}>+127€</p>
-          <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>Cartera: 12.822€</p>
+          <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px" }}>Cartera: 12.822€</p>
+          <SparkLine data={SPARK.pnl} id="pnl" />
         </div>
 
         {/* LEADS */}
         <div style={CARD}>
           <p style={LABEL}>Leads Activos</p>
           <p style={{ ...NUM, color: "var(--amber)" }}>3</p>
-          <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>Taller García · Rent-a-Car Sol</p>
+          <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px" }}>Taller García · Rent-a-Car Sol</p>
+          <SparkLine data={SPARK.leads} id="leads" />
         </div>
 
         {/* TAREAS */}
         <div style={CARD}>
           <p style={LABEL}>Tareas Urgentes</p>
           <p style={{ ...NUM, color: "var(--red)" }}>4</p>
-          <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>Identity · Desancho · Video · n8n</p>
+          <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px" }}>Identity · Desancho · Video · n8n</p>
+          <SparkLine data={SPARK.tareas} id="tareas" />
         </div>
       </div>
 
