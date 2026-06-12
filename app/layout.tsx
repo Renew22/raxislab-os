@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "./components/theme-provider";
 import Sidebar from "./components/sidebar";
+import Topbar from "./components/topbar";
 
 export const metadata: Metadata = {
   title: "Raxislab OS",
@@ -22,7 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body style={{ display: "flex", height: "100vh", overflow: "hidden", margin: 0 }}>
         <ThemeProvider>
           <Sidebar />
-          <main style={{ flex: 1, overflowY: "auto" }}>{children}</main>
+          <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <Topbar />
+            <div style={{ flex: 1, overflowY: "auto" }}>{children}</div>
+          </main>
         </ThemeProvider>
       </body>
     </html>

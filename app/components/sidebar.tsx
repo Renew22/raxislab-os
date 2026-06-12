@@ -9,7 +9,6 @@ import {
   LayoutDashboard, Users, Sparkles, LineChart, Rocket,
   TrendingUp, Target, FolderKanban, Workflow, Calendar, Wallet,
 } from "lucide-react";
-import ThemeToggle from "./theme-toggle";
 
 const NAV = [
   { href: "/dashboard",        label: "Dashboard",        Icon: LayoutDashboard },
@@ -117,23 +116,6 @@ export default function Sidebar() {
             : <ChevronLeft  size={11} strokeWidth={2.5} />
           }
         </button>
-      </div>
-
-      {/* ── ThemeToggle ── */}
-      <div style={{
-        padding: "10px 0",
-        borderBottom: "1px solid var(--border)",
-        display: "flex",
-        justifyContent: "center",
-        overflow: "hidden",
-      }}>
-        <div style={{
-          transform: collapsed ? "scale(0.82)" : "scale(1)",
-          transition: "transform 0.22s ease",
-          transformOrigin: "center",
-        }}>
-          <ThemeToggle />
-        </div>
       </div>
 
       {/* ── Nav ── */}
