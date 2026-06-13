@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import {
   ChevronLeft, ChevronRight,
   LayoutDashboard, Users, Sparkles, LineChart, Rocket,
-  TrendingUp, Target, FolderKanban, Workflow, Calendar, Wallet,
+  TrendingUp, Target, FolderKanban, Workflow, Calendar, Wallet, Activity,
 } from "lucide-react";
 
 const NAV = [
@@ -15,6 +15,7 @@ const NAV = [
   { href: "/clientes",         label: "Clientes",         Icon: Users           },
   { href: "/contenido",        label: "Contenido",        Icon: Sparkles        },
   { href: "/trading",          label: "Trading",          Icon: LineChart       },
+  { href: "/mercado",          label: "Mercado",          Icon: Activity        },
   { href: "/stokers",          label: "Stokers",          Icon: Rocket          },
   { href: "/raxis-investor",   label: "Raxis Investor",   Icon: TrendingUp      },
   { href: "/leads",            label: "Leads",            Icon: Target          },
