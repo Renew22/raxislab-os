@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import SparkLine from "../components/spark-line";
+import AgendaDnD from "../components/agenda-dnd";
 
 const SPARK = {
   mrr:    [820, 880, 900, 940, 970, 1050, 1100],
@@ -97,6 +98,12 @@ export default function DashboardPage() {
           <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px" }}>Identity · Desancho · Video · n8n</p>
           <SparkLine data={SPARK.tareas} id="tareas" />
         </div>
+      </div>
+
+      {/* Agenda del día — drag & drop */}
+      <div style={{ ...CARD, marginBottom: "24px" }}>
+        <p style={{ ...LABEL, marginBottom: "16px" }}>Agenda del día</p>
+        <AgendaDnD />
       </div>
 
       {/* Agenda + Alertas */}
