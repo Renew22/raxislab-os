@@ -447,7 +447,7 @@ export default function FinanzasPage() {
                 <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="mes" tick={{ fill:"var(--text-muted)", fontSize:11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill:"var(--text-muted)", fontSize:11 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(1)}k`} width={36} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ fill:"var(--accent-dim)" }} formatter={(v:number) => [`${v.toLocaleString("es-ES")}€`]} />
+                <Tooltip contentStyle={tooltipStyle} cursor={{ fill:"var(--accent-dim)" }} formatter={(v) => [`${Number(v).toLocaleString("es-ES")}€`]} />
                 <Legend wrapperStyle={{ fontSize:"12px", paddingTop:"12px", color:"var(--text-muted)" }} />
                 <Bar dataKey="Ingresos" fill={greenColor} radius={[4,4,0,0]} maxBarSize={48} />
                 <Bar dataKey="Gastos"   fill={redColor}   radius={[4,4,0,0]} maxBarSize={48} />
