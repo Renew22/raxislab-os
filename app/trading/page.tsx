@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const carteraAcciones = [
   { ticker:"ENGI", nombre:"Engie SA",            pnlEur:"+152€",  pnlPct:"+24.9%", pos:true,  alerta:""            },
@@ -255,8 +255,17 @@ TOTAL: $1.916 | PnL total: -$458 (-20.99%)
 Respuesta estructurada, decisiones claras, sin teoría general de crypto.` },
 ];
 
-type Tab = "Acciones"|"Crypto"|"Dividendos"|"Diario"|"Setups"|"Prompts";
-const TABS: Tab[] = ["Acciones","Crypto","Dividendos","Diario","Setups","Prompts"];
+type Tab = "Acciones"|"Análisis"|"Crypto"|"Dividendos"|"Diario"|"Setups"|"Prompts";
+const TABS: Tab[] = ["Acciones","Análisis","Crypto","Dividendos","Diario","Setups","Prompts"];
+
+type AnalysisRow = {
+  id: string;
+  symbol: string;
+  quantity: number;
+  avgPrice: number;
+  currentPrice: number | null;
+  region: "US" | "EU";
+};
 
 const CARD  = { background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px" } as React.CSSProperties;
 const LABEL = { fontSize:"11px", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase" as const, color:"var(--text-muted)" };
@@ -271,10 +280,45 @@ const statCards = [
 ];
 
 export default function TradingPage() {
-  const [tab, setTab] = useState<Tab>("Acciones");
+  const [tab, setTab]     = useState<Tab>("Acciones");
   const [newOp, setNewOp] = useState({ ticker:"", entrada:"", salida:"", tipo:"LONG" });
-  const [ops, setOps] = useState(diarioOps);
+  const [ops, setOps]     = useState(diarioOps);
   const [modal, setModal] = useState({ open:false, title:"", content:"" });
+
+  // Análisis tab — reads positions from /mercado localStorage + fetches live quotes
+  const [analysisRows, setAnalysisRows]       = useState<AnalysisRow[]>([]);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+
+  useEffect(() => {
+    if (tab !== "Análisis") return;
+    async function load() {
+      setAnalysisLoading(true);
+      try {
+        const stored   = localStorage.getItem("raxislab_acciones_v1");
+        const positions: { id:string; symbol:string; quantity:number; avgPrice:number }[] = stored ? JSON.parse(stored) : [];
+        if (!positions.length) { setAnalysisRows([]); return; }
+        const key = process.env.NEXT_PUBLIC_FINNHUB_KEY ?? "";
+        const rows = await Promise.all(
+          positions.map(async pos => {
+            const region: "EU"|"US" = pos.symbol.includes(".") ? "EU" : "US";
+            let currentPrice: number | null = null;
+            if (key) {
+              try {
+                const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${pos.symbol}&token=${key}`);
+                const j = await r.json();
+                if (j.c && j.c > 0) currentPrice = j.c;
+              } catch { /* no-op */ }
+            }
+            return { ...pos, currentPrice, region };
+          })
+        );
+        setAnalysisRows(rows);
+      } catch { setAnalysisRows([]); }
+      finally { setAnalysisLoading(false); }
+    }
+    load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   function openModal(title: string, content: string) {
     setModal({ open:true, title, content });
@@ -377,6 +421,105 @@ export default function TradingPage() {
           </div>
         </div>
       )}
+
+      {/* Análisis de Posiciones */}
+      {tab === "Análisis" && (() => {
+        const cur = (r: AnalysisRow) => r.currentPrice;
+        const pnlEur = (r: AnalysisRow) => cur(r) !== null ? (cur(r)! - r.avgPrice) * r.quantity : null;
+        const pnlPct = (r: AnalysisRow) => cur(r) !== null && r.avgPrice > 0 ? ((cur(r)! - r.avgPrice) / r.avgPrice) * 100 : null;
+        const valor  = (r: AnalysisRow) => cur(r) !== null ? cur(r)! * r.quantity : null;
+        const accion = (r: AnalysisRow): { label:string; bg:string; color:string } => {
+          const p = pnlPct(r);
+          if (p === null) return { label:"Sin datos",         bg:"var(--accent-dim)",         color:"var(--text-muted)" };
+          if (p > 20)     return { label:"Tomar beneficios",  bg:"rgba(0,230,118,0.12)",       color:"var(--green)"      };
+          if (p < -15)    return { label:"Revisar stop",      bg:"rgba(255,61,113,0.12)",      color:"var(--red)"        };
+          return                  { label:"Mantener",          bg:"var(--accent-dim)",          color:"var(--text-muted)" };
+        };
+        const fmt = (n: number) => n.toLocaleString("es-ES", { minimumFractionDigits:2, maximumFractionDigits:2 });
+        const sym = (r: AnalysisRow) => r.region === "EU" ? "€" : "$";
+
+        const totValor = analysisRows.reduce((s, r) => s + (valor(r) ?? 0), 0);
+        const totPnl   = analysisRows.reduce((s, r) => s + (pnlEur(r) ?? 0), 0);
+        const hasTot   = analysisRows.some(r => cur(r) !== null);
+
+        return (
+          <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
+            {analysisLoading ? (
+              <div style={{ ...CARD, padding:"48px", textAlign:"center", fontSize:"13px", color:"var(--text-muted)" }}>
+                Cargando posiciones y precios...
+              </div>
+            ) : analysisRows.length === 0 ? (
+              <div style={{ ...CARD, padding:"48px", textAlign:"center" }}>
+                <p style={{ fontSize:"13px", color:"var(--text-muted)", marginBottom:"8px" }}>No hay posiciones en la cartera.</p>
+                <p style={{ fontSize:"12px", color:"var(--text-muted)" }}>Añade posiciones en <a href="/mercado" style={{ color:"var(--accent)" }}>/mercado → Acciones IBKR</a></p>
+              </div>
+            ) : (
+              <div style={{ ...CARD, overflow:"hidden" }}>
+                <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                  <p style={LABEL}>Análisis de Posiciones — cartera /mercado</p>
+                  <span style={{ fontSize:"11px", color:"var(--text-muted)" }}>{analysisRows.length} posiciones · precios vía Finnhub</span>
+                </div>
+                <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                  <thead>
+                    <tr>
+                      {["Ticker","Precio Medio","Actual","Cantidad","Valor","PyG €","PyG %","Acción"].map(h => (
+                        <th key={h} style={TH}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analysisRows.map(r => {
+                      const pe  = pnlEur(r);
+                      const pp  = pnlPct(r);
+                      const val = valor(r);
+                      const ac  = accion(r);
+                      const isPos = pe !== null && pe >= 0;
+                      const pnlColor = pe === null ? "var(--text-muted)" : pe > 0 ? "var(--green)" : "var(--red)";
+                      return (
+                        <tr key={r.id}>
+                          <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--accent)" }}>{r.symbol.split(".")[0]}</td>
+                          <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--text-mid)" }}>{sym(r)}{fmt(r.avgPrice)}</td>
+                          <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color: cur(r) ? "var(--text)" : "var(--text-muted)" }}>
+                            {cur(r) !== null ? `${sym(r)}${fmt(cur(r)!)}` : "—"}
+                          </td>
+                          <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--text-mid)" }}>{r.quantity}</td>
+                          <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--text-mid)" }}>
+                            {val !== null ? `${sym(r)}${fmt(val)}` : "—"}
+                          </td>
+                          <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pnlColor }}>
+                            {pe !== null ? `${isPos?"+":""}${sym(r)}${fmt(Math.abs(pe))}` : "—"}
+                          </td>
+                          <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pnlColor }}>
+                            {pp !== null ? `${pp >= 0?"+":""}${pp.toFixed(2)}%` : "—"}
+                          </td>
+                          <td style={{ ...TD }}>
+                            <span style={{ fontSize:"10px", fontWeight:700, padding:"2px 7px", borderRadius:"3px", letterSpacing:"0.04em", background:ac.bg, color:ac.color }}>
+                              {ac.label}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {hasTot && (
+                      <tr>
+                        <td colSpan={4} style={{ padding:"12px 14px", fontWeight:700, color:"var(--text)", fontSize:"13px", borderTop:"1px solid var(--border)" }}>
+                          TOTAL · {analysisRows.length} posiciones
+                        </td>
+                        <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--text)", borderTop:"1px solid var(--border)" }}>
+                          ~{fmt(totValor)}
+                        </td>
+                        <td colSpan={3} style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color: totPnl >= 0 ? "var(--green)" : "var(--red)", borderTop:"1px solid var(--border)" }}>
+                          {totPnl >= 0 ? "+" : ""}{fmt(totPnl)}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Crypto */}
       {tab === "Crypto" && (
