@@ -6,7 +6,7 @@ import { ExternalLink, RefreshCw, Plus, Pencil, Trash2, X } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "Precios" | "Acciones" | "Noticias";
+type Tab = "Precios" | "Acciones" | "Noticias" | "Screener";
 
 type CoinCfg  = { symbol: string; pair: string; name: string; color: string };
 type StockCfg = { symbol: string; display: string; name: string; region: "US" | "EU" };
@@ -45,6 +45,21 @@ type ModalState = {
   avgPrice: string;
 };
 
+type SearchResult = {
+  description: string;
+  displaySymbol: string;
+  symbol: string;
+  type: string;
+};
+
+type WatchlistItem = {
+  id: string;
+  symbol: string;
+  name: string;
+  note: string;
+  addedAt: number;
+};
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const COINS: CoinCfg[] = [
@@ -79,16 +94,25 @@ const STOCKS: StockCfg[] = [
 
 // ─── localStorage ─────────────────────────────────────────────────────────────
 
-const POSITIONS_KEY = "raxislab_acciones_v1";
+const POSITIONS_KEY  = "raxislab_acciones_v1";
+const WATCHLIST_KEY  = "raxislab_watchlist_v1";
 
 function loadPositions(): Position[] {
   if (typeof window === "undefined") return [];
   try { const r = localStorage.getItem(POSITIONS_KEY); return r ? JSON.parse(r) : []; }
   catch { return []; }
 }
-
 function savePositions(ps: Position[]) {
   localStorage.setItem(POSITIONS_KEY, JSON.stringify(ps));
+}
+
+function loadWatchlist(): WatchlistItem[] {
+  if (typeof window === "undefined") return [];
+  try { const r = localStorage.getItem(WATCHLIST_KEY); return r ? JSON.parse(r) : []; }
+  catch { return []; }
+}
+function saveWatchlist(items: WatchlistItem[]) {
+  localStorage.setItem(WATCHLIST_KEY, JSON.stringify(items));
 }
 
 function newId(): string {
@@ -544,6 +568,394 @@ function NewsCard({ item }: { item: NewsItem }) {
   );
 }
 
+// ─── MoveToPortfolioModal ─────────────────────────────────────────────────────
+
+function MoveToPortfolioModal({ item, onSave, onClose }: {
+  item: WatchlistItem;
+  onSave: (symbol: string, name: string, qty: number, avgPrice: number) => void;
+  onClose: () => void;
+}) {
+  const [qty,   setQty]   = useState("");
+  const [avg,   setAvg]   = useState("");
+  const [error, setError] = useState("");
+
+  function handleSave() {
+    const qtyN = parseFloat(qty);
+    const avgN = parseFloat(avg.replace(",", "."));
+    if (!qty || isNaN(qtyN) || qtyN <= 0) { setError("Cantidad debe ser > 0"); return; }
+    if (!avg || isNaN(avgN) || avgN <= 0)  { setError("Precio medio debe ser > 0"); return; }
+    onSave(item.symbol, item.name, qtyN, avgN);
+  }
+
+  return (
+    <div
+      style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.6)",
+        display:"flex", alignItems:"center", justifyContent:"center" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{ ...CARD, width:360, maxWidth:"92vw", boxShadow:"0 20px 60px rgba(0,0,0,0.45)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"12px" }}>
+          <p style={{ fontSize:"15px", fontWeight:600, color:"var(--text)", margin:0 }}>
+            Mover a cartera —{" "}
+            <span style={{ ...MONO, color:"var(--accent)" }}>{item.symbol}</span>
+          </p>
+          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text-muted)", padding:0, display:"flex" }}>
+            <X size={18} />
+          </button>
+        </div>
+        <p style={{ fontSize:"12px", color:"var(--text-muted)", margin:"0 0 18px" }}>{item.name}</p>
+
+        <label style={{ ...LABEL, display:"block", marginBottom:"5px" }}>Cantidad (acciones)</label>
+        <input type="number" value={qty} onChange={e => { setQty(e.target.value); setError(""); }}
+          placeholder="ej: 50" min="0" step="1"
+          style={{ ...INPUT, marginBottom:"12px" }} />
+
+        <label style={{ ...LABEL, display:"block", marginBottom:"5px" }}>Precio medio de compra ($)</label>
+        <input type="number" value={avg} onChange={e => { setAvg(e.target.value); setError(""); }}
+          placeholder="ej: 380.50" min="0" step="0.01"
+          style={{ ...INPUT, marginBottom: error ? "6px" : "16px" }} />
+
+        {error && <p style={{ fontSize:"12px", color:"var(--red)", margin:"0 0 12px" }}>{error}</p>}
+
+        <div style={{ display:"flex", gap:"8px" }}>
+          <button onClick={onClose} style={{ flex:1, padding:"9px", borderRadius:"6px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", cursor:"pointer", fontSize:"13px" }}>
+            Cancelar
+          </button>
+          <button onClick={handleSave} style={{ flex:2, padding:"9px", borderRadius:"6px", border:"1px solid var(--accent)", background:"var(--accent)", color:"#fff", cursor:"pointer", fontSize:"13px", fontWeight:600 }}>
+            Añadir a cartera
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ScreenerTab ──────────────────────────────────────────────────────────────
+
+function ScreenerTab({ watchlist, setWatchlist, positions, onMoveToPortfolio }: {
+  watchlist: WatchlistItem[];
+  setWatchlist: React.Dispatch<React.SetStateAction<WatchlistItem[]>>;
+  positions: Position[];
+  onMoveToPortfolio: (item: WatchlistItem) => void;
+}) {
+  const [query,    setQuery]    = useState("");
+  const [results,  setResults]  = useState<SearchResult[]>([]);
+  const [loading,  setLoading]  = useState(false);
+  const [resQ,     setResQ]     = useState<Record<string, FinnhubQuote | null>>({});
+  const [watchQ,   setWatchQ]   = useState<Record<string, FinnhubQuote | null>>({});
+  const [editNote, setEditNote] = useState<{ id: string; text: string } | null>(null);
+  const [watchLast,setWatchLast]= useState<Date | null>(null);
+
+  const watchlistRef = useRef(watchlist);
+  useEffect(() => { watchlistRef.current = watchlist; }, [watchlist]);
+
+  const key = process.env.NEXT_PUBLIC_FINNHUB_KEY;
+
+  // Debounced search
+  useEffect(() => {
+    if (!query.trim() || query.length < 2) { setResults([]); setResQ({}); return; }
+    const t = setTimeout(async () => {
+      if (!key) return;
+      setLoading(true);
+      try {
+        const r = await fetch(`https://finnhub.io/api/v1/search?q=${encodeURIComponent(query)}&token=${key}`);
+        const data = await r.json();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const filtered: SearchResult[] = (data.result || []).filter((x: any) =>
+          ["Common Stock", "ADR", "EQS"].includes(x.type)
+        ).slice(0, 9);
+        setResults(filtered);
+        if (filtered.length > 0) {
+          const quotes = await Promise.all(
+            filtered.map(s => fetch(`https://finnhub.io/api/v1/quote?symbol=${s.symbol}&token=${key}`)
+              .then(r => r.ok ? r.json() : null).catch(() => null))
+          );
+          const qMap: Record<string, FinnhubQuote | null> = {};
+          quotes.forEach((q, i) => { qMap[filtered[i].symbol] = q; });
+          setResQ(qMap);
+        }
+      } catch { setResults([]); }
+      finally { setLoading(false); }
+    }, 600);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
+  // Watchlist quotes — interval refresh
+  useEffect(() => {
+    if (!key) return;
+    async function fetchWQ() {
+      const syms = watchlistRef.current.map(w => w.symbol);
+      if (!syms.length) { setWatchQ({}); return; }
+      const quotes = await Promise.all(
+        syms.map(s => fetch(`https://finnhub.io/api/v1/quote?symbol=${s}&token=${key}`)
+          .then(r => r.ok ? r.json() : null).catch(() => null))
+      );
+      const qMap: Record<string, FinnhubQuote | null> = {};
+      quotes.forEach((q, i) => { qMap[syms[i]] = q; });
+      setWatchQ(qMap);
+      setWatchLast(new Date());
+    }
+    fetchWQ();
+    const id = setInterval(fetchWQ, 60_000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Refresh watchlist quotes when items change
+  useEffect(() => {
+    if (!key || !watchlist.length) { setWatchQ({}); return; }
+    const syms = watchlist.map(w => w.symbol);
+    Promise.all(syms.map(s => fetch(`https://finnhub.io/api/v1/quote?symbol=${s}&token=${key}`)
+      .then(r => r.ok ? r.json() : null).catch(() => null)))
+      .then(quotes => {
+        const qMap: Record<string, FinnhubQuote | null> = {};
+        quotes.forEach((q, i) => { qMap[syms[i]] = q; });
+        setWatchQ(qMap);
+        setWatchLast(new Date());
+      }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchlist]);
+
+  function addToWatchlist(r: SearchResult) {
+    if (watchlist.some(w => w.symbol === r.symbol)) return;
+    setWatchlist(prev => [...prev, {
+      id: newId(), symbol: r.symbol, name: r.description, note: "", addedAt: Date.now(),
+    }]);
+  }
+
+  function removeFromWatchlist(id: string) {
+    setWatchlist(prev => prev.filter(w => w.id !== id));
+  }
+
+  function saveNote(id: string, text: string) {
+    setWatchlist(prev => prev.map(w => w.id === id ? { ...w, note: text } : w));
+    setEditNote(null);
+  }
+
+  const inPortfolio  = (sym: string) => positions.some(p => p.symbol === sym);
+  const inWatchlist  = (sym: string) => watchlist.some(w => w.symbol === sym);
+
+  const TH_S = { padding:"10px 14px", textAlign:"left" as const, fontSize:"11px", fontWeight:600,
+    letterSpacing:"0.06em", color:"var(--text-muted)", borderBottom:"1px solid var(--border)" };
+  const TD_S = { padding:"11px 14px", borderBottom:"1px solid var(--border)", verticalAlign:"top" as const };
+
+  return (
+    <div>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+
+      {/* Search box */}
+      <div style={{ marginBottom:"24px" }}>
+        <div style={{ position:"relative", maxWidth:"500px" }}>
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Buscar ticker o empresa... (ej: NVDA, Tesla, ARM)"
+            style={{
+              ...INPUT, padding:"12px 44px 12px 16px", fontSize:"14px",
+              borderRadius:"8px", background:"var(--card)",
+            }}
+          />
+          {loading && (
+            <div style={{ position:"absolute", right:"14px", top:"50%", transform:"translateY(-50%)" }}>
+              <RefreshCw size={15} style={{ color:"var(--text-muted)", animation:"spin 1s linear infinite" }} />
+            </div>
+          )}
+        </div>
+        {!key && (
+          <p style={{ fontSize:"12px", color:"var(--red)", marginTop:"6px" }}>
+            API key de Finnhub no configurada — añádela en .env.local
+          </p>
+        )}
+      </div>
+
+      {/* Search results */}
+      {results.length > 0 && (
+        <div style={{ marginBottom:"32px" }}>
+          <p style={{ ...LABEL, marginBottom:"12px" }}>Resultados de búsqueda</p>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"10px" }}>
+            {results.map(r => {
+              const q    = resQ[r.symbol];
+              const price = q && q.c > 0 ? q.c : null;
+              const pct   = q && q.c > 0 ? q.dp : null;
+              const isPos = pct !== null && pct >= 0;
+              const already = inWatchlist(r.symbol) || inPortfolio(r.symbol);
+
+              return (
+                <div key={r.symbol} style={CARD}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"8px" }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <p style={{ ...MONO, fontSize:"13px", fontWeight:700, color:"var(--text)", margin:0 }}>{r.displaySymbol}</p>
+                      <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:"2px 0 0", lineHeight:1.3,
+                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.description}</p>
+                    </div>
+                    <span style={{ fontSize:"9px", padding:"2px 6px", borderRadius:"4px",
+                      background:"var(--accent-dim)", color:"var(--text-muted)", flexShrink:0, marginLeft:"6px" }}>
+                      {r.type === "Common Stock" ? "Acción" : r.type}
+                    </span>
+                  </div>
+
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"10px" }}>
+                    <p style={{ ...MONO, fontSize:"16px", fontWeight:700, color:"var(--text)", margin:0 }}>
+                      {price !== null ? `$${price.toFixed(2)}` : q === undefined ? "—" : "Sin datos"}
+                    </p>
+                    {pct !== null && (
+                      <span style={{ ...MONO, fontSize:"11px", fontWeight:700,
+                        color:isPos?"var(--green)":"var(--red)",
+                        background:`${isPos?"var(--green)":"var(--red)"}18`,
+                        padding:"2px 6px", borderRadius:"4px" }}>
+                        {isPos?"+":""}{pct.toFixed(2)}%
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => !already && addToWatchlist(r)}
+                    style={{
+                      width:"100%", padding:"6px", borderRadius:"5px", fontSize:"11px", fontWeight:600,
+                      border:`1px solid ${already?"var(--border)":"var(--accent)"}`,
+                      background:"transparent",
+                      color:already?"var(--text-muted)":"var(--accent)",
+                      cursor:already?"default":"pointer",
+                      display:"flex", alignItems:"center", justifyContent:"center", gap:"4px",
+                    }}
+                  >
+                    {inPortfolio(r.symbol) ? "En cartera" : inWatchlist(r.symbol) ? "En watchlist" : <><Plus size={11}/> Añadir a watchlist</>}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {query.length >= 2 && !loading && results.length === 0 && (
+        <div style={{ ...CARD, textAlign:"center", padding:"32px", marginBottom:"32px" }}>
+          <p style={{ color:"var(--text-muted)", fontSize:"13px", margin:0 }}>Sin resultados para "{query}"</p>
+        </div>
+      )}
+
+      {/* Watchlist */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"12px" }}>
+        <p style={{ ...LABEL, margin:0 }}>
+          Watchlist{watchlist.length > 0 ? ` · ${watchlist.length} empresa${watchlist.length !== 1 ? "s" : ""}` : ""}
+        </p>
+        {watchLast && (
+          <span style={{ fontSize:"11px", color:"var(--text-muted)", display:"flex", alignItems:"center", gap:"5px" }}>
+            <span style={{ width:6, height:6, borderRadius:"50%", background:"var(--green)", display:"inline-block" }} />
+            {watchLast.toLocaleTimeString("es-ES")}
+          </span>
+        )}
+      </div>
+
+      {watchlist.length === 0 ? (
+        <div style={{ ...CARD, textAlign:"center", padding:"40px 32px" }}>
+          <p style={{ fontSize:"14px", fontWeight:600, color:"var(--text)", margin:"0 0 8px" }}>Tu watchlist está vacía</p>
+          <p style={{ fontSize:"13px", color:"var(--text-muted)", margin:0 }}>
+            Busca un ticker arriba y pulsa "Añadir a watchlist" para seguirlo.
+          </p>
+        </div>
+      ) : (
+        <div style={{ background:"var(--card)", border:"1px solid var(--border)", borderRadius:"8px", overflow:"hidden" }}>
+          <table style={{ width:"100%", borderCollapse:"collapse" }}>
+            <thead>
+              <tr>
+                {["Ticker", "Precio", "Cambio", "Tu nota", ""].map(h => (
+                  <th key={h} style={TH_S}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {watchlist.map(item => {
+                const q    = watchQ[item.symbol];
+                const price = q && q.c > 0 ? q.c : null;
+                const pct   = q && q.c > 0 ? q.dp : null;
+                const chg   = q && q.c > 0 ? q.d  : null;
+                const isPos = pct !== null && pct >= 0;
+                const isEditing = editNote?.id === item.id;
+
+                return (
+                  <tr key={item.id}>
+                    <td style={TD_S}>
+                      <p style={{ ...MONO, fontSize:"13px", fontWeight:700, color:"var(--text)", margin:0 }}>{item.symbol}</p>
+                      <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:"2px 0 0",
+                        maxWidth:"160px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {item.name}
+                      </p>
+                    </td>
+                    <td style={TD_S}>
+                      <p style={{ ...MONO, fontSize:"14px", fontWeight:700, color:"var(--text)", margin:0 }}>
+                        {price !== null ? `$${price.toFixed(2)}` : "—"}
+                      </p>
+                    </td>
+                    <td style={TD_S}>
+                      {pct !== null ? (
+                        <div>
+                          <p style={{ ...MONO, fontSize:"12px", fontWeight:700, color:isPos?"var(--green)":"var(--red)", margin:0 }}>
+                            {isPos?"+":""}{pct.toFixed(2)}%
+                          </p>
+                          <p style={{ ...MONO, fontSize:"11px", color:"var(--text-muted)", margin:"1px 0 0" }}>
+                            {isPos?"+":""}{chg?.toFixed(2)} $
+                          </p>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize:"12px", color:"var(--text-muted)" }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ ...TD_S, maxWidth:"220px" }}>
+                      {isEditing ? (
+                        <textarea
+                          autoFocus
+                          value={editNote.text}
+                          onChange={e => setEditNote({ id:item.id, text:e.target.value })}
+                          onBlur={() => saveNote(item.id, editNote.text)}
+                          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNote(item.id, editNote.text); }}}
+                          style={{ width:"100%", resize:"none", height:"46px", padding:"6px 8px", borderRadius:"4px",
+                            border:"1px solid var(--border-accent)", background:"var(--bg)", color:"var(--text)",
+                            fontSize:"12px", outline:"none", boxSizing:"border-box" }}
+                        />
+                      ) : (
+                        <p
+                          onClick={() => setEditNote({ id:item.id, text:item.note })}
+                          title="Clic para editar nota"
+                          style={{ fontSize:"12px", color:item.note?"var(--text-mid)":"var(--text-muted)",
+                            fontStyle:item.note?"normal":"italic", cursor:"text", margin:0, lineHeight:1.4 }}
+                        >
+                          {item.note || "Añade una nota..."}
+                        </p>
+                      )}
+                    </td>
+                    <td style={{ ...TD_S, whiteSpace:"nowrap" }}>
+                      <div style={{ display:"flex", gap:"6px", justifyContent:"flex-end" }}>
+                        <button
+                          onClick={() => onMoveToPortfolio(item)}
+                          style={{ padding:"5px 10px", borderRadius:"5px", fontSize:"11px", fontWeight:600,
+                            border:"1px solid var(--accent)", background:"transparent", color:"var(--accent)",
+                            cursor:"pointer", display:"flex", alignItems:"center", gap:"4px" }}
+                        >
+                          <Plus size={11}/> Cartera
+                        </button>
+                        <button
+                          onClick={() => removeFromWatchlist(item.id)}
+                          style={{ padding:"5px 8px", borderRadius:"5px", border:"1px solid var(--border)",
+                            background:"transparent", color:"var(--text-muted)", cursor:"pointer",
+                            display:"flex", alignItems:"center" }}
+                        >
+                          <Trash2 size={12}/>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── NoKeyBanner ──────────────────────────────────────────────────────────────
 
 function NoKeyBanner({ onRetry }: { onRetry?: () => void }) {
@@ -615,6 +1027,11 @@ export default function MercadoPage() {
 
   const positionsRef = useRef<Position[]>([]);
 
+  // Watchlist
+  const [watchlist,       setWatchlist]       = useState<WatchlistItem[]>([]);
+  const [watchlistHydrated, setWatchlistHydrated] = useState(false);
+  const [moveItem,        setMoveItem]        = useState<WatchlistItem | null>(null);
+
   // Noticias state
   const [news,        setNews]        = useState<NewsItem[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
@@ -628,6 +1045,11 @@ export default function MercadoPage() {
   }, []);
 
   useEffect(() => {
+    setWatchlist(loadWatchlist());
+    setWatchlistHydrated(true);
+  }, []);
+
+  useEffect(() => {
     positionsRef.current = positions;
   }, [positions]);
 
@@ -635,6 +1057,11 @@ export default function MercadoPage() {
     if (!hydrated) return;
     savePositions(positions);
   }, [positions, hydrated]);
+
+  useEffect(() => {
+    if (!watchlistHydrated) return;
+    saveWatchlist(watchlist);
+  }, [watchlist, watchlistHydrated]);
 
   // ── Crypto fetchers ────────────────────────────────────────────────────────
 
@@ -811,11 +1238,21 @@ export default function MercadoPage() {
     { usVal: 0, usPnl: 0, usHas: false, euVal: 0, euPnl: 0, euHas: false }
   );
 
+  // ── Move from watchlist to portfolio ──────────────────────────────────────
+
+  function handleMoveToPortfolio(symbol: string, _name: string, qty: number, avgPrice: number) {
+    setPositions(prev => [...prev, { id: newId(), symbol, quantity: qty, avgPrice }]);
+    setWatchlist(prev => prev.filter(w => w.symbol !== symbol));
+    setMoveItem(null);
+    setTab("Acciones");
+  }
+
   // ── Tab config ─────────────────────────────────────────────────────────────
 
   const TABS: [Tab, string][] = [
     ["Precios",  "Crypto"],
     ["Acciones", "Acciones IBKR"],
+    ["Screener", "Screener"],
     ["Noticias", "Noticias"],
   ];
 
@@ -999,7 +1436,17 @@ export default function MercadoPage() {
         </div>
       )}
 
-      {/* ── TAB 3: Noticias ─────────────────────────────────────────────────── */}
+      {/* ── TAB 3: Screener ─────────────────────────────────────────────────── */}
+      {tab === "Screener" && (
+        <ScreenerTab
+          watchlist={watchlist}
+          setWatchlist={setWatchlist}
+          positions={positions}
+          onMoveToPortfolio={item => setMoveItem(item)}
+        />
+      )}
+
+      {/* ── TAB 4: Noticias ─────────────────────────────────────────────────── */}
       {tab === "Noticias" && (
         <div>
           {newsError === "no_key"      && <NoKeyBanner onRetry={fetchNews} />}
@@ -1026,7 +1473,7 @@ export default function MercadoPage() {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Position modal (Acciones) */}
       {modal.open && (
         <PositionModal
           key={modal.id + modal.mode}
@@ -1034,6 +1481,16 @@ export default function MercadoPage() {
           existingSymbols={existingSymbols}
           onSave={handleModalSave}
           onClose={() => setModal(MODAL_CLOSED)}
+        />
+      )}
+
+      {/* Move from watchlist to portfolio modal */}
+      {moveItem && (
+        <MoveToPortfolioModal
+          key={moveItem.id}
+          item={moveItem}
+          onSave={handleMoveToPortfolio}
+          onClose={() => setMoveItem(null)}
         />
       )}
     </div>

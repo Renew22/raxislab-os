@@ -12,7 +12,7 @@ import { useTheme } from "../components/theme-provider";
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
 type Tab             = "Resumen" | "GastosFijos" | "Calendario" | "Ingresos";
-type EstadoGasto     = "activo" | "cancelar";
+type EstadoGasto     = "activo" | "cancelar" | "cancelado";
 type EstadoIngreso   = "activo" | "verificar";
 
 type GastoFijo = {
@@ -81,7 +81,7 @@ function nextCobro(gastos: GastoFijo[]) {
   const d = new Date().getDate();
   const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
   return gastos
-    .filter(g => g.estado !== "cancelar")
+    .filter(g => g.estado === "activo")
     .map(g => ({ ...g, daysLeft: g.dia >= d ? g.dia - d : daysInMonth - d + g.dia }))
     .sort((a, b) => a.daysLeft - b.daysLeft)[0] ?? null;
 }
@@ -371,12 +371,25 @@ export default function FinanzasPage() {
   const [editForm, setEditForm] = useState({ importe:"", dia:"" });
   const [showAdd, setShowAdd]   = useState(false);
   const [addForm, setAddForm]   = useState({ servicio:"", importe:"", dia:"", categoria:"", estado:"activo" as EstadoGasto });
+  const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
   const { theme } = useTheme();
 
-  const greenColor = theme === "dark" ? "#00E676" : "#00A152";
-  const redColor   = theme === "dark" ? "#FF3D71" : "#E5394B";
-  const total      = gastos.reduce((s, g) => s + g.importe, 0);
-  const next       = nextCobro(gastos);
+  const greenColor   = theme === "dark" ? "#00E676" : "#00A152";
+  const redColor     = theme === "dark" ? "#FF3D71" : "#E5394B";
+  const gastosActivos = gastos.filter(g => g.estado !== "cancelado");
+  const gastoCancelados = gastos.filter(g => g.estado === "cancelado");
+  const total        = gastosActivos.reduce((s, g) => s + g.importe, 0);
+  const ahorroMensual = gastos.filter(g => g.estado !== "activo").reduce((s, g) => s + g.importe, 0);
+  const next         = nextCobro(gastos);
+
+  function confirmCancel() {
+    if (cancelConfirmId === null) return;
+    setGastos(prev => prev.map(g => g.id === cancelConfirmId ? { ...g, estado: "cancelado" as EstadoGasto } : g));
+    setCancelConfirmId(null);
+  }
+  function reactivar(id: number) {
+    setGastos(prev => prev.map(g => g.id === id ? { ...g, estado: "activo" as EstadoGasto } : g));
+  }
 
   function openEdit(g: GastoFijo) {
     setEditId(g.id);
@@ -412,7 +425,7 @@ export default function FinanzasPage() {
       {/* ════════ TAB 1: RESUMEN ════════ */}
       {tab === "Resumen" && (
         <div style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"12px" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:"12px" }}>
             <div style={CARD}>
               <p style={LABEL}>Ingresos del mes</p>
               <p style={{ ...NUM, color:"var(--green)" }}>3.000€</p>
@@ -439,6 +452,21 @@ export default function FinanzasPage() {
               </p>
               <SparkLine data={SPARK.cobro} id="fin-cob" />
             </div>
+            <div style={CARD}>
+              <p style={LABEL}>Ahorro mensual</p>
+              <p style={{ ...NUM, color: ahorroMensual > 0 ? "var(--green)" : "var(--text-muted)" }}>
+                {ahorroMensual > 0 ? `${ahorroMensual.toFixed(2)}€` : "—"}
+              </p>
+              <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"10px" }}>
+                {ahorroMensual > 0 ? "Servicios cancelados o por cancelar" : "Sin cancelaciones pendientes"}
+              </p>
+              {gastos.filter(g => g.estado !== "activo").map(g => (
+                <div key={g.id} style={{ display:"flex", justifyContent:"space-between", fontSize:"11px", color:"var(--text-muted)", marginBottom:"2px" }}>
+                  <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"120px" }}>{g.servicio}</span>
+                  <span style={{ fontFamily:"'Space Mono', monospace", color:"var(--green)", flexShrink:0 }}>+{g.importe.toFixed(2)}€</span>
+                </div>
+              ))}
+            </div>
           </div>
           <div style={{ ...CARD, padding:"24px" }}>
             <p style={{ ...LABEL, marginBottom:"20px" }}>Ingresos vs Gastos — últimos 4 meses</p>
@@ -461,16 +489,18 @@ export default function FinanzasPage() {
       {tab === "GastosFijos" && (
         <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <p style={{ ...LABEL, margin:0 }}>{gastos.length} servicios · total mensual</p>
+            <p style={{ ...LABEL, margin:0 }}>{gastosActivos.length} servicios activos · total mensual</p>
             <button onClick={() => setShowAdd(true)} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"8px 14px", borderRadius:"6px", background:"var(--accent)", color:"var(--bg)", border:"none", cursor:"pointer", fontSize:"13px", fontWeight:600 }}>
               <Plus size={14} /> Añadir gasto fijo
             </button>
           </div>
+
+          {/* Tabla activos + pendientes de cancelar */}
           <div style={{ background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px", overflow:"hidden" }}>
             <table style={{ width:"100%", borderCollapse:"collapse" }}>
               <thead><tr>{["Servicio","Importe","Día","Categoría","Estado","Acciones"].map(h => <th key={h} style={TH}>{h}</th>)}</tr></thead>
               <tbody>
-                {gastos.map(g => (
+                {gastosActivos.map(g => (
                   <tr key={g.id} style={{ background:g.estado==="cancelar"?"rgba(255,61,113,0.03)":"transparent" }}>
                     <td style={{ ...TD, fontWeight:500, color:"var(--text)" }}>{g.servicio}</td>
                     <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:g.estado==="cancelar"?"var(--text-muted)":"var(--text)" }}>{g.importe.toFixed(2)}€</td>
@@ -479,7 +509,15 @@ export default function FinanzasPage() {
                     <td style={{ ...TD }}>
                       {g.estado==="activo"
                         ? <span style={{ fontSize:"11px", fontWeight:700, padding:"2px 8px", borderRadius:"4px", background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--border-accent)" }}>Activo</span>
-                        : <span style={{ fontSize:"11px", fontWeight:700, padding:"2px 8px", borderRadius:"4px", background:"rgba(255,61,113,0.12)", color:"var(--red)", border:"1px solid rgba(255,61,113,0.25)" }}>Cancelar</span>
+                        : (
+                          <button
+                            onClick={() => setCancelConfirmId(g.id)}
+                            title="Confirmar cancelación"
+                            style={{ fontSize:"11px", fontWeight:700, padding:"2px 8px", borderRadius:"4px", background:"rgba(255,61,113,0.12)", color:"var(--red)", border:"1px solid rgba(255,61,113,0.25)", cursor:"pointer" }}
+                          >
+                            Cancelar ↗
+                          </button>
+                        )
                       }
                     </td>
                     <td style={{ ...TD }}>
@@ -497,6 +535,44 @@ export default function FinanzasPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Sección cancelados */}
+          {gastoCancelados.length > 0 && (
+            <div style={{ opacity:0.65 }}>
+              <p style={{ ...LABEL, marginBottom:"10px", display:"flex", alignItems:"center", gap:"8px" }}>
+                Cancelados / Pausados
+                <span style={{ fontFamily:"'Space Mono', monospace", fontSize:"11px", color:"var(--green)", fontWeight:700, textTransform:"none", letterSpacing:0 }}>
+                  +{gastoCancelados.reduce((s,g)=>s+g.importe,0).toFixed(2)}€/mes ahorrados
+                </span>
+              </p>
+              <div style={{ background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px", overflow:"hidden" }}>
+                <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                  <tbody>
+                    {gastoCancelados.map(g => (
+                      <tr key={g.id}>
+                        <td style={{ ...TD, color:"var(--text-muted)", textDecoration:"line-through", fontWeight:500 }}>{g.servicio}</td>
+                        <td style={{ ...TD, fontFamily:"'Space Mono', monospace", color:"var(--text-muted)", textDecoration:"line-through" }}>{g.importe.toFixed(2)}€</td>
+                        <td style={{ ...TD, color:"var(--text-muted)", fontSize:"11px" }}>{g.categoria}</td>
+                        <td style={{ ...TD }}>
+                          <span style={{ fontSize:"11px", color:"var(--green)", fontWeight:600 }}>
+                            Ahorro: {g.importe.toFixed(2)}€/mes
+                          </span>
+                        </td>
+                        <td style={{ ...TD, borderBottom:"none" }}>
+                          <button
+                            onClick={() => reactivar(g.id)}
+                            style={{ fontSize:"11px", padding:"4px 10px", borderRadius:"4px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", cursor:"pointer" }}
+                          >
+                            Reactivar
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -533,6 +609,34 @@ export default function FinanzasPage() {
           </div>
         </div>
       )}
+
+      {/* ── Confirm cancel modal ── */}
+      {cancelConfirmId !== null && (() => {
+        const g = gastos.find(x => x.id === cancelConfirmId);
+        if (!g) return null;
+        return (
+          <div onClick={() => setCancelConfirmId(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:"var(--card)", border:"1px solid rgba(255,61,113,0.35)", borderRadius:"10px", padding:"28px", width:"400px" }}>
+              <h3 style={{ color:"var(--text)", margin:"0 0 10px", fontSize:"16px", fontWeight:600 }}>¿Confirmar cancelación?</h3>
+              <p style={{ fontSize:"13px", color:"var(--text-muted)", margin:"0 0 6px" }}>
+                Servicio: <strong style={{ color:"var(--text)" }}>{g.servicio}</strong>
+              </p>
+              <p style={{ fontSize:"13px", color:"var(--text-muted)", margin:"0 0 18px" }}>
+                Dejarás de pagar <span style={{ fontFamily:"'Space Mono', monospace", color:"var(--green)", fontWeight:700 }}>{g.importe.toFixed(2)}€/mes</span>.
+                El importe se descontará del total y el servicio se moverá a la sección de cancelados.
+              </p>
+              <div style={{ display:"flex", gap:"8px" }}>
+                <button onClick={() => setCancelConfirmId(null)} style={{ flex:1, padding:"9px", borderRadius:"5px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", cursor:"pointer", fontSize:"13px" }}>
+                  Mantener activo
+                </button>
+                <button onClick={confirmCancel} style={{ flex:1, padding:"9px", borderRadius:"5px", border:"1px solid rgba(255,61,113,0.4)", background:"rgba(255,61,113,0.12)", color:"var(--red)", cursor:"pointer", fontSize:"13px", fontWeight:700 }}>
+                  Sí, cancelar servicio
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Add modal (Gastos) ── */}
       {showAdd && (
