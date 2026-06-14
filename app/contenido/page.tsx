@@ -1,313 +1,339 @@
 "use client";
+import { useState, useEffect } from "react";
 
-import { useState } from "react";
+type ClienteTab = "Identity" | "Desancho" | "Otro cliente";
+type TipoContenido = "Stories" | "Reel" | "Carrusel" | "Post feed";
+type Tono = "Profesional" | "Cercano" | "Urgencia" | "Inspiracional";
 
-const guiones = [
-  {
-    titulo: "Tu agencia te roba (y no lo sabes)",
-    hook: "¿Cuánto te cobra tu agencia por resultados que podrías conseguir tú solo con €50/mes?",
-    dolor: "Agencias cobrando 1.500€/mes por gestionar €200 en ads",
-    duracion: "8 min",
-    estado: "LISTO",
-    guion: `HOOK: ¿Tu agencia te cobra más de 500€ y no sabes exactamente qué resultados tienes? Este vídeo te va a molestar.
-
-PROBLEMA: La mayoría de agencias cobran entre 800 y 2.000€/mes por gestionar campañas que cualquier dueño de negocio podría manejar con una semana de formación.
-
-CONTENIDO:
-1. Los 3 KPIs que tu agencia NO te enseña a leer
-2. El CPL real vs el que te reportan
-3. Cómo auditar tu cuenta en 15 minutos
-
-CTA: Si quieres que audite tu cuenta gratis, DM "AUDITORÍA"`,
-  },
-  {
-    titulo: "Andrómeda: la empresa que puede hacer x10 en 3 años",
-    hook: "Una empresa de defensa espacial que cotiza a precio de ganga y nadie está mirando.",
-    dolor: "Inversores en growth sin saber dónde poner el capital",
-    duracion: "12 min",
-    estado: "LISTO",
-    guion: `HOOK: Hay una empresa americana que tiene contratos con el DoD, opera en órbita baja, y cotiza a menos de 5x ventas. Se llama Andrómeda y probablemente no la conozcas.
-
-ANÁLISIS:
-- Modelo de negocio y moat
-- Catalizadores próximos 12 meses
-- Valoración conservadora vs optimista
-- Setup técnico actual
-
-RIESGO: Empresa pre-revenue. Alta volatilidad. Solo para carteras de riesgo.
-
-CTA: Suscríbete a Stokers Market para recibir análisis como este cada semana.`,
-  },
-  {
-    titulo: "El ROAS que te enseñan es una mentira",
-    hook: "Tu ROAS de 4x no significa lo que crees. Te explico por qué.",
-    dolor: "Anunciantes tomando decisiones basadas en métricas infladas",
-    duracion: "6 min",
-    estado: "LISTO",
-    guion: `HOOK: ROAS 4x. Suena increíble, ¿verdad? Ahora dime: ¿cuánto ganas realmente después de producto, envío y devoluciones?
-
-EL PROBLEMA:
-- ROAS reportado vs MER (Marketing Efficiency Ratio)
-- Atribución multi-touch que nadie configura bien
-- El coste oculto del inventario en CPA real
-
-SOLUCIÓN:
-- Cómo calcular tu MER real
-- Qué ROAS necesitas según tu margen
-- La fórmula que uso con mis clientes
-
-CTA: Plantilla de cálculo MER gratuita en bio.`,
-  },
-  {
-    titulo: "Renuncié sin plan B (y así funcionó)",
-    hook: "Dejé mi trabajo sin ahorros, sin clientes y sin plan. 18 meses después tengo esto.",
-    dolor: "Gente atrapada en trabajos que odia esperando el 'momento perfecto'",
-    duracion: "10 min",
-    estado: "LISTO",
-    guion: `HOOK: Octubre 2024. Última nómina. Sin clientes. Sin colchón. Solo con un laptop y la certeza de que si no saltaba ahora, nunca lo haría.
-
-MI HISTORIA:
-- El error del primer mes: intentar hacer todo
-- El primer cliente y cómo lo conseguí
-- Los meses malos que nadie enseña
-- El sistema actual (agencia + trading + proyectos)
-
-LO QUE APRENDÍ:
-1. El plan B te mata la urgencia
-2. Vender primero, después perfeccionar
-3. La consistencia gana al talento
-
-CTA: Si estás pensando en saltar, DM "SALTO" y hablamos.`,
-  },
-];
-
-const NICHOS = ["AI Tools / Productividad", "Local Business Marketing", "Meta Ads Avanzado", "Google Ads & SEO"];
-
-const CLIENTES_LIST = ["Identity Peluqueros", "Desancho Estilistas", "Malvarrosa CF", "Matías Benegas Tattoo"];
-
-const CLIENTES_SECTOR: Record<string, string> = {
-  "Identity Peluqueros": "Peluquería",
-  "Desancho Estilistas": "Peluquería",
-  "Malvarrosa CF": "Deporte",
-  "Matías Benegas Tattoo": "Estudio Tattoo",
+type HistorialItem = {
+  id: string;
+  cliente: string;
+  tipo: TipoContenido;
+  tema: string;
+  tono: Tono;
+  result: string;
+  createdAt: number;
 };
 
-const episodios = [
-  { num:1, titulo:"Cómo monté mi agencia desde 0",                     estado:"GRABADO",        color:"var(--green)" },
-  { num:2, titulo:"El error que cometí con mi primer cliente",          estado:"EDICIÓN",        color:"var(--amber)" },
-  { num:3, titulo:"Meta Ads vs Google Ads para negocios locales",       estado:"GUIÓN LISTO",    color:"var(--accent)" },
-  { num:4, titulo:"Trading y emprendimiento: ¿son compatibles?",        estado:"PLANIFICADO",    color:"var(--text-muted)" },
-  { num:5, titulo:"Automatizaciones con IA: mi stack actual 2026",      estado:"PLANIFICADO",    color:"var(--text-muted)" },
-];
+type ParsedResult = {
+  caption: string;
+  hashtags: string;
+  hora_publicacion: string;
+};
 
-const checklistProd = ["Grabar audio","Editar en Audacity","Crear thumbnail","Subir a Spotify/iVoox","Post en redes"];
+const CLIENTES_INFO: Record<ClienteTab, { nombre: string; sector: string }> = {
+  "Identity":      { nombre: "Identity Peluqueros", sector: "Peluquería y estética" },
+  "Desancho":      { nombre: "Desancho Estilistas",  sector: "Peluquería canina y felina" },
+  "Otro cliente":  { nombre: "", sector: "" },
+};
 
-type Tab = "Videos"|"Blog EN"|"Clientes"|"Podcast";
-const TABS: Tab[] = ["Videos","Blog EN","Clientes","Podcast"];
+const TIPOS: TipoContenido[] = ["Stories", "Reel", "Carrusel", "Post feed"];
+const TONOS: Tono[]          = ["Profesional", "Cercano", "Urgencia", "Inspiracional"];
+const TABS: ClienteTab[]     = ["Identity", "Desancho", "Otro cliente"];
+const HISTORIAL_KEY = "raxislab_contenido_historial_v1";
 
-const CARD  = { background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px" } as React.CSSProperties;
-const LABEL = { fontSize:"11px", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase" as const, color:"var(--text-muted)" };
+function loadHistorial(): HistorialItem[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(localStorage.getItem(HISTORIAL_KEY) ?? "[]"); } catch { return []; }
+}
+function saveHistorial(items: HistorialItem[]) {
+  localStorage.setItem(HISTORIAL_KEY, JSON.stringify(items));
+}
+function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+const CARD: React.CSSProperties  = { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", padding: "20px" };
+const LABEL: React.CSSProperties = { fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)" };
+const INPUT: React.CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)", fontSize: "13px", outline: "none", boxSizing: "border-box" };
+
+function tryParseResult(text: string): ParsedResult | null {
+  try { return JSON.parse(text) as ParsedResult; } catch { return null; }
+}
 
 export default function ContenidoPage() {
-  const [tab, setTab] = useState<Tab>("Videos");
-  const [guionAbierto, setGuionAbierto] = useState<string | null>(null);
-  const [nicho, setNicho] = useState(NICHOS[0]);
-  const [topicInput, setTopicInput] = useState("");
-  const [articuloTexto, setArticuloTexto] = useState<string | null>(null);
-  const [articuloLoading, setArticuloLoading] = useState(false);
-  const [clienteSelected, setClienteSelected] = useState(CLIENTES_LIST[0]);
-  const [contenidoCliente, setContenidoCliente] = useState<string | null>(null);
-  const [contenidoLoading, setContenidoLoading] = useState(false);
-  const [checklist, setChecklist] = useState<Record<string, boolean>>({});
+  const [tab, setTab]               = useState<ClienteTab>("Identity");
+  const [tipo, setTipo]             = useState<TipoContenido>("Stories");
+  const [tema, setTema]             = useState("");
+  const [tono, setTono]             = useState<Tono>("Cercano");
+  const [otroNombre, setOtroNombre] = useState("");
+  const [otroSector, setOtroSector] = useState("");
+  const [loading, setLoading]       = useState(false);
+  const [result, setResult]         = useState<string | null>(null);
+  const [historial, setHistorial]   = useState<HistorialItem[]>([]);
+  const [hydrated, setHydrated]     = useState(false);
 
-  async function generarArticulo() {
-    setArticuloLoading(true);
-    setArticuloTexto(null);
+  useEffect(() => {
+    setHistorial(loadHistorial());
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => { setResult(null); }, [tab]);
+
+  function getClienteNombre() {
+    if (tab === "Otro cliente") return otroNombre.trim() || "Cliente";
+    return CLIENTES_INFO[tab].nombre;
+  }
+  function getClienteSector() {
+    if (tab === "Otro cliente") return otroSector.trim() || "negocio local";
+    return CLIENTES_INFO[tab].sector;
+  }
+
+  const captionWords: Record<TipoContenido, string> = {
+    "Stories":  "60-80",
+    "Reel":     "80-120",
+    "Carrusel": "100-150",
+    "Post feed":"150-200",
+  };
+
+  async function generar() {
+    const cliente = getClienteNombre();
+    const sector  = getClienteSector();
+    const prompt  = `Eres un experto en social media marketing para negocios locales españoles.
+
+Genera contenido para ${cliente} (${sector}).
+Tipo de contenido: ${tipo}
+Tema / Servicio: ${tema.trim() || "servicios principales del negocio"}
+Tono: ${tono}
+
+Devuelve EXACTAMENTE este JSON (sin markdown, sin texto fuera del JSON):
+{
+  "caption": "texto del caption listo para publicar, entre ${captionWords[tipo]} palabras, en español",
+  "hashtags": "#hashtag1 #hashtag2 ... (10-15 hashtags relevantes para España)",
+  "hora_publicacion": "HH:MM — razón breve de por qué esa hora es óptima para ${tipo}"
+}`;
+
+    setLoading(true);
+    setResult(null);
     try {
-      const res = await fetch('/api/claude/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'blog_article', data: { topic: topicInput || nicho, keyword: nicho.split("/")[0].trim() } }),
+      const res  = await fetch("/api/claude/generate", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ type: "social_caption_custom", data: { prompt } }),
       });
       const json = await res.json();
-      setArticuloTexto(json.content);
+      const text = (json.content ?? "") as string;
+      setResult(text);
+      const item: HistorialItem = { id: newId(), cliente, tipo, tema: tema.trim(), tono, result: text, createdAt: Date.now() };
+      const updated = [item, ...historial].slice(0, 5);
+      setHistorial(updated);
+      saveHistorial(updated);
     } catch {
-      setArticuloTexto('Error generando artículo. Inténtalo de nuevo.');
+      setResult("Error generando contenido. Inténtalo de nuevo.");
     } finally {
-      setArticuloLoading(false);
+      setLoading(false);
     }
   }
 
-  async function generarContenidoCliente(tipo: string) {
-    setContenidoLoading(true);
-    setContenidoCliente(null);
-    const sector = CLIENTES_SECTOR[clienteSelected] ?? "local business";
-    const typeMap: Record<string, string> = {
-      "Post GBP": "gbp_post",
-      "Reel": "reel_script",
-      "Reseña": "review_response",
-    };
-    const dataMap: Record<string, object> = {
-      "Post GBP": { cliente: clienteSelected, sector },
-      "Reel": { cliente: clienteSelected, sector, topic: `servicios de ${sector}` },
-      "Reseña": { cliente: clienteSelected, review: "Excelente servicio, muy satisfecho con los resultados" },
-    };
-    try {
-      const res = await fetch('/api/claude/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: typeMap[tipo], data: dataMap[tipo] }),
-      });
-      const json = await res.json();
-      setContenidoCliente(json.content);
-    } catch {
-      setContenidoCliente('Error generando contenido. Inténtalo de nuevo.');
-    } finally {
-      setContenidoLoading(false);
-    }
+  function deleteHistorialItem(id: string) {
+    const updated = historial.filter(h => h.id !== id);
+    setHistorial(updated);
+    saveHistorial(updated);
+  }
+
+  function copyText(text: string) {
+    navigator.clipboard.writeText(text).then(() => alert("Copiado ✅"));
+  }
+
+  function resultCopyText(text: string): string {
+    const parsed = tryParseResult(text);
+    return parsed ? `${parsed.caption}\n\n${parsed.hashtags}` : text;
   }
 
   return (
-    <div style={{ padding:"32px 40px" }}>
-      <h1 style={{ fontSize:"24px", fontWeight:600, color:"var(--text)", marginBottom:"24px" }}>Contenido</h1>
+    <div style={{ padding: "32px 40px" }}>
+      <h1 style={{ fontSize: "24px", fontWeight: 600, color: "var(--text)", marginBottom: "24px" }}>Contenido</h1>
 
       {/* Tab bar */}
-      <div style={{ display:"inline-flex", gap:"4px", padding:"4px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"8px", marginBottom:"20px" }}>
+      <div style={{ display: "inline-flex", gap: "4px", padding: "4px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", marginBottom: "28px" }}>
         {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding:"7px 16px", borderRadius:"5px", border:"none", cursor:"pointer", fontSize:"13px", fontWeight: tab===t ? 600 : 400, background: tab===t ? "var(--accent-dim)" : "transparent", color: tab===t ? "var(--accent)" : "var(--text-muted)", outline: tab===t ? "1px solid var(--border-accent)" : "none" }}>{t}</button>
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              padding: "7px 20px", borderRadius: "5px", border: "none", cursor: "pointer",
+              fontSize: "13px", fontWeight: tab === t ? 600 : 400,
+              background: tab === t ? "var(--accent-dim)" : "transparent",
+              color:      tab === t ? "var(--accent)"     : "var(--text-muted)",
+              outline:    tab === t ? "1px solid var(--border-accent)" : "none",
+            }}
+          >
+            {t}
+          </button>
         ))}
       </div>
 
-      {/* Mis Videos */}
-      {tab === "Videos" && (
-        <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
-          {guiones.map(g => (
-            <div key={g.titulo} style={{ ...CARD, padding:"20px 24px" }}>
-              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:"16px", marginBottom:"10px" }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"6px" }}>
-                    <span style={{ fontSize:"11px", fontWeight:600, padding:"2px 7px", borderRadius:"3px", background:"rgba(0,230,118,0.08)", color:"var(--green)", border:"1px solid rgba(0,230,118,0.15)" }}>{g.estado}</span>
-                    <span style={{ fontSize:"11px", color:"var(--text-muted)", fontFamily:"'Space Mono', monospace" }}>{g.duracion}</span>
-                  </div>
-                  <h3 style={{ fontSize:"14px", fontWeight:600, color:"var(--text)", marginBottom:"4px" }}>{g.titulo}</h3>
-                  <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"4px" }}>Hook: {g.hook}</p>
-                  <p style={{ fontSize:"12px", color:"var(--text-muted)" }}>Dolor: {g.dolor}</p>
-                </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "20px", alignItems: "start" }}>
+
+        {/* ── Left: Generar ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+
+          {/* Otro cliente inputs */}
+          {tab === "Otro cliente" && (
+            <div style={{ ...CARD, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div>
+                <p style={{ ...LABEL, marginBottom: "8px" }}>Nombre del cliente</p>
+                <input value={otroNombre} onChange={e => setOtroNombre(e.target.value)} placeholder="Ej: Taller García" style={INPUT} />
+              </div>
+              <div>
+                <p style={{ ...LABEL, marginBottom: "8px" }}>Sector / Descripción</p>
+                <input value={otroSector} onChange={e => setOtroSector(e.target.value)} placeholder="Ej: Taller mecánico" style={INPUT} />
+              </div>
+            </div>
+          )}
+
+          <div style={CARD}>
+            {/* Tipo */}
+            <p style={{ ...LABEL, marginBottom: "12px" }}>Tipo de contenido</p>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "20px" }}>
+              {TIPOS.map(t => (
                 <button
-                  onClick={() => setGuionAbierto(guionAbierto === g.titulo ? null : g.titulo)}
-                  style={{ padding:"7px 14px", borderRadius:"5px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text-mid)", fontSize:"12px", cursor:"pointer", flexShrink:0 }}
+                  key={t}
+                  onClick={() => setTipo(t)}
+                  style={{
+                    padding: "8px 16px", borderRadius: "6px", cursor: "pointer",
+                    border:      `1px solid ${tipo === t ? "var(--border-accent)" : "var(--border)"}`,
+                    background:  tipo === t ? "var(--accent-dim)" : "transparent",
+                    color:       tipo === t ? "var(--accent)"     : "var(--text-muted)",
+                    fontSize:    "13px",
+                    fontWeight:  tipo === t ? 600 : 400,
+                  }}
                 >
-                  {guionAbierto === g.titulo ? "Cerrar" : "Ver guión"}
+                  {t}
                 </button>
-              </div>
-              {guionAbierto === g.titulo && (
-                <pre style={{ marginTop:"10px", padding:"14px", borderRadius:"5px", background:"var(--accent-dim)", border:"1px solid var(--border)", fontSize:"12px", color:"var(--text-mid)", whiteSpace:"pre-wrap", lineHeight:1.6, fontFamily:"inherit" }}>
-                  {g.guion}
-                </pre>
-              )}
+              ))}
             </div>
-          ))}
-        </div>
-      )}
 
-      {/* Blog EN */}
-      {tab === "Blog EN" && (
-        <div style={{ maxWidth:"560px" }}>
-          <div style={{ ...CARD, padding:"24px" }}>
-            <p style={{ ...LABEL, marginBottom:"16px" }}>Generar artículo en inglés</p>
-            <div style={{ marginBottom:"16px" }}>
-              <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"8px" }}>Nicho</p>
-              <div style={{ display:"flex", flexWrap:"wrap", gap:"8px" }}>
-                {NICHOS.map(n => (
-                  <button key={n} onClick={() => { setNicho(n); setArticuloTexto(null); }} style={{ padding:"6px 12px", borderRadius:"4px", border:`1px solid ${nicho===n ? "var(--border-accent)" : "var(--border)"}`, background: nicho===n ? "var(--accent-dim)" : "transparent", color: nicho===n ? "var(--accent)" : "var(--text-muted)", fontSize:"12px", cursor:"pointer" }}>{n}</button>
-                ))}
-              </div>
+            {/* Tema */}
+            <p style={{ ...LABEL, marginBottom: "8px" }}>Servicio / Tema</p>
+            <input
+              value={tema}
+              onChange={e => setTema(e.target.value)}
+              placeholder="Ej: Corte con tratamiento, Nueva temporada primavera, Oferta especial..."
+              style={{ ...INPUT, marginBottom: "20px" }}
+            />
+
+            {/* Tono */}
+            <p style={{ ...LABEL, marginBottom: "12px" }}>Tono</p>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "24px" }}>
+              {TONOS.map(t => (
+                <button
+                  key={t}
+                  onClick={() => setTono(t)}
+                  style={{
+                    padding: "7px 14px", borderRadius: "6px", cursor: "pointer",
+                    border:     `1px solid ${tono === t ? "var(--border-accent)" : "var(--border)"}`,
+                    background:  tono === t ? "var(--accent-dim)" : "transparent",
+                    color:       tono === t ? "var(--accent)"     : "var(--text-muted)",
+                    fontSize:   "12px",
+                    fontWeight:  tono === t ? 600 : 400,
+                  }}
+                >
+                  {t}
+                </button>
+              ))}
             </div>
-            <div style={{ marginBottom:"16px" }}>
-              <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"8px" }}>Tema del artículo (opcional)</p>
-              <input
-                value={topicInput}
-                onChange={e => setTopicInput(e.target.value)}
-                placeholder={`${nicho.split("/")[0].trim()} strategies for local businesses...`}
-                style={{ width:"100%", padding:"8px 12px", borderRadius:"4px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text)", fontSize:"12px", outline:"none" }}
-              />
-            </div>
-            <button onClick={generarArticulo} disabled={articuloLoading} style={{ width:"100%", padding:"12px", borderRadius:"6px", background: articuloLoading ? "var(--surface)" : "var(--accent)", color: articuloLoading ? "var(--text-muted)" : "#fff", fontSize:"13px", fontWeight:600, border:"none", cursor: articuloLoading ? "not-allowed" : "pointer", marginBottom: articuloTexto ? "16px" : "0" }}>
-              {articuloLoading ? "Generando artículo..." : "Generar artículo →"}
+
+            <button
+              onClick={generar}
+              disabled={loading}
+              style={{
+                width: "100%", padding: "13px", borderRadius: "8px", border: "none",
+                background:  loading ? "var(--surface)" : "var(--accent)",
+                color:       loading ? "var(--text-muted)" : "#fff",
+                fontSize:    "14px", fontWeight: 600,
+                cursor:      loading ? "not-allowed" : "pointer",
+              }}
+            >
+              {loading ? "Generando con IA..." : "Generar con IA →"}
             </button>
-            {articuloTexto && (
-              <div style={{ padding:"14px", borderRadius:"5px", background:"var(--accent-dim)", border:"1px solid var(--border-accent)" }}>
-                <pre style={{ fontSize:"12px", color:"var(--text-mid)", whiteSpace:"pre-wrap", lineHeight:1.6, fontFamily:"inherit" }}>{articuloTexto}</pre>
-                <button onClick={() => navigator.clipboard.writeText(articuloTexto).then(() => alert("Copiado ✅"))} style={{ marginTop:"12px", padding:"7px 14px", borderRadius:"4px", background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--border-accent)", fontSize:"12px", cursor:"pointer" }}>
-                  Copiar artículo
-                </button>
-              </div>
-            )}
           </div>
-        </div>
-      )}
 
-      {/* Contenido Clientes */}
-      {tab === "Clientes" && (
-        <div style={{ maxWidth:"600px" }}>
-          <div style={{ ...CARD, padding:"24px" }}>
-            <p style={{ ...LABEL, marginBottom:"16px" }}>Contenido para cliente</p>
-            <div style={{ marginBottom:"16px" }}>
-              <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"8px" }}>Cliente</p>
-              <div style={{ display:"flex", flexWrap:"wrap", gap:"8px" }}>
-                {CLIENTES_LIST.map(c => (
-                  <button key={c} onClick={() => { setClienteSelected(c); setContenidoCliente(null); setContenidoLoading(false); }} style={{ padding:"6px 12px", borderRadius:"4px", border:`1px solid ${clienteSelected===c ? "var(--border-accent)" : "var(--border)"}`, background: clienteSelected===c ? "var(--accent-dim)" : "transparent", color: clienteSelected===c ? "var(--accent)" : "var(--text-muted)", fontSize:"12px", cursor:"pointer" }}>{c}</button>
-                ))}
+          {/* Result */}
+          {result && (() => {
+            const parsed = tryParseResult(result);
+            return (
+              <div style={{ ...CARD, background: "var(--accent-dim)", borderColor: "var(--border-accent)" }}>
+                {parsed ? (
+                  <>
+                    <div style={{ marginBottom: "16px" }}>
+                      <p style={{ ...LABEL, marginBottom: "8px" }}>Caption</p>
+                      <p style={{ fontSize: "13px", lineHeight: 1.7, color: "var(--text)", whiteSpace: "pre-wrap" }}>{parsed.caption}</p>
+                    </div>
+                    <div style={{ marginBottom: "16px" }}>
+                      <p style={{ ...LABEL, marginBottom: "8px" }}>Hashtags</p>
+                      <p style={{ fontSize: "12px", color: "var(--accent)", fontFamily: "'Space Mono', monospace", lineHeight: 1.7 }}>{parsed.hashtags}</p>
+                    </div>
+                    <div style={{ marginBottom: "20px", padding: "10px 12px", borderRadius: "6px", background: "var(--card)", border: "1px solid var(--border)" }}>
+                      <span style={{ ...LABEL, marginRight: "8px" }}>Hora sugerida</span>
+                      <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{parsed.hora_publicacion}</span>
+                    </div>
+                    <button
+                      onClick={() => copyText(`${parsed.caption}\n\n${parsed.hashtags}`)}
+                      style={{ padding: "9px 18px", borderRadius: "6px", background: "var(--accent)", color: "#fff", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer" }}
+                    >
+                      Copiar caption + hashtags
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <pre style={{ fontSize: "12px", color: "var(--text-mid)", whiteSpace: "pre-wrap", lineHeight: 1.6, fontFamily: "inherit", marginBottom: "14px" }}>{result}</pre>
+                    <button onClick={() => copyText(result)} style={{ padding: "9px 18px", borderRadius: "6px", background: "var(--accent)", color: "#fff", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer" }}>Copiar</button>
+                  </>
+                )}
               </div>
-            </div>
-            <div style={{ display:"flex", gap:"10px", flexWrap:"wrap", marginBottom:"16px" }}>
-              {[["Post GBP","Generar post Google Business"],["Reel","Generar guión de reel"],["Reseña","Responder reseña reciente"]].map(([tipo,label]) => (
-                <button key={tipo} onClick={() => generarContenidoCliente(tipo)} disabled={contenidoLoading} style={{ padding:"9px 16px", borderRadius:"5px", border:"1px solid var(--border)", background:"var(--card-hover)", color: contenidoLoading ? "var(--text-muted)" : "var(--text-mid)", fontSize:"12px", cursor: contenidoLoading ? "not-allowed" : "pointer", fontWeight:500 }}>{contenidoLoading ? "Generando..." : label}</button>
-              ))}
-            </div>
-            {contenidoCliente && (
-              <div style={{ padding:"14px", borderRadius:"5px", background:"var(--accent-dim)", border:"1px solid var(--border)" }}>
-                <pre style={{ fontSize:"12px", color:"var(--text-mid)", whiteSpace:"pre-wrap", lineHeight:1.6, fontFamily:"inherit" }}>{contenidoCliente}</pre>
-                <button onClick={() => navigator.clipboard.writeText(contenidoCliente).then(() => alert("Copiado ✅"))} style={{ marginTop:"10px", padding:"6px 12px", borderRadius:"4px", background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--border-accent)", fontSize:"12px", cursor:"pointer" }}>Copiar</button>
-              </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
-      )}
 
-      {/* Podcast */}
-      {tab === "Podcast" && (
-        <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:"20px" }}>
-          <div>
-            <p style={{ ...LABEL, marginBottom:"14px" }}>Episodios planificados</p>
-            <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
-              {episodios.map(({ num,titulo,estado,color }) => (
-                <div key={num} style={{ ...CARD, padding:"14px 18px", display:"flex", alignItems:"center", gap:"14px" }}>
-                  <span style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"13px", color:"var(--text-muted)", width:"24px", flexShrink:0 }}>E{num}</span>
-                  <span style={{ flex:1, fontSize:"13px", color:"var(--text-mid)" }}>{titulo}</span>
-                  <span style={{ fontSize:"11px", fontWeight:600, padding:"2px 8px", borderRadius:"3px", color, background:"var(--accent-dim)", border:"1px solid var(--border-accent)", whiteSpace:"nowrap" }}>{estado}</span>
-                </div>
-              ))}
+        {/* ── Right: Historial ── */}
+        <div>
+          <p style={{ ...LABEL, marginBottom: "14px" }}>Historial reciente</p>
+          {!hydrated || historial.length === 0 ? (
+            <div style={{ ...CARD, padding: "28px", textAlign: "center" }}>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.6 }}>
+                Las últimas 5 generaciones aparecerán aquí.
+              </p>
             </div>
-          </div>
-          <div>
-            <p style={{ ...LABEL, marginBottom:"14px" }}>Checklist producción</p>
-            <div style={{ ...CARD, padding:"16px 20px" }}>
-              {checklistProd.map(item => {
-                const done = checklist[item] ?? false;
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {historial.map(h => {
+                const parsed  = tryParseResult(h.result);
+                const preview = (parsed?.caption ?? h.result).slice(0, 90) + "…";
                 return (
-                  <div key={item} onClick={() => setChecklist(p => ({ ...p, [item]: !done }))} style={{ display:"flex", alignItems:"center", gap:"10px", padding:"8px 0", borderBottom:"1px solid var(--border)", cursor:"pointer" }}>
-                    <span style={{ width:"15px", height:"15px", borderRadius:"3px", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", border:`1.5px solid ${done ? "var(--green)" : "var(--border)"}`, background: done ? "var(--green)" : "transparent" }}>
-                      {done && <span style={{ color:"#000", fontSize:"9px", fontWeight:700 }}>✓</span>}
-                    </span>
-                    <span style={{ fontSize:"12px", color: done ? "var(--text-muted)" : "var(--text-mid)", textDecoration: done ? "line-through" : "none" }}>{item}</span>
+                  <div key={h.id} style={{ ...CARD, padding: "14px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px", marginBottom: "6px" }}>
+                      <div>
+                        <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent)", marginRight: "8px" }}>{h.tipo}</span>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{h.tono}</span>
+                      </div>
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "'Space Mono', monospace", whiteSpace: "nowrap" }}>
+                        {new Date(h.createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" })}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: "11px", color: "var(--text-mid)", marginBottom: "6px", lineHeight: 1.5 }}>{preview}</p>
+                    <p style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "10px" }}>
+                      {h.cliente}{h.tema ? ` · ${h.tema}` : ""}
+                    </p>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <button
+                        onClick={() => copyText(resultCopyText(h.result))}
+                        style={{ flex: 1, padding: "6px", borderRadius: "4px", background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--border-accent)", fontSize: "11px", cursor: "pointer" }}
+                      >
+                        Copiar
+                      </button>
+                      <button
+                        onClick={() => deleteHistorialItem(h.id)}
+                        style={{ padding: "6px 10px", borderRadius: "4px", background: "transparent", color: "var(--text-muted)", border: "1px solid var(--border)", fontSize: "11px", cursor: "pointer" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
                 );
               })}
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
