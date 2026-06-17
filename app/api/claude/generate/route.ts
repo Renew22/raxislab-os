@@ -14,7 +14,8 @@ export async function POST(req: Request) {
     reel_script: `Genera un guión de reel de 30 segundos para ${data.cliente} (${data.sector}) sobre: "${data.topic}". Hook visual + Problema + Solución + CTA. Incluye sugerencia de música tendencia.`,
     email_lead: `Genera un email de prospección para ${data.empresa} del sector ${data.sector}. Observación específica de su negocio + propuesta de valor + CTA a auditoría gratuita. Máximo 120 palabras.`,
     tendencias: `Dame las 5 tendencias más relevantes esta semana en el sector ${data.sector} en España. Para cada una: título + por qué importa + idea de contenido.`,
-    investor_analysis: `Analiza esta empresa para el perfil Raxis Investor: Ticker: ${data.ticker} | Tesis: ${data.tesis} | Entrada: ${data.entrada} | Stop: ${data.stop} | Target: ${data.target} | Decisión: ${data.decision}. Genera JSON con claves: post_x (280 chars), hilo_twitter (array 5 tweets), guion_youtube (estructura 10 min), articulo_blog (título EN + primer párrafo). Solo JSON, sin texto adicional.`
+    investor_analysis: `Analiza esta empresa para el perfil Raxis Investor: Ticker: ${data.ticker} | Tesis: ${data.tesis} | Entrada: ${data.entrada} | Stop: ${data.stop} | Target: ${data.target} | Decisión: ${data.decision}. Genera JSON con claves: post_x (280 chars), hilo_twitter (array 5 tweets), guion_youtube (estructura 10 min), articulo_blog (título EN + primer párrafo). Solo JSON, sin texto adicional.`,
+    meta_ad_copy: `Genera el texto de un anuncio de Meta Ads para ${data.cliente}, negocio de ${data.sector}. Objetivo: ${data.objetivo}. Audiencia: ${data.audiencia}.\nGenera exactamente:\n1) Titular (máx 40 caracteres)\n2) Texto principal (máx 125 caracteres)\n3) Descripción (máx 30 caracteres)\nTono cercano, enfocado en resultado/beneficio, no en características. Formato: cada punto en su propia línea con el número y el texto.`
   };
 
   try {

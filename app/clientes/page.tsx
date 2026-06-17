@@ -1,65 +1,81 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Client } from "../lib/clients-data";
+import { getClients, addClient, updateClient } from "../lib/clients-storage";
 
-type Cliente = {
-  nombre: string; precio: string; estado: string;
-  color: string; bg: string; sector: string;
-  fechaInicio: string; servicios: string[]; proximaTarea: string;
-};
-
-const clientes: Cliente[] = [
-  { nombre: "Identity Peluqueros",   precio: "550€", estado: "ACTIVO",   color: "var(--green)", bg: "rgba(0,230,118,0.08)",   sector: "Peluquería",    fechaInicio: "Ene 2025", servicios: ["Meta Ads","Google Ads","Google Business"], proximaTarea: "Revisar creatividades junio" },
-  { nombre: "Desancho Estilistas",   precio: "550€", estado: "ACTIVO",   color: "var(--green)", bg: "rgba(0,230,118,0.08)",   sector: "Peluquería",    fechaInicio: "Mar 2025", servicios: ["Meta Ads","Google Business"],               proximaTarea: "Actualizar fotos GMB" },
-  { nombre: "Last Mile Distribution",precio: "TBD",  estado: "EN CURSO", color: "var(--amber)", bg: "rgba(255,184,0,0.08)",   sector: "Logística",     fechaInicio: "Jun 2025", servicios: ["Propuesta en preparación"],                 proximaTarea: "Enviar propuesta formal" },
-  { nombre: "Malvarrosa CF",         precio: "300€", estado: "ACTIVO",   color: "var(--green)", bg: "rgba(0,230,118,0.08)",   sector: "Deporte",       fechaInicio: "Feb 2025", servicios: ["Meta Ads","Contenido redes"],                proximaTarea: "Creatividades torneo" },
-  { nombre: "Matías Benegas Tattoo", precio: "300€", estado: "ACTIVO",   color: "var(--green)", bg: "rgba(0,230,118,0.08)",   sector: "Estudio Tattoo",fechaInicio: "Abr 2025", servicios: ["Meta Ads","Google Business","Contenido"],    proximaTarea: "Post de portfolio" },
-];
+// ─── Static data keyed by client id ───────────────────────────────────────────
 
 const METRICAS: Record<string, { cpl: string; roas: string; inversion: string; leads: string }> = {
-  "Identity Peluqueros":   { cpl: "4.80€", roas: "5.2x", inversion: "220€/sem", leads: "46/mes" },
-  "Desancho Estilistas":   { cpl: "5.40€", roas: "4.8x", inversion: "180€/sem", leads: "33/mes" },
-  "Last Mile Distribution":{ cpl: "—",     roas: "—",    inversion: "—",         leads: "—" },
-  "Malvarrosa CF":         { cpl: "2.10€", roas: "3.1x", inversion: "90€/sem",   leads: "22/mes" },
-  "Matías Benegas Tattoo": { cpl: "3.60€", roas: "4.2x", inversion: "110€/sem",  leads: "28/mes" },
+  "identity-peluqueros":    { cpl: "4.80€", roas: "5.2x", inversion: "220€/sem", leads: "46/mes" },
+  "desancho-estilistas":    { cpl: "5.40€", roas: "4.8x", inversion: "180€/sem", leads: "33/mes" },
+  "last-mile-distribution": { cpl: "—",     roas: "—",    inversion: "—",         leads: "—" },
+  "malvarrosa-cf":          { cpl: "2.10€", roas: "3.1x", inversion: "90€/sem",   leads: "22/mes" },
+  "matias-benegas-tattoo":  { cpl: "3.60€", roas: "4.2x", inversion: "110€/sem",  leads: "28/mes" },
 };
 
 const TAREAS_BASE: Record<string, string[]> = {
-  "Identity Peluqueros":   ["Revisar creatividades junio","Enviar reporte semanal","Reunión mensual"],
-  "Desancho Estilistas":   ["Actualizar fotos GMB","Responder reseñas","Enviar reporte semanal"],
-  "Last Mile Distribution":["Enviar propuesta formal","Reunión briefing"],
-  "Malvarrosa CF":         ["Creatividades torneo verano","Enviar reporte semanal"],
-  "Matías Benegas Tattoo": ["Post de portfolio","Optimizar campaña booking","Enviar reporte semanal"],
+  "identity-peluqueros":    ["Revisar creatividades junio", "Enviar reporte semanal", "Reunión mensual"],
+  "desancho-estilistas":    ["Actualizar fotos GMB", "Responder reseñas", "Enviar reporte semanal"],
+  "last-mile-distribution": ["Enviar propuesta formal", "Reunión briefing"],
+  "malvarrosa-cf":          ["Creatividades torneo verano", "Enviar reporte semanal"],
+  "matias-benegas-tattoo":  ["Post de portfolio", "Optimizar campaña booking", "Enviar reporte semanal"],
 };
 
 const HISTORIAL: Record<string, { fecha: string; tipo: string; nota: string }[]> = {
-  "Identity Peluqueros":   [{ fecha:"2026-06-01",tipo:"Reunión",nota:"Resultados mayo. Cliente muy satisfecho, renueva." },{ fecha:"2026-05-15",tipo:"Email",nota:"Reporte mensual con métricas enviado." }],
-  "Desancho Estilistas":   [{ fecha:"2026-05-28",tipo:"Email",nota:"Reporte mensual enviado." },{ fecha:"2026-05-10",tipo:"Call",nota:"Feedback creatividades nuevas." }],
-  "Last Mile Distribution":[{ fecha:"2026-06-03",tipo:"Reunión",nota:"Primera reunión descubrimiento. Muy interesados." }],
-  "Malvarrosa CF":         [{ fecha:"2026-06-02",tipo:"Email",nota:"Campaña torneo verano iniciada." }],
-  "Matías Benegas Tattoo": [{ fecha:"2026-05-30",tipo:"WhatsApp",nota:"Solicitud contenido booking adicional." }],
+  "identity-peluqueros":    [{ fecha: "2026-06-01", tipo: "Reunión", nota: "Resultados mayo. Cliente muy satisfecho, renueva." }, { fecha: "2026-05-15", tipo: "Email", nota: "Reporte mensual con métricas enviado." }],
+  "desancho-estilistas":    [{ fecha: "2026-05-28", tipo: "Email", nota: "Reporte mensual enviado." }, { fecha: "2026-05-10", tipo: "Call", nota: "Feedback creatividades nuevas." }],
+  "last-mile-distribution": [{ fecha: "2026-06-03", tipo: "Reunión", nota: "Primera reunión descubrimiento. Muy interesados." }],
+  "malvarrosa-cf":          [{ fecha: "2026-06-02", tipo: "Email", nota: "Campaña torneo verano iniciada." }],
+  "matias-benegas-tattoo":  [{ fecha: "2026-05-30", tipo: "WhatsApp", nota: "Solicitud contenido booking adicional." }],
 };
 
 const DOCS: Record<string, string[]> = {
-  "Identity Peluqueros":   ["Contrato firmado","Propuesta inicial","Brief servicio"],
-  "Desancho Estilistas":   ["Contrato firmado","Propuesta inicial"],
-  "Last Mile Distribution":["Propuesta borrador"],
-  "Malvarrosa CF":         ["Contrato firmado","Brief servicio"],
-  "Matías Benegas Tattoo": ["Contrato firmado","Propuesta inicial","Brief contenido"],
+  "identity-peluqueros":    ["Contrato firmado", "Propuesta inicial", "Brief servicio"],
+  "desancho-estilistas":    ["Contrato firmado", "Propuesta inicial"],
+  "last-mile-distribution": ["Propuesta borrador"],
+  "malvarrosa-cf":          ["Contrato firmado", "Brief servicio"],
+  "matias-benegas-tattoo":  ["Contrato firmado", "Propuesta inicial", "Brief contenido"],
 };
 
-type PanelTab = "Resumen"|"Métricas"|"Tareas"|"Contenido"|"Tendencias"|"Documentos";
-const PANEL_TABS: PanelTab[] = ["Resumen","Métricas","Tareas","Contenido","Tendencias","Documentos"];
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const CARD  = { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "6px" } as React.CSSProperties;
-const LABEL = { fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)" };
+function statusColor(status: Client['status']): { color: string; bg: string; label: string } {
+  if (status === 'activo')   return { color: "#00E676", bg: "rgba(0,230,118,0.08)", label: "ACTIVO" };
+  if (status === 'en_curso') return { color: "#FFB800", bg: "rgba(255,184,0,0.08)",  label: "EN CURSO" };
+  return { color: "#5A6470", bg: "rgba(90,100,112,0.08)", label: "PAUSADO" };
+}
+
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+function mrrLabel(mrr: number): string {
+  return mrr > 0 ? `${mrr}€` : "TBD";
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const CARD  = { background: "#111111", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "6px" } as React.CSSProperties;
+const LABEL = { fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "#5A6470" };
+const INPUT_STYLE: React.CSSProperties = { width: "100%", padding: "8px 12px", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.08)", background: "#161616", color: "#FFFFFF", fontSize: "13px", outline: "none", boxSizing: "border-box" };
+const SELECT_STYLE: React.CSSProperties = { ...INPUT_STYLE, cursor: "pointer" };
+
+// ─── Tipos panel ──────────────────────────────────────────────────────────────
+
+type PanelTab = "Resumen" | "Métricas" | "Tareas" | "Contenido" | "Tendencias" | "Documentos";
+const PANEL_TABS: PanelTab[] = ["Resumen", "Métricas", "Tareas", "Contenido", "Tendencias", "Documentos"];
+
+const SECTORES = ["Peluquería/Estética", "Taller mecánico", "Rent a car", "Restaurante", "Clínica", "Logística", "Deporte", "Estudio Tattoo", "Otro"];
+const SERVICIOS_OPTS = ["Meta Ads", "Google Ads", "GMB", "Email Marketing", "Web", "Contenido redes"];
+
+// ─── Componente ───────────────────────────────────────────────────────────────
 
 export default function ClientesPage() {
-  const [selected, setSelected] = useState<Cliente | null>(null);
+  const [clientes, setClientes] = useState<Client[]>([]);
+  const [selected, setSelected] = useState<Client | null>(null);
   const [panelTab, setPanelTab] = useState<PanelTab>("Resumen");
-  const [tareas, setTareas] = useState<Record<string, { texto: string; done: boolean }[]>>(() =>
-    Object.fromEntries(Object.entries(TAREAS_BASE).map(([k, v]) => [k, v.map(t => ({ texto: t, done: false }))]))
-  );
+  const [tareas, setTareas] = useState<Record<string, { texto: string; done: boolean }[]>>({});
   const [nuevaTarea, setNuevaTarea] = useState("");
   const [tendencias, setTendencias] = useState<Record<string, string[] | null>>({});
   const [contenidoResult, setContenidoResult] = useState<{ tipo: string; texto: string } | null>(null);
@@ -67,17 +83,55 @@ export default function ClientesPage() {
   const [tendenciasLoading, setTendenciasLoading] = useState(false);
   const [reseñaInput, setReseñaInput] = useState("");
 
-  function abrirPanel(c: Cliente) {
+  // Métricas reales
+  const [metaMetrics, setMetaMetrics] = useState<Record<string, object | null>>({});
+  const [metaLoading, setMetaLoading] = useState(false);
+  const [metaError, setMetaError] = useState<string | null>(null);
+
+  // Modal crear campaña
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [campaign, setCampaign] = useState({ objetivo: 'leads', presupuesto: '', audiencia: '', textoAnuncio: '', cta: 'Más información' });
+  const [campaignLoading, setCampaignLoading] = useState(false);
+  const [campaignResult, setCampaignResult] = useState<{ editUrl: string } | null>(null);
+  const [campaignError, setCampaignError] = useState<string | null>(null);
+  const [copyLoading, setCopyLoading] = useState(false);
+
+  // Modal nuevo cliente
+  const [showModal, setShowModal] = useState(false);
+  const [modalStep, setModalStep] = useState(1);
+  const [form, setForm] = useState({
+    name: "", sector: SECTORES[0], mrr: "", contactName: "", contactPhone: "", contactEmail: "",
+    services: [] as string[],
+    metaAccountId: "", metaVerified: false, metaVerifying: false, metaVerifyError: "",
+    metaVerifiedName: "",
+    googleCustomerId: "", googleVerified: false, googleVerifying: false, googleVerifyError: "",
+    googleVerifiedName: "",
+  });
+
+  useEffect(() => {
+    const loaded = getClients();
+    setClientes(loaded);
+    setTareas(Object.fromEntries(
+      loaded.map(c => [c.id, (TAREAS_BASE[c.id] ?? []).map(t => ({ texto: t, done: false }))])
+    ));
+  }, []);
+
+  function reloadClientes() {
+    setClientes(getClients());
+  }
+
+  function abrirPanel(c: Client) {
     setSelected(c);
     setPanelTab("Resumen");
     setContenidoResult(null);
+    setMetaError(null);
   }
 
   function toggleTarea(idx: number) {
     if (!selected) return;
     setTareas(prev => ({
       ...prev,
-      [selected.nombre]: prev[selected.nombre].map((t, i) => i === idx ? { ...t, done: !t.done } : t),
+      [selected.id]: prev[selected.id].map((t, i) => i === idx ? { ...t, done: !t.done } : t),
     }));
   }
 
@@ -85,7 +139,7 @@ export default function ClientesPage() {
     if (!selected || !nuevaTarea.trim()) return;
     setTareas(prev => ({
       ...prev,
-      [selected.nombre]: [...prev[selected.nombre], { texto: nuevaTarea.trim(), done: false }],
+      [selected.id]: [...(prev[selected.id] ?? []), { texto: nuevaTarea.trim(), done: false }],
     }));
     setNuevaTarea("");
   }
@@ -95,15 +149,14 @@ export default function ClientesPage() {
     setTendenciasLoading(true);
     try {
       const res = await fetch('/api/claude/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'tendencias', data: { sector: selected.sector } }),
       });
       const json = await res.json();
       const lines = json.content.split('\n').filter((l: string) => l.trim()).slice(0, 8);
-      setTendencias(prev => ({ ...prev, [selected.nombre]: lines }));
+      setTendencias(prev => ({ ...prev, [selected.id]: lines }));
     } catch {
-      setTendencias(prev => ({ ...prev, [selected.nombre]: ['Error al cargar tendencias.'] }));
+      setTendencias(prev => ({ ...prev, [selected.id]: ['Error al cargar tendencias.'] }));
     } finally {
       setTendenciasLoading(false);
     }
@@ -113,20 +166,15 @@ export default function ClientesPage() {
     if (!selected) return;
     setContenidoLoading(true);
     setContenidoResult(null);
-    const typeMap: Record<string, string> = {
-      "GBP Post": "gbp_post",
-      "Artículo Blog": "blog_article",
-      "Respuesta Reseña": "review_response",
-    };
+    const typeMap: Record<string, string> = { "GBP Post": "gbp_post", "Artículo Blog": "blog_article", "Respuesta Reseña": "review_response" };
     const dataMap: Record<string, object> = {
-      "GBP Post": { cliente: selected.nombre, sector: selected.sector },
+      "GBP Post": { cliente: selected.name, sector: selected.sector },
       "Artículo Blog": { topic: `${selected.sector} en Valencia`, keyword: selected.sector },
-      "Respuesta Reseña": { cliente: selected.nombre, review: reseñaInput || "Excelente servicio, muy satisfecho con los resultados" },
+      "Respuesta Reseña": { cliente: selected.name, review: reseñaInput || "Excelente servicio, muy satisfecho con los resultados" },
     };
     try {
       const res = await fetch('/api/claude/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: typeMap[tipo], data: dataMap[tipo] }),
       });
       const json = await res.json();
@@ -138,88 +186,221 @@ export default function ClientesPage() {
     }
   }
 
+  async function actualizarMetaMetics() {
+    if (!selected?.adAccounts.metaAccountId) return;
+    setMetaLoading(true);
+    setMetaError(null);
+    try {
+      const res = await fetch('/api/meta/metrics', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: selected.adAccounts.metaAccountId }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setMetaError(json.error || 'Error al obtener métricas'); return; }
+      setMetaMetrics(prev => ({ ...prev, [selected.id]: json }));
+    } catch {
+      setMetaError('Error de red al obtener métricas.');
+    } finally {
+      setMetaLoading(false);
+    }
+  }
+
+  // ── Modal helpers ────────────────────────────────────────────────────────────
+
+  function resetModal() {
+    setForm({
+      name: "", sector: SECTORES[0], mrr: "", contactName: "", contactPhone: "", contactEmail: "",
+      services: [],
+      metaAccountId: "", metaVerified: false, metaVerifying: false, metaVerifyError: "", metaVerifiedName: "",
+      googleCustomerId: "", googleVerified: false, googleVerifying: false, googleVerifyError: "", googleVerifiedName: "",
+    });
+    setModalStep(1);
+    setShowModal(false);
+  }
+
+  function toggleService(s: string) {
+    setForm(f => ({
+      ...f,
+      services: f.services.includes(s) ? f.services.filter(x => x !== s) : [...f.services, s],
+    }));
+  }
+
+  async function verificarMeta() {
+    setForm(f => ({ ...f, metaVerifying: true, metaVerifyError: "", metaVerified: false, metaVerifiedName: "" }));
+    try {
+      const res = await fetch('/api/meta/verify-account', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: form.metaAccountId }),
+      });
+      const json = await res.json();
+      if (json.valid) {
+        setForm(f => ({ ...f, metaVerified: true, metaVerifiedName: json.name || "Cuenta verificada", metaVerifying: false }));
+      } else {
+        setForm(f => ({ ...f, metaVerifyError: json.error || "No se pudo verificar. Revisa el ID o los permisos.", metaVerifying: false }));
+      }
+    } catch {
+      setForm(f => ({ ...f, metaVerifyError: "Error de red al verificar.", metaVerifying: false }));
+    }
+  }
+
+  async function verificarGoogle() {
+    setForm(f => ({ ...f, googleVerifying: true, googleVerifyError: "", googleVerified: false, googleVerifiedName: "" }));
+    try {
+      const res = await fetch('/api/google/verify-account', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: form.googleCustomerId }),
+      });
+      const json = await res.json();
+      if (json.valid) {
+        setForm(f => ({ ...f, googleVerified: true, googleVerifiedName: json.name || "Cuenta verificada", googleVerifying: false }));
+      } else {
+        setForm(f => ({ ...f, googleVerifyError: json.error || "No se pudo verificar.", googleVerifying: false }));
+      }
+    } catch {
+      setForm(f => ({ ...f, googleVerifyError: "Error de red al verificar.", googleVerifying: false }));
+    }
+  }
+
+  function guardarCliente(withAds: boolean) {
+    const id = slugify(form.name) || `cliente-${Date.now()}`;
+    const nuevo: Client = {
+      id,
+      name: form.name,
+      sector: form.sector,
+      mrr: parseFloat(form.mrr) || 0,
+      status: 'activo',
+      startDate: new Date().toISOString().split('T')[0],
+      contact: { name: form.contactName, phone: form.contactPhone || undefined, email: form.contactEmail || undefined },
+      services: form.services,
+      adAccounts: withAds ? {
+        metaAccountId: form.metaVerified ? form.metaAccountId : undefined,
+        googleCustomerId: form.googleVerified ? form.googleCustomerId : undefined,
+      } : {},
+      createdAt: new Date().toISOString(),
+    };
+    addClient(nuevo);
+    setTareas(prev => ({ ...prev, [id]: [] }));
+    reloadClientes();
+    resetModal();
+  }
+
+  async function generarCopyIA() {
+    if (!selected) return;
+    setCopyLoading(true);
+    try {
+      const res = await fetch('/api/claude/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'meta_ad_copy', data: { cliente: selected.name, sector: selected.sector, objetivo: campaign.objetivo, audiencia: campaign.audiencia } }),
+      });
+      const json = await res.json();
+      setCampaign(c => ({ ...c, textoAnuncio: json.content }));
+    } finally {
+      setCopyLoading(false);
+    }
+  }
+
+  async function crearCampanaMeta() {
+    if (!selected?.adAccounts.metaAccountId) return;
+    setCampaignLoading(true);
+    setCampaignError(null);
+    setCampaignResult(null);
+    try {
+      const res = await fetch('/api/meta/create-campaign', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: selected.adAccounts.metaAccountId, ...campaign }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) { setCampaignError(json.error || 'Error al crear la campaña.'); return; }
+      setCampaignResult({ editUrl: json.editUrl });
+    } catch {
+      setCampaignError('Error de red al crear la campaña.');
+    } finally {
+      setCampaignLoading(false);
+    }
+  }
+
+  // ─── MRR total ────────────────────────────────────────────────────────────────
+  const totalMrr = clientes.reduce((s, c) => s + c.mrr, 0);
+
   return (
     <div style={{ padding: "32px 40px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
-        <h1 style={{ fontSize: "24px", fontWeight: 600, color: "var(--text)" }}>Clientes</h1>
-        <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{clientes.length} clientes · MRR 1.700€</span>
+        <h1 style={{ fontSize: "24px", fontWeight: 600, color: "#FFFFFF" }}>Clientes</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <span style={{ fontSize: "12px", color: "#5A6470" }}>{clientes.length} clientes · MRR {totalMrr}€</span>
+          <button
+            onClick={() => setShowModal(true)}
+            style={{ padding: "8px 16px", borderRadius: "6px", background: "#00C8FF", color: "#000", fontSize: "13px", fontWeight: 600, border: "none", cursor: "pointer" }}
+          >
+            + Nuevo Cliente
+          </button>
+        </div>
       </div>
 
-      {/* Table */}
+      {/* Tabla */}
       <div style={{ ...CARD, overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ borderBottom: "1px solid var(--border)" }}>
-              {["Cliente","Sector","MRR","Estado","Próxima tarea"].map(h => (
+            <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              {["Cliente", "Sector", "MRR", "Estado", "Ads conectados"].map(h => (
                 <th key={h} style={{ ...LABEL, padding: "12px 16px", textAlign: "left" }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {clientes.map(c => (
-              <tr
-                key={c.nombre}
-                onClick={() => abrirPanel(c)}
-                style={{ borderBottom: "1px solid var(--border)", cursor: "pointer", transition: "background 0.12s" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "var(--card-hover)")}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              >
-                <td style={{ padding: "14px 16px", fontSize: "13px", fontWeight: 500, color: "var(--text)" }}>{c.nombre}</td>
-                <td style={{ padding: "14px 16px", fontSize: "12px", color: "var(--text-muted)" }}>{c.sector}</td>
-                <td style={{ padding: "14px 16px", fontSize: "13px", fontFamily: "'Space Mono', monospace", fontWeight: 700, color: "var(--text)" }}>{c.precio}</td>
-                <td style={{ padding: "14px 16px" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px", color: c.color, background: c.bg }}>{c.estado}</span>
-                </td>
-                <td style={{ padding: "14px 16px", fontSize: "12px", color: "var(--text-muted)" }}>{c.proximaTarea}</td>
-              </tr>
-            ))}
+            {clientes.map(c => {
+              const { color, bg, label } = statusColor(c.status);
+              const hasMeta = !!c.adAccounts.metaAccountId;
+              const hasGoogle = !!c.adAccounts.googleCustomerId;
+              return (
+                <tr
+                  key={c.id}
+                  onClick={() => abrirPanel(c)}
+                  style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer", transition: "background 0.12s" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#161616")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                >
+                  <td style={{ padding: "14px 16px", fontSize: "13px", fontWeight: 500, color: "#FFFFFF" }}>{c.name}</td>
+                  <td style={{ padding: "14px 16px", fontSize: "12px", color: "#5A6470" }}>{c.sector}</td>
+                  <td style={{ padding: "14px 16px", fontSize: "13px", fontFamily: "'Space Mono', monospace", fontWeight: 700, color: "#FFFFFF" }}>{mrrLabel(c.mrr)}</td>
+                  <td style={{ padding: "14px 16px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px", color, background: bg }}>{label}</span>
+                  </td>
+                  <td style={{ padding: "14px 16px", display: "flex", gap: "6px", alignItems: "center" }}>
+                    {hasMeta   && <span style={{ fontSize: "11px", padding: "2px 7px", borderRadius: "3px", background: "rgba(0,200,255,0.08)", color: "#00C8FF", border: "1px solid rgba(0,200,255,0.15)" }}>Meta</span>}
+                    {hasGoogle && <span style={{ fontSize: "11px", padding: "2px 7px", borderRadius: "3px", background: "rgba(66,133,244,0.08)", color: "#4285F4", border: "1px solid rgba(66,133,244,0.15)" }}>Google</span>}
+                    {!hasMeta && !hasGoogle && <span style={{ fontSize: "11px", color: "#2A3040" }}>—</span>}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {/* Side panel overlay */}
+      {/* ── Panel lateral ─────────────────────────────────────────────────────── */}
       {selected && (
         <>
-          <div
-            style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.4)" }}
-            onClick={() => setSelected(null)}
-          />
-          <div style={{
-            position: "fixed", right: 0, top: 0, bottom: 0, width: "480px", zIndex: 50,
-            background: "var(--surface)", borderLeft: "1px solid var(--border)",
-            display: "flex", flexDirection: "column", overflow: "hidden",
-          }}>
-            {/* Panel header */}
-            <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: "12px" }}>
-              <button
-                onClick={() => setSelected(null)}
-                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "18px", lineHeight: 1, padding: "0 4px" }}
-              >×</button>
+          <div style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.4)" }} onClick={() => setSelected(null)} />
+          <div style={{ position: "fixed", right: 0, top: 0, bottom: 0, width: "480px", zIndex: 50, background: "#0a0a0a", borderLeft: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {/* Header */}
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: "12px" }}>
+              <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", color: "#5A6470", cursor: "pointer", fontSize: "18px", lineHeight: 1, padding: "0 4px" }}>×</button>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>{selected.nombre}</div>
-                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{selected.sector}</div>
+                <div style={{ fontSize: "14px", fontWeight: 600, color: "#FFFFFF" }}>{selected.name}</div>
+                <div style={{ fontSize: "12px", color: "#5A6470", marginTop: "2px" }}>{selected.sector}</div>
               </div>
-              <span style={{ fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px", color: selected.color, background: selected.bg }}>{selected.estado}</span>
+              <span style={{ fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px", color: statusColor(selected.status).color, background: statusColor(selected.status).bg }}>{statusColor(selected.status).label}</span>
             </div>
 
-            {/* Tab bar */}
-            <div style={{ display: "flex", gap: "2px", padding: "10px 16px", borderBottom: "1px solid var(--border)", overflowX: "auto" }}>
+            {/* Tabs */}
+            <div style={{ display: "flex", gap: "2px", padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", overflowX: "auto" }}>
               {PANEL_TABS.map(t => (
-                <button
-                  key={t}
-                  onClick={() => { setPanelTab(t); setContenidoResult(null); }}
-                  style={{
-                    padding: "6px 12px", borderRadius: "4px", border: "none", cursor: "pointer",
-                    fontSize: "12px", fontWeight: panelTab === t ? 600 : 400, whiteSpace: "nowrap",
-                    background: panelTab === t ? "var(--accent-dim)" : "transparent",
-                    color: panelTab === t ? "var(--accent)" : "var(--text-muted)",
-                    outline: panelTab === t ? "1px solid var(--border-accent)" : "none",
-                  }}
-                >{t}</button>
+                <button key={t} onClick={() => { setPanelTab(t); setContenidoResult(null); }} style={{ padding: "6px 12px", borderRadius: "4px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: panelTab === t ? 600 : 400, whiteSpace: "nowrap", background: panelTab === t ? "rgba(0,200,255,0.1)" : "transparent", color: panelTab === t ? "#00C8FF" : "#5A6470", outline: panelTab === t ? "1px solid rgba(0,200,255,0.2)" : "none" }}>{t}</button>
               ))}
             </div>
 
-            {/* Panel content */}
+            {/* Contenido panel */}
             <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
 
               {/* Resumen */}
@@ -227,41 +408,100 @@ export default function ClientesPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   {[
                     { label: "Sector",       value: selected.sector },
-                    { label: "Precio",        value: selected.precio },
-                    { label: "Fecha inicio",  value: selected.fechaInicio },
+                    { label: "MRR",          value: mrrLabel(selected.mrr) },
+                    { label: "Fecha inicio", value: selected.startDate },
+                    { label: "Contacto",     value: selected.contact.name + (selected.contact.phone ? ` · ${selected.contact.phone}` : '') },
                   ].map(({ label, value }) => (
                     <div key={label}>
                       <p style={{ ...LABEL, marginBottom: "4px" }}>{label}</p>
-                      <p style={{ fontSize: "14px", color: "var(--text)" }}>{value}</p>
+                      <p style={{ fontSize: "14px", color: "#FFFFFF" }}>{value}</p>
                     </div>
                   ))}
                   <div>
                     <p style={{ ...LABEL, marginBottom: "8px" }}>Servicios activos</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                      {selected.servicios.map(s => (
-                        <span key={s} style={{ fontSize: "12px", padding: "4px 10px", borderRadius: "4px", background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--border-accent)" }}>{s}</span>
+                      {selected.services.map(s => (
+                        <span key={s} style={{ fontSize: "12px", padding: "4px 10px", borderRadius: "4px", background: "rgba(0,200,255,0.08)", color: "#00C8FF", border: "1px solid rgba(0,200,255,0.15)" }}>{s}</span>
                       ))}
                     </div>
+                  </div>
+                  {/* Cuentas conectadas */}
+                  <div>
+                    <p style={{ ...LABEL, marginBottom: "8px" }}>Cuentas publicitarias</p>
+                    {selected.adAccounts.metaAccountId
+                      ? <p style={{ fontSize: "12px", color: "#9AA3AD" }}>Meta: <code style={{ color: "#00C8FF" }}>{selected.adAccounts.metaAccountId}</code></p>
+                      : <p style={{ fontSize: "12px", color: "#2A3040" }}>Sin cuenta Meta conectada</p>
+                    }
+                    {selected.adAccounts.googleCustomerId
+                      ? <p style={{ fontSize: "12px", color: "#9AA3AD", marginTop: "4px" }}>Google: <code style={{ color: "#4285F4" }}>{selected.adAccounts.googleCustomerId}</code></p>
+                      : <p style={{ fontSize: "12px", color: "#2A3040", marginTop: "4px" }}>Sin cuenta Google conectada</p>
+                    }
                   </div>
                 </div>
               )}
 
               {/* Métricas */}
               {panelTab === "Métricas" && (() => {
-                const m = METRICAS[selected.nombre];
+                const hasMeta = !!selected.adAccounts.metaAccountId;
+                const liveMetrics = metaMetrics[selected.id] as Record<string, string | number> | null | undefined;
+                const staticM = METRICAS[selected.id];
+
                 return (
-                  <div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px" }}>
-                      {[["CPL",m.cpl],["ROAS",m.roas],["Inversión semanal",m.inversion],["Leads generados",m.leads]].map(([l,v]) => (
-                        <div key={l} style={{ ...CARD, padding: "14px" }}>
-                          <p style={{ ...LABEL, marginBottom: "6px" }}>{l}</p>
-                          <p style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: "20px", color: "var(--text)" }}>{v}</p>
-                        </div>
-                      ))}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    {/* KPIs */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                      {liveMetrics ? (
+                        [
+                          ["Inversión", liveMetrics.inversion ?? "—"],
+                          ["CPL",       liveMetrics.cpl ?? "—"],
+                          ["ROAS",      liveMetrics.roas ?? "—"],
+                          ["Leads",     liveMetrics.leads ?? "—"],
+                        ].map(([l, v]) => (
+                          <div key={String(l)} style={{ ...CARD, padding: "14px" }}>
+                            <p style={{ ...LABEL, marginBottom: "6px" }}>{l}</p>
+                            <p style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: "18px", color: "#00E676" }}>{String(v)}</p>
+                          </div>
+                        ))
+                      ) : staticM ? (
+                        [["CPL", staticM.cpl], ["ROAS", staticM.roas], ["Inversión semanal", staticM.inversion], ["Leads generados", staticM.leads]].map(([l, v]) => (
+                          <div key={l} style={{ ...CARD, padding: "14px" }}>
+                            <p style={{ ...LABEL, marginBottom: "6px" }}>{l}</p>
+                            <p style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: "20px", color: "#FFFFFF" }}>{v}</p>
+                          </div>
+                        ))
+                      ) : null}
                     </div>
-                    <button style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid var(--border-accent)", background: "var(--accent-dim)", color: "var(--accent)", fontSize: "13px", cursor: "pointer", fontWeight: 500 }}>
-                      ↻ Actualizar métricas
-                    </button>
+
+                    {/* Botón Meta real */}
+                    {hasMeta ? (
+                      <button
+                        onClick={actualizarMetaMetics}
+                        disabled={metaLoading}
+                        style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid rgba(0,200,255,0.2)", background: "rgba(0,200,255,0.06)", color: metaLoading ? "#2A3040" : "#00C8FF", fontSize: "13px", cursor: metaLoading ? "not-allowed" : "pointer", fontWeight: 500 }}
+                      >
+                        {metaLoading ? "Obteniendo datos..." : "↻ Actualizar Meta Ads"}
+                      </button>
+                    ) : (
+                      <div style={{ padding: "14px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", background: "#111", textAlign: "center" }}>
+                        <p style={{ fontSize: "13px", color: "#5A6470", marginBottom: "10px" }}>Sin cuenta Meta conectada</p>
+                        <button
+                          onClick={() => { setSelected(null); setShowModal(true); }}
+                          style={{ padding: "7px 14px", borderRadius: "4px", background: "rgba(0,200,255,0.08)", color: "#00C8FF", border: "1px solid rgba(0,200,255,0.2)", fontSize: "12px", cursor: "pointer" }}
+                        >Conectar ahora</button>
+                      </div>
+                    )}
+
+                    {metaError && <p style={{ fontSize: "12px", color: "#FF5252", marginTop: "4px" }}>{metaError}</p>}
+
+                    {/* Crear campaña con IA */}
+                    {selected.adAccounts.metaAccountId && (
+                      <button
+                        onClick={() => { setCampaignResult(null); setCampaignError(null); setShowCampaignModal(true); }}
+                        style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid rgba(0,230,118,0.2)", background: "rgba(0,230,118,0.06)", color: "#00E676", fontSize: "13px", cursor: "pointer", fontWeight: 500 }}
+                      >
+                        Crear campaña con IA
+                      </button>
+                    )}
                   </div>
                 );
               })()}
@@ -270,24 +510,18 @@ export default function ClientesPage() {
               {panelTab === "Tareas" && (
                 <div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
-                    {(tareas[selected.nombre] ?? []).map((t, i) => (
+                    {(tareas[selected.id] ?? []).map((t, i) => (
                       <div key={i} onClick={() => toggleTarea(i)} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
-                        <span style={{ width: "16px", height: "16px", borderRadius: "3px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", border: `1.5px solid ${t.done ? "var(--green)" : "var(--border)"}`, background: t.done ? "var(--green)" : "transparent" }}>
+                        <span style={{ width: "16px", height: "16px", borderRadius: "3px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", border: `1.5px solid ${t.done ? "#00E676" : "#2A3040"}`, background: t.done ? "#00E676" : "transparent" }}>
                           {t.done && <span style={{ color: "#000", fontSize: "10px", fontWeight: 700 }}>✓</span>}
                         </span>
-                        <span style={{ fontSize: "13px", color: t.done ? "var(--text-muted)" : "var(--text-mid)", textDecoration: t.done ? "line-through" : "none" }}>{t.texto}</span>
+                        <span style={{ fontSize: "13px", color: t.done ? "#2A3040" : "#9AA3AD", textDecoration: t.done ? "line-through" : "none" }}>{t.texto}</span>
                       </div>
                     ))}
                   </div>
                   <div style={{ display: "flex", gap: "8px" }}>
-                    <input
-                      value={nuevaTarea}
-                      onChange={e => setNuevaTarea(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && addTarea()}
-                      placeholder="Nueva tarea..."
-                      style={{ flex: 1, padding: "8px 12px", borderRadius: "4px", border: "1px solid var(--border)", background: "var(--card-hover)", color: "var(--text)", fontSize: "12px", outline: "none" }}
-                    />
-                    <button onClick={addTarea} style={{ padding: "8px 14px", borderRadius: "4px", background: "var(--accent)", color: "#fff", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer" }}>+</button>
+                    <input value={nuevaTarea} onChange={e => setNuevaTarea(e.target.value)} onKeyDown={e => e.key === "Enter" && addTarea()} placeholder="Nueva tarea..." style={{ flex: 1, padding: "8px 12px", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.06)", background: "#161616", color: "#FFFFFF", fontSize: "12px", outline: "none" }} />
+                    <button onClick={addTarea} style={{ padding: "8px 14px", borderRadius: "4px", background: "#00C8FF", color: "#000", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer" }}>+</button>
                   </div>
                 </div>
               )}
@@ -295,23 +529,17 @@ export default function ClientesPage() {
               {/* Contenido */}
               {panelTab === "Contenido" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  <textarea
-                    value={reseñaInput}
-                    onChange={e => setReseñaInput(e.target.value)}
-                    placeholder="Pega aquí la reseña a responder (opcional)..."
-                    rows={2}
-                    style={{ padding: "8px 12px", borderRadius: "4px", border: "1px solid var(--border)", background: "var(--card-hover)", color: "var(--text-mid)", fontSize: "12px", outline: "none", resize: "vertical", fontFamily: "inherit" }}
-                  />
-                  {[["GBP Post","Generar post Google Business"],["Artículo Blog","Generar artículo de blog"],["Respuesta Reseña","Responder reseña reciente"]].map(([tipo, label]) => (
-                    <button key={tipo} onClick={() => generarContenido(tipo)} disabled={contenidoLoading} style={{ padding: "12px 16px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--card-hover)", color: contenidoLoading ? "var(--text-muted)" : "var(--text-mid)", fontSize: "13px", textAlign: "left", cursor: contenidoLoading ? "not-allowed" : "pointer", fontWeight: 500 }}>
+                  <textarea value={reseñaInput} onChange={e => setReseñaInput(e.target.value)} placeholder="Pega aquí la reseña a responder (opcional)..." rows={2} style={{ padding: "8px 12px", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.06)", background: "#161616", color: "#9AA3AD", fontSize: "12px", outline: "none", resize: "vertical", fontFamily: "inherit" }} />
+                  {[["GBP Post", "Generar post Google Business"], ["Artículo Blog", "Generar artículo de blog"], ["Respuesta Reseña", "Responder reseña reciente"]].map(([tipo, label]) => (
+                    <button key={tipo} onClick={() => generarContenido(tipo)} disabled={contenidoLoading} style={{ padding: "12px 16px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", background: "#161616", color: contenidoLoading ? "#2A3040" : "#9AA3AD", fontSize: "13px", textAlign: "left", cursor: contenidoLoading ? "not-allowed" : "pointer", fontWeight: 500 }}>
                       {contenidoLoading ? "Generando..." : `${label} →`}
                     </button>
                   ))}
                   {contenidoResult && (
-                    <div style={{ marginTop: "8px", padding: "14px", borderRadius: "6px", border: "1px solid var(--border-accent)", background: "var(--accent-dim)" }}>
+                    <div style={{ marginTop: "8px", padding: "14px", borderRadius: "6px", border: "1px solid rgba(0,200,255,0.15)", background: "rgba(0,200,255,0.04)" }}>
                       <p style={{ ...LABEL, marginBottom: "8px" }}>{contenidoResult.tipo}</p>
-                      <pre style={{ fontSize: "12px", color: "var(--text-mid)", whiteSpace: "pre-wrap", lineHeight: 1.6, fontFamily: "inherit" }}>{contenidoResult.texto}</pre>
-                      <button onClick={() => navigator.clipboard.writeText(contenidoResult.texto).then(() => alert("Copiado ✅"))} style={{ marginTop: "10px", padding: "6px 12px", borderRadius: "4px", background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--border-accent)", fontSize: "12px", cursor: "pointer" }}>Copiar</button>
+                      <pre style={{ fontSize: "12px", color: "#9AA3AD", whiteSpace: "pre-wrap", lineHeight: 1.6, fontFamily: "inherit" }}>{contenidoResult.texto}</pre>
+                      <button onClick={() => navigator.clipboard.writeText(contenidoResult.texto).then(() => alert("Copiado ✅"))} style={{ marginTop: "10px", padding: "6px 12px", borderRadius: "4px", background: "rgba(0,200,255,0.1)", color: "#00C8FF", border: "1px solid rgba(0,200,255,0.2)", fontSize: "12px", cursor: "pointer" }}>Copiar</button>
                     </div>
                   )}
                 </div>
@@ -320,17 +548,13 @@ export default function ClientesPage() {
               {/* Tendencias */}
               {panelTab === "Tendencias" && (
                 <div>
-                  <button
-                    onClick={buscarTendencias}
-                    disabled={tendenciasLoading}
-                    style={{ width: "100%", padding: "12px", borderRadius: "6px", border: "1px solid var(--border-accent)", background: "var(--accent-dim)", color: tendenciasLoading ? "var(--text-muted)" : "var(--accent)", fontSize: "13px", cursor: tendenciasLoading ? "not-allowed" : "pointer", fontWeight: 500, marginBottom: "16px" }}
-                  >
+                  <button onClick={buscarTendencias} disabled={tendenciasLoading} style={{ width: "100%", padding: "12px", borderRadius: "6px", border: "1px solid rgba(0,200,255,0.2)", background: "rgba(0,200,255,0.06)", color: tendenciasLoading ? "#2A3040" : "#00C8FF", fontSize: "13px", cursor: tendenciasLoading ? "not-allowed" : "pointer", fontWeight: 500, marginBottom: "16px" }}>
                     {tendenciasLoading ? "Buscando tendencias..." : `Buscar tendencias sector → ${selected.sector}`}
                   </button>
-                  {tendencias[selected.nombre]?.map((t, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: "var(--text-muted)", width: "18px", flexShrink: 0 }}>{i+1}</span>
-                      <span style={{ fontSize: "13px", color: "var(--text-mid)" }}>{t}</span>
+                  {tendencias[selected.id]?.map((t, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "11px", color: "#5A6470", width: "18px", flexShrink: 0 }}>{i + 1}</span>
+                      <span style={{ fontSize: "13px", color: "#9AA3AD" }}>{t}</span>
                     </div>
                   ))}
                 </div>
@@ -339,26 +563,216 @@ export default function ClientesPage() {
               {/* Documentos */}
               {panelTab === "Documentos" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {(DOCS[selected.nombre] ?? []).map(doc => (
-                    <div key={doc} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--card-hover)" }}>
-                      <span style={{ color: "var(--text-muted)", fontSize: "16px" }}>📄</span>
-                      <span style={{ flex: 1, fontSize: "13px", color: "var(--text-mid)" }}>{doc}</span>
-                      <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Google Drive</span>
+                  {(DOCS[selected.id] ?? []).map(doc => (
+                    <div key={doc} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", background: "#161616" }}>
+                      <span style={{ color: "#5A6470", fontSize: "16px" }}>📄</span>
+                      <span style={{ flex: 1, fontSize: "13px", color: "#9AA3AD" }}>{doc}</span>
+                      <span style={{ fontSize: "11px", color: "#2A3040" }}>Google Drive</span>
                     </div>
                   ))}
-                  {HISTORIAL[selected.nombre]?.map((h, i) => (
-                    <div key={i} style={{ marginTop: "4px", display: "flex", gap: "10px", padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, padding: "2px 6px", borderRadius: "3px", background: "var(--accent-dim)", color: "var(--accent)", flexShrink: 0, height: "fit-content" }}>{h.tipo}</span>
+                  {HISTORIAL[selected.id]?.map((h, i) => (
+                    <div key={i} style={{ marginTop: "4px", display: "flex", gap: "10px", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 600, padding: "2px 6px", borderRadius: "3px", background: "rgba(0,200,255,0.08)", color: "#00C8FF", flexShrink: 0, height: "fit-content" }}>{h.tipo}</span>
                       <div>
-                        <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "2px", fontFamily: "'Space Mono', monospace" }}>{h.fecha}</p>
-                        <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>{h.nota}</p>
+                        <p style={{ fontSize: "11px", color: "#2A3040", marginBottom: "2px", fontFamily: "'Space Mono', monospace" }}>{h.fecha}</p>
+                        <p style={{ fontSize: "12px", color: "#5A6470" }}>{h.nota}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-
             </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Modal Crear Campaña con IA ───────────────────────────────────────── */}
+      {showCampaignModal && selected && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(0,0,0,0.7)" }} onClick={() => setShowCampaignModal(false)} />
+          <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "540px", maxHeight: "90vh", overflowY: "auto", zIndex: 90, background: "#0e0e0e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", padding: "28px 32px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+              <div>
+                <h2 style={{ fontSize: "15px", fontWeight: 600, color: "#FFFFFF", margin: 0 }}>Crear campaña con IA</h2>
+                <p style={{ fontSize: "12px", color: "#5A6470", marginTop: "3px" }}>{selected.name} · {selected.adAccounts.metaAccountId}</p>
+              </div>
+              <button onClick={() => setShowCampaignModal(false)} style={{ background: "none", border: "none", color: "#5A6470", cursor: "pointer", fontSize: "20px" }}>×</button>
+            </div>
+
+            {!campaignResult ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div>
+                  <label style={{ ...LABEL, display: "block", marginBottom: "6px" }}>Objetivo</label>
+                  <select value={campaign.objetivo} onChange={e => setCampaign(c => ({ ...c, objetivo: e.target.value }))} style={SELECT_STYLE}>
+                    <option value="leads">Generación de leads</option>
+                    <option value="conversions">Conversiones</option>
+                    <option value="reach">Alcance</option>
+                    <option value="traffic">Tráfico</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ ...LABEL, display: "block", marginBottom: "6px" }}>Presupuesto diario (€)</label>
+                  <input type="number" value={campaign.presupuesto} onChange={e => setCampaign(c => ({ ...c, presupuesto: e.target.value }))} placeholder="Ej: 10" style={INPUT_STYLE} />
+                </div>
+                <div>
+                  <label style={{ ...LABEL, display: "block", marginBottom: "6px" }}>Audiencia</label>
+                  <textarea value={campaign.audiencia} onChange={e => setCampaign(c => ({ ...c, audiencia: e.target.value }))} placeholder="Ej: Mujeres 25-45 años, Valencia 20km, interesadas en belleza" rows={3} style={{ ...INPUT_STYLE, resize: "vertical", fontFamily: "inherit" }} />
+                </div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                    <label style={LABEL}>Texto del anuncio</label>
+                    <button onClick={generarCopyIA} disabled={copyLoading || !campaign.audiencia} style={{ padding: "4px 10px", borderRadius: "4px", border: "1px solid rgba(0,200,255,0.2)", background: "rgba(0,200,255,0.06)", color: !campaign.audiencia ? "#2A3040" : "#00C8FF", fontSize: "11px", cursor: !campaign.audiencia ? "not-allowed" : "pointer" }}>
+                      {copyLoading ? "Generando..." : "Generar con IA"}
+                    </button>
+                  </div>
+                  <textarea value={campaign.textoAnuncio} onChange={e => setCampaign(c => ({ ...c, textoAnuncio: e.target.value }))} placeholder="El texto aparecerá aquí o escríbelo tú..." rows={4} style={{ ...INPUT_STYLE, resize: "vertical", fontFamily: "inherit" }} />
+                </div>
+                <div>
+                  <label style={{ ...LABEL, display: "block", marginBottom: "6px" }}>CTA</label>
+                  <select value={campaign.cta} onChange={e => setCampaign(c => ({ ...c, cta: e.target.value }))} style={SELECT_STYLE}>
+                    <option>Reservar ahora</option>
+                    <option>Más información</option>
+                    <option>Llamar ahora</option>
+                  </select>
+                </div>
+
+                {campaignError && <p style={{ fontSize: "12px", color: "#FF5252" }}>{campaignError}</p>}
+
+                <button
+                  onClick={crearCampanaMeta}
+                  disabled={campaignLoading || !campaign.presupuesto}
+                  style={{ padding: "12px", borderRadius: "6px", background: !campaign.presupuesto ? "rgba(0,200,255,0.15)" : "#00C8FF", color: !campaign.presupuesto ? "#2A3040" : "#000", fontSize: "13px", fontWeight: 600, border: "none", cursor: !campaign.presupuesto ? "not-allowed" : "pointer" }}
+                >
+                  {campaignLoading ? "Creando campaña..." : "Crear en Meta (borrador)"}
+                </button>
+                <p style={{ fontSize: "11px", color: "#2A3040", textAlign: "center" }}>La campaña se crea siempre en estado PAUSADO. Revisa y activa manualmente en Meta Ads Manager.</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px", alignItems: "center", textAlign: "center" }}>
+                <p style={{ fontSize: "32px" }}>✅</p>
+                <p style={{ fontSize: "14px", color: "#FFFFFF", fontWeight: 500 }}>Campaña creada en borrador</p>
+                <p style={{ fontSize: "13px", color: "#5A6470" }}>Revisa y activa manualmente en Meta Ads Manager.</p>
+                <a href={campaignResult.editUrl} target="_blank" rel="noopener noreferrer" style={{ padding: "10px 20px", borderRadius: "6px", background: "#00C8FF", color: "#000", fontSize: "13px", fontWeight: 600, textDecoration: "none" }}>
+                  Abrir en Meta Ads Manager
+                </a>
+                <button onClick={() => setShowCampaignModal(false)} style={{ padding: "8px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#5A6470", fontSize: "12px", cursor: "pointer" }}>Cerrar</button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── Modal Nuevo Cliente ───────────────────────────────────────────────── */}
+      {showModal && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.6)" }} onClick={resetModal} />
+          <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "520px", maxHeight: "90vh", overflowY: "auto", zIndex: 70, background: "#0e0e0e", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", padding: "28px 32px" }}>
+            {/* Header modal */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
+              <div>
+                <h2 style={{ fontSize: "16px", fontWeight: 600, color: "#FFFFFF", margin: 0 }}>Nuevo Cliente</h2>
+                <p style={{ fontSize: "12px", color: "#5A6470", marginTop: "4px" }}>Paso {modalStep} de 3</p>
+              </div>
+              <button onClick={resetModal} style={{ background: "none", border: "none", color: "#5A6470", cursor: "pointer", fontSize: "20px" }}>×</button>
+            </div>
+
+            {/* Barra de progreso */}
+            <div style={{ display: "flex", gap: "6px", marginBottom: "24px" }}>
+              {[1, 2, 3].map(s => (
+                <div key={s} style={{ flex: 1, height: "3px", borderRadius: "2px", background: s <= modalStep ? "#00C8FF" : "rgba(255,255,255,0.08)" }} />
+              ))}
+            </div>
+
+            {/* PASO 1 — Datos básicos */}
+            {modalStep === 1 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div>
+                  <label style={{ ...LABEL, display: "block", marginBottom: "6px" }}>Nombre del negocio *</label>
+                  <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ej: Beauty Studio Valencia" style={INPUT_STYLE} />
+                </div>
+                <div>
+                  <label style={{ ...LABEL, display: "block", marginBottom: "6px" }}>Sector *</label>
+                  <select value={form.sector} onChange={e => setForm(f => ({ ...f, sector: e.target.value }))} style={SELECT_STYLE}>
+                    {SECTORES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ ...LABEL, display: "block", marginBottom: "6px" }}>MRR acordado (€)</label>
+                  <input type="number" value={form.mrr} onChange={e => setForm(f => ({ ...f, mrr: e.target.value }))} placeholder="Ej: 550" style={INPUT_STYLE} />
+                </div>
+                <div>
+                  <label style={{ ...LABEL, display: "block", marginBottom: "6px" }}>Contacto — Nombre *</label>
+                  <input value={form.contactName} onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))} placeholder="Nombre del contacto" style={INPUT_STYLE} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                  <div>
+                    <label style={{ ...LABEL, display: "block", marginBottom: "6px" }}>Teléfono</label>
+                    <input value={form.contactPhone} onChange={e => setForm(f => ({ ...f, contactPhone: e.target.value }))} placeholder="+34 600 000 000" style={INPUT_STYLE} />
+                  </div>
+                  <div>
+                    <label style={{ ...LABEL, display: "block", marginBottom: "6px" }}>Email</label>
+                    <input type="email" value={form.contactEmail} onChange={e => setForm(f => ({ ...f, contactEmail: e.target.value }))} placeholder="cliente@email.com" style={INPUT_STYLE} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ ...LABEL, display: "block", marginBottom: "8px" }}>Servicios contratados</label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    {SERVICIOS_OPTS.map(s => (
+                      <button key={s} type="button" onClick={() => toggleService(s)} style={{ padding: "6px 12px", borderRadius: "4px", border: `1px solid ${form.services.includes(s) ? "rgba(0,200,255,0.4)" : "rgba(255,255,255,0.08)"}`, background: form.services.includes(s) ? "rgba(0,200,255,0.1)" : "transparent", color: form.services.includes(s) ? "#00C8FF" : "#5A6470", fontSize: "12px", cursor: "pointer", fontWeight: form.services.includes(s) ? 600 : 400 }}>{s}</button>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={() => form.name && form.contactName && setModalStep(2)} style={{ marginTop: "8px", padding: "12px", borderRadius: "6px", background: form.name && form.contactName ? "#00C8FF" : "rgba(0,200,255,0.2)", color: form.name && form.contactName ? "#000" : "#2A3040", fontSize: "13px", fontWeight: 600, border: "none", cursor: form.name && form.contactName ? "pointer" : "not-allowed" }}>
+                  Siguiente →
+                </button>
+              </div>
+            )}
+
+            {/* PASO 2 — Meta Ads */}
+            {modalStep === 2 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <p style={{ fontSize: "13px", color: "#5A6470", lineHeight: 1.6 }}>Si gestionas Meta Ads para este cliente, introduce el Account ID. Lo encuentras en Business Manager → Cuentas publicitarias.</p>
+                <div>
+                  <label style={{ ...LABEL, display: "block", marginBottom: "6px" }}>Account ID</label>
+                  <input value={form.metaAccountId} onChange={e => setForm(f => ({ ...f, metaAccountId: e.target.value, metaVerified: false, metaVerifyError: "", metaVerifiedName: "" }))} placeholder="act_123456789" style={INPUT_STYLE} />
+                </div>
+                {form.metaAccountId && (
+                  <button onClick={verificarMeta} disabled={form.metaVerifying} style={{ padding: "10px", borderRadius: "6px", border: "1px solid rgba(0,200,255,0.2)", background: "rgba(0,200,255,0.06)", color: form.metaVerifying ? "#2A3040" : "#00C8FF", fontSize: "13px", cursor: form.metaVerifying ? "not-allowed" : "pointer" }}>
+                    {form.metaVerifying ? "Verificando..." : "Verificar conexión"}
+                  </button>
+                )}
+                {form.metaVerified && <p style={{ fontSize: "13px", color: "#00E676" }}>✓ {form.metaVerifiedName}</p>}
+                {form.metaVerifyError && <p style={{ fontSize: "13px", color: "#FF5252" }}>{form.metaVerifyError}</p>}
+                <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+                  <button onClick={() => setModalStep(1)} style={{ flex: 1, padding: "10px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#5A6470", fontSize: "13px", cursor: "pointer" }}>← Atrás</button>
+                  <button onClick={() => setModalStep(3)} style={{ flex: 2, padding: "10px", borderRadius: "6px", background: "#00C8FF", color: "#000", fontSize: "13px", fontWeight: 600, border: "none", cursor: "pointer" }}>Siguiente →</button>
+                </div>
+                <button onClick={() => setModalStep(3)} style={{ padding: "8px", borderRadius: "6px", border: "none", background: "transparent", color: "#2A3040", fontSize: "12px", cursor: "pointer" }}>Saltar este paso</button>
+              </div>
+            )}
+
+            {/* PASO 3 — Google Ads */}
+            {modalStep === 3 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <p style={{ fontSize: "13px", color: "#5A6470", lineHeight: 1.6 }}>Si gestionas Google Ads para este cliente, introduce el Customer ID. Lo encuentras en Google Ads → Configuración de la cuenta.</p>
+                <div>
+                  <label style={{ ...LABEL, display: "block", marginBottom: "6px" }}>Customer ID</label>
+                  <input value={form.googleCustomerId} onChange={e => setForm(f => ({ ...f, googleCustomerId: e.target.value, googleVerified: false, googleVerifyError: "", googleVerifiedName: "" }))} placeholder="123-456-7890" style={INPUT_STYLE} />
+                </div>
+                {form.googleCustomerId && (
+                  <button onClick={verificarGoogle} disabled={form.googleVerifying} style={{ padding: "10px", borderRadius: "6px", border: "1px solid rgba(66,133,244,0.2)", background: "rgba(66,133,244,0.06)", color: form.googleVerifying ? "#2A3040" : "#4285F4", fontSize: "13px", cursor: form.googleVerifying ? "not-allowed" : "pointer" }}>
+                    {form.googleVerifying ? "Verificando..." : "Verificar conexión"}
+                  </button>
+                )}
+                {form.googleVerified && <p style={{ fontSize: "13px", color: "#00E676" }}>✓ {form.googleVerifiedName}</p>}
+                {form.googleVerifyError && <p style={{ fontSize: "13px", color: "#FF5252" }}>{form.googleVerifyError}</p>}
+                <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+                  <button onClick={() => setModalStep(2)} style={{ flex: 1, padding: "10px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#5A6470", fontSize: "13px", cursor: "pointer" }}>← Atrás</button>
+                  <button onClick={() => guardarCliente(true)} style={{ flex: 2, padding: "10px", borderRadius: "6px", background: "#00C8FF", color: "#000", fontSize: "13px", fontWeight: 600, border: "none", cursor: "pointer" }}>Guardar Cliente</button>
+                </div>
+                <button onClick={() => guardarCliente(false)} style={{ padding: "8px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "#5A6470", fontSize: "12px", cursor: "pointer" }}>Guardar y conectar después</button>
+              </div>
+            )}
           </div>
         </>
       )}
