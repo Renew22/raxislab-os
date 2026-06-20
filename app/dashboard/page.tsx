@@ -2,9 +2,22 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Wallet, TrendingUp, Users } from "lucide-react";
+import { Wallet, TrendingUp, Users, AlertTriangle } from "lucide-react";
 import SparkLine from "../components/spark-line";
 import AgendaDnD from "../components/agenda-dnd";
+
+interface BriefingEntry {
+  id: string
+  semana: string
+  fecha: string
+  metricasDestacadas: string
+  tareasCriticas: string[]
+  tareasImportantes: string[]
+  tareasSiHayTiempo: string[]
+  prioridadLunes: string
+  clientesConActividad: string[]
+  briefingCompleto: string
+}
 
 const SPARK = {
   mrr:    [820, 880, 900, 940, 970, 1050, 1100],
@@ -54,6 +67,8 @@ const NUM   = { fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize
 export default function DashboardPage() {
   const [now, setNow] = useState(new Date());
   const [positionsCount, setPositionsCount] = useState<number | null>(null);
+  const [briefing, setBriefing] = useState<BriefingEntry | null>(null);
+  const [briefingLoading, setBriefingLoading] = useState(true);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -68,6 +83,14 @@ export default function DashboardPage() {
     } catch {
       setPositionsCount(0);
     }
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/notion/briefing")
+      .then(r => r.json())
+      .then(d => setBriefing(d.briefing ?? null))
+      .catch(() => setBriefing(null))
+      .finally(() => setBriefingLoading(false));
   }, []);
 
   const h        = now.getHours();
@@ -220,15 +243,62 @@ export default function DashboardPage() {
         </div>
 
         <div style={CARD}>
-          <p style={LABEL}>Alertas</p>
-          <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "12px" }}>
-            {alertas.map(({ text, color }) => (
-              <li key={text} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: color, flexShrink: 0, marginTop: "5px" }} />
-                <span style={{ fontSize: "13px", color: "var(--text-mid)" }}>{text}</span>
-              </li>
-            ))}
-          </ul>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+            <p style={{ ...LABEL, marginBottom: 0 }}>
+              {briefingLoading ? "Briefing Semanal" : briefing ? `Briefing · ${briefing.semana}` : "Alertas"}
+            </p>
+            {briefing && <AlertTriangle size={14} color="var(--amber)" />}
+          </div>
+
+          {briefingLoading && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {[1,2,3].map(i => (
+                <div key={i} style={{ height: "14px", borderRadius: "3px", background: "var(--border)", opacity: 0.5, width: i === 2 ? "80%" : i === 3 ? "65%" : "100%" }} />
+              ))}
+            </div>
+          )}
+
+          {!briefingLoading && briefing && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {briefing.prioridadLunes && (
+                <div style={{ padding: "10px 12px", background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: "5px" }}>
+                  <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--amber)", marginBottom: "4px" }}>Lo primero el lunes</p>
+                  <p style={{ fontSize: "12px", color: "var(--text)", lineHeight: 1.5 }}>{briefing.prioridadLunes}</p>
+                </div>
+              )}
+              {briefing.tareasCriticas.length > 0 && (
+                <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {briefing.tareasCriticas.slice(0,4).map((t, i) => (
+                    <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--red)", flexShrink: 0, marginTop: "5px" }} />
+                      <span style={{ fontSize: "12px", color: "var(--text-mid)", lineHeight: 1.4 }}>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {briefing.tareasImportantes.length > 0 && (
+                <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {briefing.tareasImportantes.slice(0,3).map((t, i) => (
+                    <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--amber)", flexShrink: 0, marginTop: "5px" }} />
+                      <span style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.4 }}>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {!briefingLoading && !briefing && (
+            <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "12px" }}>
+              {alertas.map(({ text, color }) => (
+                <li key={text} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                  <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: color, flexShrink: 0, marginTop: "5px" }} />
+                  <span style={{ fontSize: "13px", color: "var(--text-mid)" }}>{text}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>
