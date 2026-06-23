@@ -96,6 +96,22 @@ export default function ClientesPage() {
   const [campaignError, setCampaignError] = useState<string | null>(null);
   const [copyLoading, setCopyLoading] = useState(false);
 
+  // Google Search Console
+  const [gscMetrics, setGscMetrics]   = useState<Record<string, Record<string, unknown> | null>>({});
+  const [gscLoading, setGscLoading]   = useState(false);
+  const [gscError, setGscError]       = useState<string | null>(null);
+  const [gscSiteUrl, setGscSiteUrl]   = useState<Record<string, string>>({});
+
+  // Google Analytics GA4
+  const [ga4Metrics, setGa4Metrics]       = useState<Record<string, Record<string, unknown> | null>>({});
+  const [ga4Loading, setGa4Loading]       = useState(false);
+  const [ga4Error, setGa4Error]           = useState<string | null>(null);
+  const [ga4PropertyId, setGa4PropertyId] = useState<Record<string, string>>({});
+
+  // Onboarding email
+  const [onboarding, setOnboarding]           = useState<{ subject: string; body: string } | null>(null);
+  const [onboardingLoading, setOnboardingLoading] = useState(false);
+
   // Modal nuevo cliente
   const [showModal, setShowModal] = useState(false);
   const [modalStep, setModalStep] = useState(1);
@@ -284,6 +300,54 @@ export default function ClientesPage() {
     resetModal();
   }
 
+  async function obtenerGSC() {
+    if (!selected) return;
+    const siteUrl = gscSiteUrl[selected.id];
+    if (!siteUrl) return;
+    setGscLoading(true);
+    setGscError(null);
+    try {
+      const res  = await fetch('/api/google/search-console', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteUrl }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) { setGscError(json.error || 'Error Search Console'); return; }
+      setGscMetrics(prev => ({ ...prev, [selected.id]: json }));
+    } catch { setGscError('Error de red.'); } finally { setGscLoading(false); }
+  }
+
+  async function obtenerGA4() {
+    if (!selected) return;
+    const propertyId = ga4PropertyId[selected.id];
+    if (!propertyId) return;
+    setGa4Loading(true);
+    setGa4Error(null);
+    try {
+      const res  = await fetch('/api/google/analytics', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ propertyId }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) { setGa4Error(json.error || 'Error GA4'); return; }
+      setGa4Metrics(prev => ({ ...prev, [selected.id]: json }));
+    } catch { setGa4Error('Error de red.'); } finally { setGa4Loading(false); }
+  }
+
+  async function generarOnboarding() {
+    if (!selected) return;
+    setOnboardingLoading(true);
+    setOnboarding(null);
+    try {
+      const res  = await fetch('/api/onboarding/email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientName: selected.name, services: selected.services }),
+      });
+      const json = await res.json();
+      setOnboarding(json);
+    } finally { setOnboardingLoading(false); }
+  }
+
   async function generarCopyIA() {
     if (!selected) return;
     setCopyLoading(true);
@@ -437,6 +501,27 @@ export default function ClientesPage() {
                       : <p style={{ fontSize: "12px", color: "#2A3040", marginTop: "4px" }}>Sin cuenta Google conectada</p>
                     }
                   </div>
+
+                  {/* Onboarding */}
+                  <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "16px" }}>
+                    <p style={{ ...LABEL, marginBottom: "8px" }}>Onboarding</p>
+                    <button onClick={generarOnboarding} disabled={onboardingLoading}
+                      style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid rgba(0,200,255,0.2)", background: "rgba(0,200,255,0.06)", color: onboardingLoading ? "#2A3040" : "#00C8FF", fontSize: "13px", cursor: onboardingLoading ? "not-allowed" : "pointer", fontWeight: 500 }}>
+                      {onboardingLoading ? "Generando..." : "✉ Generar email de accesos"}
+                    </button>
+                    {onboarding && (
+                      <div style={{ marginTop: "10px", padding: "12px", borderRadius: "6px", border: "1px solid rgba(0,200,255,0.15)", background: "rgba(0,200,255,0.04)" }}>
+                        <p style={{ ...LABEL, marginBottom: "4px", fontSize: "10px" }}>Asunto</p>
+                        <p style={{ fontSize: "12px", color: "#9AA3AD", marginBottom: "10px" }}>{onboarding.subject}</p>
+                        <p style={{ ...LABEL, marginBottom: "4px", fontSize: "10px" }}>Cuerpo del email</p>
+                        <pre style={{ fontSize: "11px", color: "#9AA3AD", whiteSpace: "pre-wrap", lineHeight: 1.6, fontFamily: "inherit", maxHeight: "200px", overflowY: "auto" }}>{onboarding.body}</pre>
+                        <button onClick={() => navigator.clipboard.writeText(`Asunto: ${onboarding.subject}\n\n${onboarding.body}`).then(() => alert("Copiado ✅"))}
+                          style={{ marginTop: "8px", padding: "5px 12px", borderRadius: "4px", background: "rgba(0,200,255,0.1)", color: "#00C8FF", border: "1px solid rgba(0,200,255,0.2)", fontSize: "11px", cursor: "pointer" }}>
+                          Copiar email completo
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -492,6 +577,84 @@ export default function ClientesPage() {
                     )}
 
                     {metaError && <p style={{ fontSize: "12px", color: "#FF5252", marginTop: "4px" }}>{metaError}</p>}
+
+                    {/* ── Google Search Console ── */}
+                    <div style={{ marginTop: "8px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "16px" }}>
+                      <p style={{ ...LABEL, marginBottom: "8px", color: "#4285F4" }}>Search Console</p>
+                      <div style={{ display: "flex", gap: "6px", marginBottom: "8px" }}>
+                        <input
+                          value={gscSiteUrl[selected.id] ?? ""}
+                          onChange={e => setGscSiteUrl(prev => ({ ...prev, [selected.id]: e.target.value }))}
+                          placeholder="https://raxislab.com/ o sc-domain:raxislab.com"
+                          style={{ flex: 1, padding: "7px 10px", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.08)", background: "#161616", color: "#FFF", fontSize: "12px", outline: "none" }}
+                        />
+                        <button onClick={obtenerGSC} disabled={gscLoading || !gscSiteUrl[selected.id]}
+                          style={{ padding: "7px 12px", borderRadius: "4px", border: "1px solid rgba(66,133,244,0.3)", background: "rgba(66,133,244,0.08)", color: gscLoading || !gscSiteUrl[selected.id] ? "#2A3040" : "#4285F4", fontSize: "12px", cursor: gscLoading || !gscSiteUrl[selected.id] ? "not-allowed" : "pointer", whiteSpace: "nowrap", fontWeight: 600 }}>
+                          {gscLoading ? "..." : "Obtener"}
+                        </button>
+                      </div>
+                      {gscError && <p style={{ fontSize: "12px", color: "#FF5252" }}>{gscError}</p>}
+                      {gscMetrics[selected.id] && (() => {
+                        const m = gscMetrics[selected.id] as Record<string, unknown>;
+                        return (
+                          <div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+                              {([["Clics", m.clics], ["Impresiones", m.impresiones], ["CTR", m.ctr], ["Posición media", m.posicionMedia]] as [string, unknown][]).map(([l, v]) => (
+                                <div key={l} style={{ ...CARD, padding: "10px" }}>
+                                  <p style={{ ...LABEL, marginBottom: "4px", fontSize: "10px" }}>{l}</p>
+                                  <p style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: "16px", color: "#4285F4" }}>{String(v)}</p>
+                                </div>
+                              ))}
+                            </div>
+                            {Array.isArray(m.keywords) && (m.keywords as { query: string; clics: number; posicion: string }[]).length > 0 && (
+                              <div>
+                                <p style={{ ...LABEL, marginBottom: "6px", fontSize: "10px" }}>Top keywords</p>
+                                {(m.keywords as { query: string; clics: number; posicion: string }[]).slice(0, 5).map((kw, i) => (
+                                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.04)", fontSize: "12px" }}>
+                                    <span style={{ color: "#9AA3AD", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px" }}>{kw.query}</span>
+                                    <div style={{ display: "flex", gap: "10px", flexShrink: 0 }}>
+                                      <span style={{ color: "#4285F4", fontFamily: "'Space Mono', monospace", fontSize: "11px" }}>{kw.clics} clics</span>
+                                      <span style={{ color: "#5A6470", fontSize: "11px" }}>pos {kw.posicion}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* ── Google Analytics GA4 ── */}
+                    <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "16px" }}>
+                      <p style={{ ...LABEL, marginBottom: "8px", color: "#4285F4" }}>Analytics GA4</p>
+                      <div style={{ display: "flex", gap: "6px", marginBottom: "8px" }}>
+                        <input
+                          value={ga4PropertyId[selected.id] ?? ""}
+                          onChange={e => setGa4PropertyId(prev => ({ ...prev, [selected.id]: e.target.value }))}
+                          placeholder="ID de propiedad GA4 (ej: 12345678)"
+                          style={{ flex: 1, padding: "7px 10px", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.08)", background: "#161616", color: "#FFF", fontSize: "12px", outline: "none" }}
+                        />
+                        <button onClick={obtenerGA4} disabled={ga4Loading || !ga4PropertyId[selected.id]}
+                          style={{ padding: "7px 12px", borderRadius: "4px", border: "1px solid rgba(66,133,244,0.3)", background: "rgba(66,133,244,0.08)", color: ga4Loading || !ga4PropertyId[selected.id] ? "#2A3040" : "#4285F4", fontSize: "12px", cursor: ga4Loading || !ga4PropertyId[selected.id] ? "not-allowed" : "pointer", whiteSpace: "nowrap", fontWeight: 600 }}>
+                          {ga4Loading ? "..." : "Obtener"}
+                        </button>
+                      </div>
+                      {ga4Error && <p style={{ fontSize: "12px", color: "#FF5252" }}>{ga4Error}</p>}
+                      {ga4Metrics[selected.id] && (() => {
+                        const m = ga4Metrics[selected.id] as Record<string, unknown>;
+                        return (
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                            {([["Sesiones", m.sesiones], ["Usuarios", m.usuarios], ["Pág. vistas", m.paginas_vistas], ["Fuente principal", m.fuente_principal]] as [string, unknown][]).map(([l, v]) => (
+                              <div key={l} style={{ ...CARD, padding: "10px" }}>
+                                <p style={{ ...LABEL, marginBottom: "4px", fontSize: "10px" }}>{l}</p>
+                                <p style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: "14px", color: "#4285F4" }}>{String(v)}</p>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
 
                     {/* Crear campaña con IA */}
                     {selected.adAccounts.metaAccountId && (
