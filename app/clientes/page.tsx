@@ -14,6 +14,30 @@ const METRICAS: Record<string, { cpl: string; roas: string; inversion: string; l
   "matias-benegas-tattoo":  { cpl: "3.60€", roas: "4.2x", inversion: "110€/sem",  leads: "28/mes" },
 };
 
+// ─── Tipos para reservas Ripieno ──────────────────────────────────────────────
+
+type RipienoReserva = {
+  id: number;
+  nombre: string;
+  fecha: string;
+  hora: string;
+  personas: string;
+  email: string;
+  telefono: string | null;
+  comentarios: string | null;
+  estado: 'pendiente' | 'confirmada' | 'cancelada';
+  review_sent: number;
+  created_at: string;
+};
+
+type RipienoStats = {
+  total: number;
+  este_mes: number;
+  confirmadas: number;
+  canceladas: number;
+  reviews_enviados: number;
+};
+
 const TAREAS_BASE: Record<string, string[]> = {
   "identity-peluqueros":    ["Revisar creatividades junio", "Enviar reporte semanal", "Reunión mensual"],
   "desancho-estilistas":    ["Actualizar fotos GMB", "Responder reseñas", "Enviar reporte semanal"],
@@ -28,6 +52,7 @@ const HISTORIAL: Record<string, { fecha: string; tipo: string; nota: string }[]>
   "last-mile-distribution": [{ fecha: "2026-06-03", tipo: "Reunión", nota: "Primera reunión descubrimiento. Muy interesados." }],
   "malvarrosa-cf":          [{ fecha: "2026-06-02", tipo: "Email", nota: "Campaña torneo verano iniciada." }],
   "matias-benegas-tattoo":  [{ fecha: "2026-05-30", tipo: "WhatsApp", nota: "Solicitud contenido booking adicional." }],
+  "ripieno-ibiza":          [{ fecha: "2026-06-25", tipo: "Proyecto", nota: "Inicio proyecto: menú digital + sistema de reservas. Diseño y desarrollo en curso." }],
 };
 
 const DOCS: Record<string, string[]> = {
@@ -36,6 +61,7 @@ const DOCS: Record<string, string[]> = {
   "last-mile-distribution": ["Propuesta borrador"],
   "malvarrosa-cf":          ["Contrato firmado", "Brief servicio"],
   "matias-benegas-tattoo":  ["Contrato firmado", "Propuesta inicial", "Brief contenido"],
+  "ripieno-ibiza":          ["Brief inicial", "Accesos SMTP pendientes"],
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -63,8 +89,9 @@ const SELECT_STYLE: React.CSSProperties = { ...INPUT_STYLE, cursor: "pointer" };
 
 // ─── Tipos panel ──────────────────────────────────────────────────────────────
 
-type PanelTab = "Resumen" | "Métricas" | "Tareas" | "Contenido" | "Tendencias" | "Documentos";
+type PanelTab = "Resumen" | "Métricas" | "Tareas" | "Contenido" | "Tendencias" | "Documentos" | "Reservas";
 const PANEL_TABS: PanelTab[] = ["Resumen", "Métricas", "Tareas", "Contenido", "Tendencias", "Documentos"];
+const PANEL_TABS_RIPIENO: PanelTab[] = ["Resumen", "Reservas", "Tareas", "Documentos"];
 
 const SECTORES = ["Peluquería/Estética", "Taller mecánico", "Rent a car", "Restaurante", "Clínica", "Logística", "Deporte", "Estudio Tattoo", "Otro"];
 const SERVICIOS_OPTS = ["Meta Ads", "Google Ads", "GMB", "Email Marketing", "Web", "Contenido redes"];
@@ -112,6 +139,13 @@ export default function ClientesPage() {
   const [onboarding, setOnboarding]           = useState<{ subject: string; body: string } | null>(null);
   const [onboardingLoading, setOnboardingLoading] = useState(false);
 
+  // Ripieno — reservas
+  const [ripienoReservas, setRipienoReservas] = useState<RipienoReserva[]>([]);
+  const [ripienoStats,    setRipienoStats]    = useState<RipienoStats | null>(null);
+  const [ripienoLoading,  setRipienoLoading]  = useState(false);
+  const [ripienoError,    setRipienoError]    = useState<string | null>(null);
+  const [ripienoFiltro,   setRipienoFiltro]   = useState('');
+
   // Modal nuevo cliente
   const [showModal, setShowModal] = useState(false);
   const [modalStep, setModalStep] = useState(1);
@@ -141,6 +175,41 @@ export default function ClientesPage() {
     setPanelTab("Resumen");
     setContenidoResult(null);
     setMetaError(null);
+    if (c.id === 'ripieno-ibiza') {
+      cargarRipieno();
+    }
+  }
+
+  async function cargarRipieno() {
+    setRipienoLoading(true);
+    setRipienoError(null);
+    try {
+      const [resRes, statsRes] = await Promise.all([
+        fetch('/api/ripieno/reservas'),
+        fetch('/api/ripieno/stats'),
+      ]);
+      const resData   = await resRes.json();
+      const statsData = await statsRes.json();
+      if (resData.reservas) setRipienoReservas(resData.reservas);
+      if (statsData.stats)  setRipienoStats(statsData.stats);
+    } catch {
+      setRipienoError('No se puede conectar con el backend de Ripieno.');
+    } finally {
+      setRipienoLoading(false);
+    }
+  }
+
+  async function cambiarEstadoReserva(id: number, estado: string) {
+    try {
+      const res = await fetch('/api/ripieno/reservas', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, estado }),
+      });
+      if (res.ok) {
+        setRipienoReservas(prev => prev.map(r => r.id === id ? { ...r, estado: estado as RipienoReserva['estado'] } : r));
+      }
+    } catch { /* non-fatal */ }
   }
 
   function toggleTarea(idx: number) {
@@ -459,8 +528,8 @@ export default function ClientesPage() {
 
             {/* Tabs */}
             <div style={{ display: "flex", gap: "2px", padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", overflowX: "auto" }}>
-              {PANEL_TABS.map(t => (
-                <button key={t} onClick={() => { setPanelTab(t); setContenidoResult(null); }} style={{ padding: "6px 12px", borderRadius: "4px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: panelTab === t ? 600 : 400, whiteSpace: "nowrap", background: panelTab === t ? "rgba(0,200,255,0.1)" : "transparent", color: panelTab === t ? "#00C8FF" : "#5A6470", outline: panelTab === t ? "1px solid rgba(0,200,255,0.2)" : "none" }}>{t}</button>
+              {(selected.id === 'ripieno-ibiza' ? PANEL_TABS_RIPIENO : PANEL_TABS).map(t => (
+                <button key={t} onClick={() => { setPanelTab(t); setContenidoResult(null); if (t === 'Reservas') cargarRipieno(); }} style={{ padding: "6px 12px", borderRadius: "4px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: panelTab === t ? 600 : 400, whiteSpace: "nowrap", background: panelTab === t ? "rgba(0,200,255,0.1)" : "transparent", color: panelTab === t ? "#00C8FF" : "#5A6470", outline: panelTab === t ? "1px solid rgba(0,200,255,0.2)" : "none" }}>{t}</button>
               ))}
             </div>
 
@@ -501,6 +570,35 @@ export default function ClientesPage() {
                       : <p style={{ fontSize: "12px", color: "#2A3040", marginTop: "4px" }}>Sin cuenta Google conectada</p>
                     }
                   </div>
+
+                  {/* Ripieno — links rápidos */}
+                  {selected.id === 'ripieno-ibiza' && (
+                    <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "16px" }}>
+                      <p style={{ ...LABEL, marginBottom: "10px", color: "#C8920A" }}>Ripieno Ibiza · Links</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        {[
+                          { label: "🍝 Menú live", url: "https://ripieno.raxislab.com" },
+                          { label: "🛍️ Shop placeholder", url: "https://ripieno.raxislab.com/shop" },
+                          { label: "📸 Instagram", url: "https://instagram.com/ripienoibiza" },
+                          { label: "⭐ Google Maps", url: "https://www.google.com/maps/search/Ripieno+Ibiza" },
+                        ].map(({ label, url }) => (
+                          <a key={label} href={url} target="_blank" rel="noopener noreferrer"
+                             style={{ fontSize: "12px", color: "#00C8FF", padding: "7px 10px", borderRadius: "4px", background: "rgba(0,200,255,0.05)", border: "1px solid rgba(0,200,255,0.1)", textDecoration: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            {label} <span style={{ color: "#2A3040" }}>→</span>
+                          </a>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: "10px", padding: "10px 12px", borderRadius: "6px", background: "rgba(200,146,10,0.05)", border: "1px solid rgba(200,146,10,0.15)" }}>
+                        <p style={{ fontSize: "11px", color: "#C8920A", fontWeight: 600, marginBottom: "4px" }}>Estado del proyecto</p>
+                        <p style={{ fontSize: "12px", color: "#5A6470", lineHeight: 1.6 }}>
+                          Menú digital · En desarrollo<br/>
+                          Sistema de reservas · Pendiente SMTP<br/>
+                          QR imprenta · Pendiente deploy<br/>
+                          raxislab.com/clientes · Pendiente
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Onboarding */}
                   <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "16px" }}>
@@ -720,6 +818,90 @@ export default function ClientesPage() {
                       <span style={{ fontSize: "13px", color: "#9AA3AD" }}>{t}</span>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* ── Reservas (Ripieno) ─────────────────────────────────────── */}
+              {panelTab === "Reservas" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {/* Stats */}
+                  {ripienoStats && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+                      {[
+                        ["Este mes", ripienoStats.este_mes],
+                        ["Total", ripienoStats.total],
+                        ["Reviews", ripienoStats.reviews_enviados],
+                      ].map(([l, v]) => (
+                        <div key={String(l)} style={{ ...CARD, padding: "12px", textAlign: "center" }}>
+                          <p style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: "20px", color: "#00E676" }}>{String(v)}</p>
+                          <p style={{ ...LABEL, marginTop: "4px", fontSize: "10px" }}>{l}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Links rápidos */}
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <a href="https://ripieno.raxislab.com" target="_blank" rel="noopener noreferrer"
+                       style={{ flex: 1, padding: "8px", borderRadius: "6px", background: "rgba(200,146,10,0.08)", border: "1px solid rgba(200,146,10,0.2)", color: "#C8920A", fontSize: "12px", fontWeight: 600, textDecoration: "none", textAlign: "center" }}>
+                      Ver menú →
+                    </a>
+                    <button onClick={cargarRipieno} disabled={ripienoLoading}
+                      style={{ flex: 1, padding: "8px", borderRadius: "6px", background: "rgba(0,200,255,0.06)", border: "1px solid rgba(0,200,255,0.2)", color: ripienoLoading ? "#2A3040" : "#00C8FF", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                      {ripienoLoading ? "Cargando…" : "↻ Actualizar"}
+                    </button>
+                  </div>
+
+                  {ripienoError && <p style={{ fontSize: "12px", color: "#FF5252" }}>{ripienoError}</p>}
+
+                  {/* Filtro fecha */}
+                  <input
+                    type="date"
+                    value={ripienoFiltro}
+                    onChange={e => setRipienoFiltro(e.target.value)}
+                    placeholder="Filtrar por fecha"
+                    style={{ padding: "7px 10px", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.08)", background: "#161616", color: "#FFF", fontSize: "12px", outline: "none" }}
+                  />
+
+                  {/* Lista reservas */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {ripienoReservas
+                      .filter(r => !ripienoFiltro || r.fecha === ripienoFiltro)
+                      .map(r => {
+                        const estadoColor = r.estado === 'confirmada' ? '#00E676' : r.estado === 'cancelada' ? '#FF5252' : '#FFB800';
+                        return (
+                          <div key={r.id} style={{ ...CARD, padding: "12px 14px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ fontSize: "13px", fontWeight: 600, color: "#FFFFFF", marginBottom: "2px" }}>{r.nombre}</p>
+                                <p style={{ fontSize: "11px", color: "#5A6470", fontFamily: "'Space Mono', monospace" }}>{r.fecha} · {r.hora} · {r.personas}p</p>
+                                <p style={{ fontSize: "11px", color: "#5A6470", marginTop: "2px" }}>{r.email}{r.telefono ? ` · ${r.telefono}` : ''}</p>
+                                {r.comentarios && <p style={{ fontSize: "11px", color: "#2A3040", marginTop: "3px", fontStyle: "italic" }}>{r.comentarios}</p>}
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-end", flexShrink: 0 }}>
+                                <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 7px", borderRadius: "3px", background: `${estadoColor}18`, color: estadoColor, border: `1px solid ${estadoColor}40` }}>
+                                  {r.estado.toUpperCase()}
+                                </span>
+                                {r.estado === 'pendiente' && (
+                                  <div style={{ display: "flex", gap: "4px" }}>
+                                    <button onClick={() => cambiarEstadoReserva(r.id, 'confirmada')}
+                                      style={{ padding: "3px 7px", borderRadius: "3px", border: "1px solid rgba(0,230,118,0.3)", background: "rgba(0,230,118,0.08)", color: "#00E676", fontSize: "10px", cursor: "pointer" }}>✓</button>
+                                    <button onClick={() => cambiarEstadoReserva(r.id, 'cancelada')}
+                                      style={{ padding: "3px 7px", borderRadius: "3px", border: "1px solid rgba(255,82,82,0.3)", background: "rgba(255,82,82,0.08)", color: "#FF5252", fontSize: "10px", cursor: "pointer" }}>✗</button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    }
+                    {!ripienoLoading && ripienoReservas.filter(r => !ripienoFiltro || r.fecha === ripienoFiltro).length === 0 && (
+                      <p style={{ fontSize: "13px", color: "#2A3040", textAlign: "center", padding: "20px 0" }}>
+                        {ripienoFiltro ? "Sin reservas para esa fecha." : "No hay reservas aún."}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 

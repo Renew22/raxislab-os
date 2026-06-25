@@ -78,4 +78,16 @@ export const SEED_CLIENTS: Client[] = [
     adAccounts: {},
     createdAt: '2025-04-01T00:00:00.000Z',
   },
+  {
+    id: 'ripieno-ibiza',
+    name: 'Ripieno Ibiza',
+    sector: 'Restaurante',
+    mrr: 0,
+    status: 'en_curso',
+    startDate: '2026-06-25',
+    contact: { name: 'Ripieno Ibiza', email: 'info@ripienoibiza.com' },
+    services: ['Menú Digital', 'Sistema de Reservas'],
+    adAccounts: {},
+    createdAt: '2026-06-25T00:00:00.000Z',
+  },
 ];
