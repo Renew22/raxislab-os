@@ -119,7 +119,7 @@ export default function ClientesPage() {
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [campaign, setCampaign] = useState({ objetivo: 'leads', presupuesto: '', audiencia: '', textoAnuncio: '', cta: 'Más información', publishNow: false });
   const [campaignLoading, setCampaignLoading] = useState(false);
-  const [campaignResult, setCampaignResult] = useState<{ editUrl: string; publishStatus?: string } | null>(null);
+  const [campaignResult, setCampaignResult] = useState<{ editUrl: string; adsetUrl?: string; publishStatus?: string; note?: string } | null>(null);
   const [campaignError, setCampaignError] = useState<string | null>(null);
   const [copyLoading, setCopyLoading] = useState(false);
 
@@ -441,8 +441,12 @@ export default function ClientesPage() {
       const res = await fetch('/api/meta/create-campaign', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          accountId: selected.adAccounts.metaAccountId,
-          ...campaign,
+          clientId: selected.id,
+          accountId: selected.adAccounts.metaAccountId || undefined,
+          objetivo: campaign.objetivo,
+          presupuesto: campaign.presupuesto,
+          audiencia: campaign.audiencia,
+          textoAnuncio: campaign.textoAnuncio,
           publishStatus: campaign.publishNow ? 'ACTIVE' : 'PAUSED',
         }),
       });
@@ -1039,17 +1043,31 @@ export default function ClientesPage() {
                 </button>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px", alignItems: "center", textAlign: "center" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px", alignItems: "center", textAlign: "center" }}>
                 <p style={{ fontSize: "32px" }}>{campaignResult.publishStatus === 'ACTIVE' ? '🟢' : '✅'}</p>
                 <p style={{ fontSize: "14px", color: "var(--text)", fontWeight: 500 }}>
-                  {campaignResult.publishStatus === 'ACTIVE' ? 'Campaña ACTIVA en Meta Ads' : 'Campaña creada en borrador'}
+                  {campaignResult.publishStatus === 'ACTIVE' ? 'Campaña ACTIVA en Meta Ads' : 'Campaña + Ad Set creados en Meta'}
                 </p>
-                <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-                  {campaignResult.publishStatus === 'ACTIVE' ? 'La campaña está corriendo. Monitoriza el gasto.' : 'Revisa y activa manualmente en Meta Ads Manager.'}
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5 }}>
+                  Siguiente paso: entra al Ad Set en Ads Manager y crea el anuncio con tu imagen/vídeo y copy.
                 </p>
-                <a href={campaignResult.editUrl} target="_blank" rel="noopener noreferrer" style={{ padding: "10px 20px", borderRadius: "6px", background: "#00C8FF", color: "#000", fontSize: "13px", fontWeight: 600, textDecoration: "none" }}>
-                  Abrir en Meta Ads Manager
-                </a>
+                {campaignResult.note && (
+                  <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "6px", padding: "10px 14px", fontSize: "12px", color: "var(--text-muted)", textAlign: "left", width: "100%", whiteSpace: "pre-wrap" }}>
+                    {campaignResult.note}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
+                  {campaignResult.adsetUrl && (
+                    <a href={campaignResult.adsetUrl} target="_blank" rel="noopener noreferrer"
+                      style={{ padding: "10px 16px", borderRadius: "6px", background: "var(--green)", color: "#000", fontSize: "13px", fontWeight: 600, textDecoration: "none" }}>
+                      Ir al Ad Set → añadir anuncio
+                    </a>
+                  )}
+                  <a href={campaignResult.editUrl} target="_blank" rel="noopener noreferrer"
+                    style={{ padding: "10px 16px", borderRadius: "6px", background: "#00C8FF", color: "#000", fontSize: "13px", fontWeight: 600, textDecoration: "none" }}>
+                    Ver campaña completa
+                  </a>
+                </div>
                 <button onClick={() => setShowCampaignModal(false)} style={{ padding: "8px", borderRadius: "6px", border: "1px solid var(--border)", background: "transparent", color: "var(--text-muted)", fontSize: "12px", cursor: "pointer" }}>Cerrar</button>
               </div>
             )}
