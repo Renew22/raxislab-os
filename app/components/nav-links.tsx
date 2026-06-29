@@ -7,6 +7,7 @@ const links = [
   { href: "/dashboard",        label: "Dashboard" },
   { href: "/clientes",         label: "Clientes" },
   { href: "/campanas",         label: "Campañas" },
+  { href: "/google",           label: "Google" },
   { href: "/contenido",        label: "Contenido" },
   { href: "/trading",          label: "Trading" },
   { href: "/stokers",          label: "Stokers Market" },

@@ -117,9 +117,9 @@ export default function ClientesPage() {
 
   // Modal crear campaña
   const [showCampaignModal, setShowCampaignModal] = useState(false);
-  const [campaign, setCampaign] = useState({ objetivo: 'leads', presupuesto: '', audiencia: '', textoAnuncio: '', cta: 'Más información' });
+  const [campaign, setCampaign] = useState({ objetivo: 'leads', presupuesto: '', audiencia: '', textoAnuncio: '', cta: 'Más información', publishNow: false });
   const [campaignLoading, setCampaignLoading] = useState(false);
-  const [campaignResult, setCampaignResult] = useState<{ editUrl: string } | null>(null);
+  const [campaignResult, setCampaignResult] = useState<{ editUrl: string; publishStatus?: string } | null>(null);
   const [campaignError, setCampaignError] = useState<string | null>(null);
   const [copyLoading, setCopyLoading] = useState(false);
 
@@ -440,11 +440,15 @@ export default function ClientesPage() {
     try {
       const res = await fetch('/api/meta/create-campaign', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: selected.adAccounts.metaAccountId, ...campaign }),
+        body: JSON.stringify({
+          accountId: selected.adAccounts.metaAccountId,
+          ...campaign,
+          publishStatus: campaign.publishNow ? 'ACTIVE' : 'PAUSED',
+        }),
       });
       const json = await res.json();
       if (!res.ok || !json.success) { setCampaignError(json.error || 'Error al crear la campaña.'); return; }
-      setCampaignResult({ editUrl: json.editUrl });
+      setCampaignResult({ editUrl: json.editUrl, publishStatus: json.publishStatus });
     } catch {
       setCampaignError('Error de red al crear la campaña.');
     } finally {
@@ -1010,22 +1014,39 @@ export default function ClientesPage() {
                   </select>
                 </div>
 
+                {/* Toggle publicar ahora */}
+                <div onClick={() => setCampaign(c => ({ ...c, publishNow: !c.publishNow }))}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderRadius: "6px", border: `1px solid ${campaign.publishNow ? "rgba(0,230,118,0.3)" : "var(--border)"}`, background: campaign.publishNow ? "rgba(0,230,118,0.05)" : "var(--card)", cursor: "pointer" }}>
+                  <div>
+                    <p style={{ fontSize: "13px", fontWeight: 600, color: campaign.publishNow ? "var(--green)" : "var(--text-mid)", margin: 0 }}>Activar campaña al publicar</p>
+                    <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>
+                      {campaign.publishNow ? "Se activará inmediatamente en Meta Ads" : "Se creará en estado PAUSADO"}
+                    </p>
+                  </div>
+                  <div style={{ width: "36px", height: "20px", borderRadius: "10px", background: campaign.publishNow ? "var(--green)" : "var(--border)", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
+                    <div style={{ width: "14px", height: "14px", borderRadius: "50%", background: "#fff", position: "absolute", top: "3px", left: campaign.publishNow ? "19px" : "3px", transition: "left 0.2s" }}/>
+                  </div>
+                </div>
+
                 {campaignError && <p style={{ fontSize: "12px", color: "#FF5252" }}>{campaignError}</p>}
 
                 <button
                   onClick={crearCampanaMeta}
                   disabled={campaignLoading || !campaign.presupuesto}
-                  style={{ padding: "12px", borderRadius: "6px", background: !campaign.presupuesto ? "rgba(0,200,255,0.15)" : "#00C8FF", color: !campaign.presupuesto ? "#2A3040" : "#000", fontSize: "13px", fontWeight: 600, border: "none", cursor: !campaign.presupuesto ? "not-allowed" : "pointer" }}
+                  style={{ padding: "12px", borderRadius: "6px", background: !campaign.presupuesto ? "rgba(0,200,255,0.15)" : campaign.publishNow ? "var(--green)" : "#00C8FF", color: !campaign.presupuesto ? "#2A3040" : "#000", fontSize: "13px", fontWeight: 600, border: "none", cursor: !campaign.presupuesto ? "not-allowed" : "pointer" }}
                 >
-                  {campaignLoading ? "Creando campaña..." : "Crear en Meta (borrador)"}
+                  {campaignLoading ? "Creando campaña..." : campaign.publishNow ? "Crear y ACTIVAR en Meta" : "Crear borrador (pausado)"}
                 </button>
-                <p style={{ fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>La campaña se crea siempre en estado PAUSADO. Revisa y activa manualmente en Meta Ads Manager.</p>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "16px", alignItems: "center", textAlign: "center" }}>
-                <p style={{ fontSize: "32px" }}>✅</p>
-                <p style={{ fontSize: "14px", color: "var(--text)", fontWeight: 500 }}>Campaña creada en borrador</p>
-                <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>Revisa y activa manualmente en Meta Ads Manager.</p>
+                <p style={{ fontSize: "32px" }}>{campaignResult.publishStatus === 'ACTIVE' ? '🟢' : '✅'}</p>
+                <p style={{ fontSize: "14px", color: "var(--text)", fontWeight: 500 }}>
+                  {campaignResult.publishStatus === 'ACTIVE' ? 'Campaña ACTIVA en Meta Ads' : 'Campaña creada en borrador'}
+                </p>
+                <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+                  {campaignResult.publishStatus === 'ACTIVE' ? 'La campaña está corriendo. Monitoriza el gasto.' : 'Revisa y activa manualmente en Meta Ads Manager.'}
+                </p>
                 <a href={campaignResult.editUrl} target="_blank" rel="noopener noreferrer" style={{ padding: "10px 20px", borderRadius: "6px", background: "#00C8FF", color: "#000", fontSize: "13px", fontWeight: 600, textDecoration: "none" }}>
                   Abrir en Meta Ads Manager
                 </a>

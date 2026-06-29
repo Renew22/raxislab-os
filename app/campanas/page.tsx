@@ -157,6 +157,15 @@ function CampaignRow({
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
+interface TokenStatus {
+  valid: boolean;
+  expired?: boolean;
+  userName?: string;
+  daysLeft?: number | null;
+  error?: string;
+  hasDebugAccess?: boolean;
+}
+
 export default function CampanasPage() {
   const [groups, setGroups]           = useState<ClientGroup[]>([]);
   const [loading, setLoading]         = useState(true);
@@ -166,6 +175,9 @@ export default function CampanasPage() {
   const [clientFilter, setClientFilter] = useState<string>('all');
   const [toggling, setToggling]       = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [tokenStatus, setTokenStatus] = useState<TokenStatus | null>(null);
+  const [refreshing, setRefreshing]   = useState(false);
+  const [newToken, setNewToken]       = useState<string | null>(null);
 
   const load = useCallback(async (preset: DatePreset) => {
     setLoading(true);
@@ -184,6 +196,22 @@ export default function CampanasPage() {
   }, []);
 
   useEffect(() => { load(datePreset); }, [load, datePreset]);
+
+  useEffect(() => {
+    fetch('/api/meta/token-status')
+      .then(r => r.json()).then(setTokenStatus).catch(() => null);
+  }, []);
+
+  async function refreshToken() {
+    setRefreshing(true);
+    setNewToken(null);
+    try {
+      const res = await fetch('/api/meta/refresh-token', { method: 'POST' });
+      const json = await res.json();
+      if (json.newToken) setNewToken(json.newToken);
+      else setError(json.error ?? 'Error al renovar token');
+    } finally { setRefreshing(false); }
+  }
 
   async function toggleCampaign(campaignId: string, action: 'ACTIVE' | 'PAUSED') {
     setToggling(campaignId);
@@ -234,6 +262,44 @@ export default function CampanasPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Token banner ── */}
+      {tokenStatus && !tokenStatus.valid && (
+        <div style={{ marginBottom: "20px", padding: "14px 16px", borderRadius: "6px", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "flex-start", gap: "12px" }}>
+          <span style={{ fontSize: "16px" }}>🔴</span>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--red)", margin: "0 0 4px" }}>
+              Token Meta {tokenStatus.expired ? 'expirado' : 'inválido'}
+            </p>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "0 0 8px" }}>
+              {tokenStatus.error ?? 'El token no devuelve datos. Es posible que haya vencido.'}<br/>
+              Opciones: (1) Renovar token 60 días abajo · (2) Crear System User en Meta Business → token permanente
+            </p>
+            {!newToken ? (
+              <button onClick={refreshToken} disabled={refreshing} style={{ padding: "6px 14px", borderRadius: "4px", border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.08)", color: "var(--red)", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                {refreshing ? 'Renovando...' : 'Renovar token (60 días)'}
+              </button>
+            ) : (
+              <div style={{ marginTop: "8px", padding: "10px 12px", borderRadius: "4px", background: "var(--card)", border: "1px solid var(--border)" }}>
+                <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--green)", marginBottom: "6px" }}>Token nuevo generado — cópialo y actualiza META_ACCESS_TOKEN en Vercel:</p>
+                <code style={{ fontSize: "10px", color: "var(--text-mid)", wordBreak: "break-all", display: "block", marginBottom: "8px" }}>{newToken}</code>
+                <button onClick={() => navigator.clipboard.writeText(newToken)} style={{ padding: "4px 10px", borderRadius: "3px", background: "rgba(0,200,255,0.1)", color: "var(--accent)", border: "1px solid rgba(0,200,255,0.2)", fontSize: "11px", cursor: "pointer" }}>Copiar</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {tokenStatus?.valid && tokenStatus.daysLeft !== null && tokenStatus.daysLeft !== undefined && tokenStatus.daysLeft < 10 && (
+        <div style={{ marginBottom: "20px", padding: "12px 16px", borderRadius: "6px", background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.3)", display: "flex", alignItems: "center", gap: "12px" }}>
+          <span>⚠️</span>
+          <p style={{ fontSize: "12px", color: "var(--amber)", margin: 0 }}>
+            Token Meta válido pero expira en <strong>{tokenStatus.daysLeft} días</strong>. Renuévalo antes de que falle.
+          </p>
+          <button onClick={refreshToken} disabled={refreshing} style={{ marginLeft: "auto", padding: "5px 12px", borderRadius: "4px", border: "1px solid rgba(251,191,36,0.3)", background: "rgba(251,191,36,0.08)", color: "var(--amber)", fontSize: "11px", cursor: "pointer" }}>
+            {refreshing ? '...' : 'Renovar'}
+          </button>
+        </div>
+      )}
 
       {/* ── Filtros ── */}
       <div style={{ display: "flex", gap: "12px", marginBottom: "24px", flexWrap: "wrap" }}>

@@ -1,6 +1,17 @@
+export interface ClientEvento {
+  tipo: string;
+  fecha: string;
+  estado_prospecto: string;
+  url_pagina?: string;
+  url_galeria?: string;
+  notas?: string;
+}
+
 export interface ClientAdAccounts {
   metaAccountId?: string;      // formato: act_XXXXXXXXX
   googleCustomerId?: string;   // formato: XXX-XXX-XXXX
+  googleSiteUrl?: string;      // Search Console: https://domain.com/ o sc-domain:domain.com
+  ga4PropertyId?: string;      // GA4 numeric property ID
   fresha?: boolean;
 }
 
@@ -14,6 +25,7 @@ export interface Client {
   contact: { name: string; phone?: string; email?: string };
   services: string[];
   adAccounts: ClientAdAccounts;
+  evento?: ClientEvento;
   createdAt: string;
 }
 

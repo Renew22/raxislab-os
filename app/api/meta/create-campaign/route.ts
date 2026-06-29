@@ -14,7 +14,7 @@ const CTA_MAP: Record<string, string> = {
 };
 
 export async function POST(req: Request) {
-  const { accountId, objetivo, presupuesto, audiencia, textoAnuncio, cta } = await req.json();
+  const { accountId, objetivo, presupuesto, audiencia, textoAnuncio, cta, publishStatus = 'PAUSED' } = await req.json();
 
   const token = process.env.META_ACCESS_TOKEN;
   if (!token) {
@@ -24,14 +24,17 @@ export async function POST(req: Request) {
   const baseUrl = `https://graph.facebook.com/v21.0`;
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
+  const finalStatus = publishStatus === 'ACTIVE' ? 'ACTIVE' : 'PAUSED';
+  const namePrefix  = finalStatus === 'ACTIVE' ? '[OS]' : '[Borrador OS]';
+
   try {
-    // 1. Crear campaña en PAUSED
+    // 1. Crear campaña
     const campaignRes = await fetch(`${baseUrl}/${accountId}/campaigns`, {
       method: 'POST', headers,
       body: JSON.stringify({
-        name: `[Borrador OS] ${objetivo} — ${new Date().toLocaleDateString('es-ES')}`,
+        name: `${namePrefix} ${objetivo} — ${new Date().toLocaleDateString('es-ES')}`,
         objective: OBJECTIVE_MAP[objetivo] ?? 'OUTCOME_LEADS',
-        status: 'PAUSED',
+        status: finalStatus,
         special_ad_categories: [],
       }),
     });
@@ -46,11 +49,11 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         name: `Ad Set — ${audiencia?.slice(0, 40) ?? 'General'}`,
         campaign_id: campaign.id,
-        daily_budget: Math.round(parseFloat(presupuesto) * 100), // en centavos
+        daily_budget: Math.round(parseFloat(presupuesto) * 100),
         billing_event: 'IMPRESSIONS',
         optimization_goal: 'LEAD_GENERATION',
         targeting: { geo_locations: { countries: ['ES'] } },
-        status: 'PAUSED',
+        status: finalStatus,
       }),
     });
     const adset = await adsetRes.json();
@@ -74,7 +77,7 @@ export async function POST(req: Request) {
             },
           },
         },
-        status: 'PAUSED',
+        status: finalStatus,
       }),
     });
     const ad = await adRes.json();
@@ -83,7 +86,7 @@ export async function POST(req: Request) {
     }
 
     const editUrl = `https://business.facebook.com/adsmanager/manage/campaigns?act=${accountId.replace('act_', '')}`;
-    return NextResponse.json({ success: true, campaignId: campaign.id, editUrl });
+    return NextResponse.json({ success: true, campaignId: campaign.id, publishStatus: finalStatus, editUrl });
   } catch {
     return NextResponse.json({ error: 'Error de red al contactar con Meta.' }, { status: 500 });
   }
