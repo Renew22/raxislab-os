@@ -15,6 +15,15 @@ export interface ClientAdAccounts {
   fresha?: boolean;
 }
 
+export interface ClientEvento {
+  tipo: string;
+  fecha: string;
+  estado_prospecto: string;
+  url_galeria?: string;
+  url_pagina?: string;
+  notas?: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -27,6 +36,7 @@ export interface Client {
   adAccounts: ClientAdAccounts;
   evento?: ClientEvento;
   createdAt: string;
+  evento?: ClientEvento;
 }
 
 export const SEED_CLIENTS: Client[] = [
@@ -57,14 +67,14 @@ export const SEED_CLIENTS: Client[] = [
   {
     id: 'last-mile-distribution',
     name: 'Last Mile Distribution',
-    sector: 'Logística',
+    sector: 'Importación / Distribución B2B',
     mrr: 0,
     status: 'en_curso',
-    startDate: '2025-06-01',
-    contact: { name: 'Last Mile Distribution' },
-    services: ['Propuesta en preparación'],
-    adAccounts: {},
-    createdAt: '2025-06-01T00:00:00.000Z',
+    startDate: '2026-01-01',
+    contact: { name: 'Last Mile Distribution', email: 'info@lastmiledist.com' },
+    services: ['Google Ads', 'Web', 'Email Marketing', 'CRM B2B'],
+    adAccounts: { googleCustomerId: '949-709-1021' },
+    createdAt: '2026-01-01T00:00:00.000Z',
   },
   {
     id: 'malvarrosa-cf',
@@ -77,6 +87,14 @@ export const SEED_CLIENTS: Client[] = [
     services: ['Meta Ads', 'Contenido redes'],
     adAccounts: {},
     createdAt: '2025-02-01T00:00:00.000Z',
+    evento: {
+      tipo: 'evento fotografiado',
+      fecha: '2026-06-27',
+      estado_prospecto: 'prospecto — padres del evento son el target',
+      url_galeria: '',
+      url_pagina: 'raxislab.com/eventos/malvarrosa',
+      notas: 'Fiesta Fin de Temporada 27/06/2026. Las familias que escaneen el QR son leads de Raxislab.',
+    },
   },
   {
     id: 'matias-benegas-tattoo',

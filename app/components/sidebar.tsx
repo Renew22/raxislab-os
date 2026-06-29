@@ -7,12 +7,13 @@ import { usePathname } from "next/navigation";
 import {
   ChevronLeft, ChevronRight,
   LayoutDashboard, Users, Sparkles, LineChart, Rocket,
-  TrendingUp, Target, FolderKanban, Workflow, Calendar, Wallet, Activity, FileText,
+  TrendingUp, Target, FolderKanban, Workflow, Calendar, Wallet, Activity, FileText, Package,
 } from "lucide-react";
 
 const NAV = [
   { href: "/dashboard",        label: "Dashboard",        Icon: LayoutDashboard },
   { href: "/clientes",         label: "Clientes",         Icon: Users           },
+  { href: "/last-mile",        label: "Last Mile",        Icon: Package         },
   { href: "/propuestas",       label: "Propuestas",       Icon: FileText        },
   { href: "/contenido",        label: "Contenido",        Icon: Sparkles        },
   { href: "/trading",          label: "Trading",          Icon: LineChart       },
