@@ -15,15 +15,6 @@ export interface ClientAdAccounts {
   fresha?: boolean;
 }
 
-export interface ClientEvento {
-  tipo: string;
-  fecha: string;
-  estado_prospecto: string;
-  url_galeria?: string;
-  url_pagina?: string;
-  notas?: string;
-}
-
 export interface Client {
   id: string;
   name: string;
@@ -36,7 +27,6 @@ export interface Client {
   adAccounts: ClientAdAccounts;
   evento?: ClientEvento;
   createdAt: string;
-  evento?: ClientEvento;
 }
 
 export const SEED_CLIENTS: Client[] = [
