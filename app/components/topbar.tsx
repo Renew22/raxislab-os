@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Bell, Wallet } from "lucide-react";
+import { Search, Bell, Wallet, Menu } from "lucide-react";
 import { useState } from "react";
 import ThemeToggle from "./theme-toggle";
 
 const SECTIONS: Record<string, string> = {
   "/dashboard":        "Dashboard",
   "/clientes":         "Clientes",
+  "/campanas":         "Campañas",
+  "/google":           "Google",
   "/contenido":        "Contenido",
+  "/propuestas":       "Propuestas",
   "/trading":          "Trading",
   "/stokers":          "Stokers",
   "/raxis-investor":   "Raxis Investor",
@@ -18,11 +21,14 @@ const SECTIONS: Record<string, string> = {
   "/automatizaciones": "Automatizaciones",
   "/plan":             "Plan",
   "/finanzas":         "Finanzas",
+  "/mercado":          "Mercado",
 };
 
-const ALERT_COUNT = 3;
+interface TopbarProps {
+  onMenuClick?: () => void;
+}
 
-export default function Topbar() {
+export default function Topbar({ onMenuClick }: TopbarProps) {
   const pathname = usePathname();
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -47,6 +53,7 @@ export default function Topbar() {
     cursor: "pointer",
     transition: "border 0.15s, background 0.15s, color 0.15s",
     padding: 0,
+    flexShrink: 0,
   });
 
   return (
@@ -55,8 +62,8 @@ export default function Topbar() {
       flexShrink: 0,
       display: "flex",
       alignItems: "center",
-      padding: "0 24px",
-      gap: "16px",
+      padding: "0 16px",
+      gap: "10px",
       background: "var(--surface)",
       borderBottom: "1px solid var(--border)",
       position: "sticky",
@@ -64,19 +71,42 @@ export default function Topbar() {
       zIndex: 10,
     }}>
 
+      {/* ── Hamburger — mobile only ── */}
+      <button
+        className="topbar-hamburger"
+        onClick={onMenuClick}
+        aria-label="Abrir menú"
+        style={{
+          width: "34px",
+          height: "34px",
+          borderRadius: "8px",
+          border: "1px solid var(--border)",
+          background: "transparent",
+          color: "var(--text-muted)",
+          display: "none",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          padding: 0,
+          flexShrink: 0,
+        }}
+      >
+        <Menu size={16} strokeWidth={1.8} />
+      </button>
+
       {/* ── Breadcrumb ── */}
       <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-        <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "'Space Grotesk', sans-serif" }}>
+        <span className="topbar-brand" style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "'Space Grotesk', sans-serif" }}>
           Raxislab
         </span>
-        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>/</span>
+        <span className="topbar-brand" style={{ fontSize: "11px", color: "var(--text-muted)" }}>/</span>
         <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text)", fontFamily: "'Space Grotesk', sans-serif" }}>
           {section}
         </span>
       </div>
 
       {/* ── Search ── */}
-      <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+      <div className="topbar-search" style={{ flex: 1, display: "flex", justifyContent: "center" }}>
         <div style={{ position: "relative", width: "100%", maxWidth: "380px" }}>
           <Search
             size={14}
@@ -113,6 +143,9 @@ export default function Topbar() {
         </div>
       </div>
 
+      {/* ── Spacer on mobile ── */}
+      <div style={{ flex: 1 }} className="topbar-spacer" />
+
       {/* ── Right actions ── */}
       <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
 
@@ -124,22 +157,10 @@ export default function Topbar() {
           onMouseLeave={() => setBellHovered(false)}
         >
           <Bell size={16} strokeWidth={1.8} />
-          {ALERT_COUNT > 0 && (
-            <span style={{
-              position: "absolute",
-              top: "6px",
-              right: "6px",
-              width: "7px",
-              height: "7px",
-              borderRadius: "50%",
-              background: "var(--red)",
-              border: "1.5px solid var(--surface)",
-            }} />
-          )}
         </button>
 
-        {/* Wallet → /finanzas */}
-        <Link href="/finanzas" style={{ textDecoration: "none" }}>
+        {/* Wallet → /finanzas — hidden on mobile */}
+        <Link href="/finanzas" style={{ textDecoration: "none" }} className="topbar-wallet">
           <button
             style={iconBtn(walletHovered)}
             title="Finanzas"

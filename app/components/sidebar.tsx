@@ -1,18 +1,20 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   ChevronLeft, ChevronRight,
-  LayoutDashboard, Users, Sparkles, LineChart, Rocket,
-  TrendingUp, Target, FolderKanban, Workflow, Calendar, Wallet, Activity, FileText, Package,
+  LayoutDashboard, Users, Megaphone, Globe, Package, Sparkles, LineChart, Rocket,
+  TrendingUp, Target, FolderKanban, Workflow, Calendar, Wallet, Activity, FileText,
 } from "lucide-react";
 
 const NAV = [
   { href: "/dashboard",        label: "Dashboard",        Icon: LayoutDashboard },
   { href: "/clientes",         label: "Clientes",         Icon: Users           },
+  { href: "/campanas",         label: "Campañas",         Icon: Megaphone       },
+  { href: "/google",           label: "Google",           Icon: Globe           },
   { href: "/last-mile",        label: "Last Mile",        Icon: Package         },
   { href: "/propuestas",       label: "Propuestas",       Icon: FileText        },
   { href: "/contenido",        label: "Contenido",        Icon: Sparkles        },
@@ -27,12 +29,24 @@ const NAV = [
   { href: "/automatizaciones", label: "Automatizaciones", Icon: Workflow        },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export default function Sidebar({ mobileOpen = false, onMobileClose = () => {} }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [hoveredHref, setHoveredHref] = useState<string | null>(null);
   const [tooltipY, setTooltipY] = useState(0);
   const asideRef = useRef<HTMLElement>(null);
   const pathname = usePathname();
+  const closeMobileRef = useRef(onMobileClose);
+  closeMobileRef.current = onMobileClose;
+
+  // Close mobile drawer on route change
+  useEffect(() => {
+    closeMobileRef.current();
+  }, [pathname]);
 
   function handleNavEnter(href: string, e: React.MouseEvent<HTMLDivElement>) {
     setHoveredHref(href);
@@ -48,6 +62,8 @@ export default function Sidebar() {
   return (
     <aside
       ref={asideRef}
+      className="sidebar-root"
+      data-mobile-open={mobileOpen ? "true" : "false"}
       style={{
         width: collapsed ? "64px" : "220px",
         flexShrink: 0,
@@ -69,6 +85,7 @@ export default function Sidebar() {
         alignItems: "center",
         gap: "10px",
         overflow: "hidden",
+        flexShrink: 0,
       }}>
         <Image
           src="/logo.png"
@@ -92,10 +109,11 @@ export default function Sidebar() {
           RAXISLAB OS
         </span>
 
-        {/* Toggle — sticks out of right edge */}
+        {/* Toggle button — desktop only */}
         <button
           onClick={() => setCollapsed(c => !c)}
           aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+          className="sidebar-toggle-btn"
           style={{
             position: "absolute",
             right: "-12px",
@@ -203,6 +221,7 @@ export default function Sidebar() {
         gap: "10px",
         justifyContent: collapsed ? "center" : "flex-start",
         overflow: "hidden",
+        flexShrink: 0,
       }}>
         <div style={{
           width: "32px",

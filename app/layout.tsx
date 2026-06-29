@@ -1,12 +1,29 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { ThemeProvider } from "./components/theme-provider";
-import Sidebar from "./components/sidebar";
-import Topbar from "./components/topbar";
+import AppShell from "./components/app-shell";
 
 export const metadata: Metadata = {
   title: "Raxislab OS",
-  icons: { icon: "/logo.png" },
+  description: "Panel de control Raxislab Agency",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Raxislab",
+  },
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+    shortcut: "/logo.png",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#1E9BF0",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -20,14 +37,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body style={{ display: "flex", height: "100vh", overflow: "hidden", margin: 0 }}>
-        <ThemeProvider>
-          <Sidebar />
-          <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <Topbar />
-            <div style={{ flex: 1, overflowY: "auto" }}>{children}</div>
-          </main>
-        </ThemeProvider>
+      <body style={{ display: "flex", height: "100dvh", overflow: "hidden", margin: 0 }}>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
