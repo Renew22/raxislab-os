@@ -111,7 +111,7 @@ export default function RaxisInvestorPage() {
   const [newOp, setNewOp] = useState({ ticker:"", entrada:"", salida:"", tipo:"LONG" });
 
   // Telegram photos
-  const [telegramPhotos, setTelegramPhotos] = useState<{ id:string; url:string; ticker:string; ts:string; currentPrice:number|null }[]>([]);
+  const [telegramPhotos, setTelegramPhotos] = useState<{ update_id:number; file_id:string; url:string; caption:string; date:number; date_str:string }[]>([]);
   const [telegramLoading, setTelegramLoading] = useState(false);
 
   function setField(k:string,v:string) { setForm(f=>({...f,[k]:v})); }
@@ -619,31 +619,36 @@ export default function RaxisInvestorPage() {
       {/* ── TELEGRAM ─────────────────────────────────────────────────────────── */}
       {tab==="Telegram" && (
         <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
-          <div style={{ padding:"14px 18px", borderRadius:"6px", background:"rgba(251,191,36,0.05)", border:"1px solid rgba(251,191,36,0.2)" }}>
-            <p style={{ fontSize:"13px", fontWeight:600, color:"var(--amber)", margin:"0 0 6px" }}>Integración Telegram → Raxis Investor</p>
-            <p style={{ fontSize:"12px", color:"var(--text-muted)", margin:0, lineHeight:1.6 }}>
-              Envía una captura de tu operación al bot de Telegram → aparece aquí automáticamente → conecta con el precio actual para calcular P&L en curso.<br/>
-              <strong style={{ color:"var(--text)" }}>Pendiente configurar:</strong> crear bot en @BotFather, añadir webhook en Hetzner (<code style={{ fontSize:"11px", background:"var(--surface)", padding:"1px 5px", borderRadius:"3px" }}>TELEGRAM_TRADE_BOT_TOKEN</code>), crear endpoint <code style={{ fontSize:"11px", background:"var(--surface)", padding:"1px 5px", borderRadius:"3px" }}>/api/telegram/photos</code> en Hetzner que almacene las fotos.
-            </p>
+          {/* Setup banner */}
+          <div style={{ padding:"14px 18px", borderRadius:"6px", background:"rgba(0,87,255,0.05)", border:"1px solid rgba(0,87,255,0.2)", display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:"10px" }}>
+            <div>
+              <p style={{ fontSize:"13px", fontWeight:600, color:"var(--accent)", margin:"0 0 4px" }}>@RaxisM15_bot — Trade Photo Feed</p>
+              <p style={{ fontSize:"12px", color:"var(--text-muted)", margin:0, lineHeight:1.6 }}>
+                Envía una foto de tu operación al bot → aparece aquí automáticamente.<br/>
+                <strong style={{ color:"var(--text)" }}>1 paso pendiente:</strong> añadir <code style={{ fontSize:"11px", background:"var(--surface)", padding:"1px 5px", borderRadius:"3px" }}>TELEGRAM_M15_BOT_TOKEN</code> en Vercel settings.
+              </p>
+            </div>
+            <button onClick={()=>{setTelegramLoading(true);fetch("/api/telegram/photos").then(r=>r.json()).then(d=>setTelegramPhotos(d?.photos??[])).catch(()=>{}).finally(()=>setTelegramLoading(false));}}
+              style={{ padding:"7px 14px", borderRadius:"5px", border:"1px solid var(--border-accent)", background:"var(--accent-dim)", color:"var(--accent)", fontSize:"12px", fontWeight:600, cursor:"pointer", flexShrink:0 }}>
+              ↺ Actualizar
+            </button>
           </div>
           {telegramLoading && <div style={{ textAlign:"center", padding:"32px", color:"var(--text-muted)" }}>Cargando capturas…</div>}
           {!telegramLoading && telegramPhotos.length===0 && (
             <div style={{ ...CARD, padding:"48px 32px", textAlign:"center" }}>
               <p style={{ fontSize:"14px", fontWeight:600, color:"var(--text)", margin:"0 0 8px" }}>Sin capturas recibidas</p>
-              <p style={{ fontSize:"12px", color:"var(--text-muted)", margin:0 }}>Envía una captura de tu operación al bot de Telegram para verla aquí.</p>
+              <p style={{ fontSize:"12px", color:"var(--text-muted)", margin:0 }}>Manda una foto al bot <strong>@RaxisM15_bot</strong> y pulsa Actualizar.</p>
             </div>
           )}
           {telegramPhotos.length>0 && (
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"12px" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(280px,1fr))", gap:"14px" }}>
               {telegramPhotos.map(photo=>(
-                <div key={photo.id} style={{ ...CARD, padding:"14px 16px", display:"flex", flexDirection:"column", gap:"10px" }}>
-                  <img src={photo.url} alt="Trade screenshot" style={{ width:"100%", borderRadius:"5px", aspectRatio:"16/9", objectFit:"cover" }}/>
-                  <div>
-                    <p style={{ ...MONO, fontWeight:700, color:"var(--accent)", margin:"0 0 3px" }}>{photo.ticker||"Sin ticker"}</p>
-                    <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:0 }}>{new Date(photo.ts).toLocaleString("es-ES")}</p>
-                    {photo.currentPrice!==null && (
-                      <p style={{ ...MONO, fontSize:"12px", color:"var(--green)", margin:"4px 0 0", fontWeight:700 }}>Precio actual: ${photo.currentPrice}</p>
-                    )}
+                <div key={photo.update_id} style={{ ...CARD, overflow:"hidden" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={photo.url} alt={photo.caption||"Trade screenshot"} style={{ width:"100%", display:"block", maxHeight:"220px", objectFit:"cover" }}/>
+                  <div style={{ padding:"10px 12px" }}>
+                    {photo.caption && <p style={{ ...MONO, fontSize:"12px", fontWeight:700, color:"var(--accent)", margin:"0 0 3px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{photo.caption}</p>}
+                    <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:0 }}>{photo.date_str}</p>
                   </div>
                 </div>
               ))}

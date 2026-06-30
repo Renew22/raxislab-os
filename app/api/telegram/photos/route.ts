@@ -1,27 +1,56 @@
 import { NextResponse } from "next/server";
 
 // GET /api/telegram/photos
-// Proxies to Hetzner endpoint that stores trade screenshots sent by René to the Telegram bot.
-// Required setup on Hetzner:
-//   1. Create bot via @BotFather → store token in TELEGRAM_TRADE_BOT_TOKEN
-//   2. Set webhook: POST https://api.telegram.org/bot{TOKEN}/setWebhook?url=http://167.233.72.200/webhook/telegram-trades
-//   3. Hetzner endpoint stores photo URL + metadata in /opt/raxislab/telegram-trades.json
-// Until configured, returns empty array so the UI shows the pending setup banner.
+// Fetches the 20 most recent photo messages sent to @RaxisM15_bot.
+// Requires TELEGRAM_M15_BOT_TOKEN in Vercel environment vars.
+// No webhook or Hetzner needed — uses Telegram getUpdates polling.
+// Telegram keeps updates for 24h; photos older than that won't appear.
 
-const HETZNER_KEY = process.env.HETZNER_DASH_KEY ?? "rxl_dash_k9m4p7q2x8";
-const HETZNER_BASE = "http://167.233.72.200";
+const TOKEN = process.env.TELEGRAM_M15_BOT_TOKEN;
+const TG    = `https://api.telegram.org/bot${TOKEN}`;
+
+interface TgPhotoSize { file_id: string; width: number; height: number; file_size?: number }
+interface TgMessage   { message_id: number; date: number; caption?: string; photo?: TgPhotoSize[] }
+interface TgUpdate    { update_id: number; message?: TgMessage }
 
 export async function GET() {
+  if (!TOKEN) {
+    return NextResponse.json({ photos: [], _info: "TELEGRAM_M15_BOT_TOKEN no configurado en Vercel" });
+  }
+
   try {
-    const res = await fetch(`${HETZNER_BASE}/data/telegram-photos?key=${HETZNER_KEY}`, {
-      next: { revalidate: 60 },
+    const res = await fetch(`${TG}/getUpdates?limit=50&allowed_updates=["message"]`, {
+      next: { revalidate: 30 },
     });
     if (!res.ok) {
-      return NextResponse.json({ photos: [], _pending: true, _info: "Endpoint de fotos no configurado en Hetzner" });
+      return NextResponse.json({ photos: [], _info: "Telegram API error" });
     }
     const data = await res.json();
-    return NextResponse.json({ photos: data.photos ?? [] });
-  } catch {
-    return NextResponse.json({ photos: [], _pending: true, _info: "Hetzner no responde — webhook pendiente de configurar" });
+    if (!data.ok) {
+      return NextResponse.json({ photos: [], _info: data.description ?? "Telegram error" });
+    }
+
+    const updates: TgUpdate[] = data.result ?? [];
+    const photos = updates
+      .filter(u => u.message?.photo?.length)
+      .map(u => {
+        const msg = u.message!;
+        // Use the largest photo size
+        const best = msg.photo!.reduce((a, b) => (a.file_size ?? 0) > (b.file_size ?? 0) ? a : b);
+        return {
+          update_id: u.update_id,
+          file_id:   best.file_id,
+          // Served via proxy route — token never exposed to frontend
+          url:       `/api/telegram/file?file_id=${encodeURIComponent(best.file_id)}`,
+          caption:   msg.caption ?? "",
+          date:      msg.date,
+          date_str:  new Date(msg.date * 1000).toLocaleString("es-ES"),
+        };
+      })
+      .reverse(); // newest first
+
+    return NextResponse.json({ photos });
+  } catch (e) {
+    return NextResponse.json({ photos: [], _info: String(e) });
   }
 }
