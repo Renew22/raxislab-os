@@ -6,8 +6,8 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   ChevronLeft, ChevronRight,
-  LayoutDashboard, Users, Megaphone, Globe, Package, Sparkles, LineChart, Rocket,
-  TrendingUp, Target, FolderKanban, Workflow, Calendar, Wallet, Activity, FileText, Zap,
+  LayoutDashboard, Users, Megaphone, Globe, Package, Sparkles,
+  TrendingUp, Target, FolderKanban, Workflow, Calendar, Wallet, FileText, Zap,
 } from "lucide-react";
 
 const NAV = [
@@ -18,9 +18,6 @@ const NAV = [
   { href: "/last-mile",        label: "Last Mile",        Icon: Package         },
   { href: "/propuestas",       label: "Propuestas",       Icon: FileText        },
   { href: "/contenido",        label: "Contenido",        Icon: Sparkles        },
-  { href: "/trading",          label: "Trading",          Icon: LineChart       },
-  { href: "/mercado",          label: "Mercado",          Icon: Activity        },
-  { href: "/stokers",          label: "Stokers",          Icon: Rocket          },
   { href: "/raxis-investor",   label: "Raxis Investor",   Icon: TrendingUp      },
   { href: "/score-engine",     label: "Score Engine",     Icon: Zap             },
   { href: "/leads",            label: "Leads",            Icon: Target          },

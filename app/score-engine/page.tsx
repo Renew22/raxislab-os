@@ -284,7 +284,7 @@ export default function ScoreEnginePage() {
           <div style={{ padding:"14px", borderRadius:"5px", background:"rgba(251,191,36,0.05)", border:"1px solid rgba(251,191,36,0.2)" }}>
             <p style={{ fontSize:"12px", color:"var(--amber)", margin:"0 0 6px", fontWeight:600 }}>Pendiente — Fase 2</p>
             <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:0, lineHeight:1.6 }}>
-              Se implementará scraping de openinsider.com con filtro >$100K. Incluirá scoring por cargo (CEO/CFO/Founder) y detección de cluster buys.
+              Se implementará scraping de openinsider.com con filtro &gt;$100K. Incluirá scoring por cargo (CEO/CFO/Founder) y detección de cluster buys.
               <br/>Confirma antes si prefieres implementar esto o una alternativa de API de pago.
             </p>
           </div>
