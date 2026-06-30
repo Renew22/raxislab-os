@@ -29,9 +29,10 @@ interface EarningsEvent {
 
 // ── Watchlist default ─────────────────────────────────────────────────────────
 
+// Cartera real IBKR (US tickers con datos en Polygon) — 2026-06-30
+// EU positions (BBVA.MC, AI.PA, etc.) no tienen cobertura técnica en Polygon free tier
 const DEFAULT_WATCHLIST = [
-  "HOOD","PLTR","NVDA","META","AAPL","TSLA",
-  "SMCI","MRVL","IONQ","KTOS","LDOS","RDW",
+  "CRCL","RCUS","KEEL","AAOI","SWKS","INTC","BE","MO",
 ];
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -58,7 +59,7 @@ function scoreBadge(s: number) {
 export default function ScoreEnginePage() {
   const [watchlist, setWatchlist]       = useState<string[]>(() => {
     if (typeof window === "undefined") return DEFAULT_WATCHLIST;
-    const saved = localStorage.getItem("raxislab_watchlist_se");
+    const saved = localStorage.getItem("raxislab_watchlist_se_v2");
     return saved ? JSON.parse(saved) : DEFAULT_WATCHLIST;
   });
   const [scores, setScores]             = useState<Record<string, TechnicalScore>>({});
@@ -68,6 +69,28 @@ export default function ScoreEnginePage() {
   const [newTicker, setNewTicker]       = useState("");
   const [loading, setLoading]           = useState(false);
   const [lastUpdate, setLastUpdate]     = useState<string | null>(null);
+  const [notifPerm, setNotifPerm]       = useState<NotificationPermission>("default");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+    if ("Notification" in window) setNotifPerm(Notification.permission);
+  }, []);
+
+  async function enableNotifications() {
+    if (!("Notification" in window)) return;
+    const perm = await Notification.requestPermission();
+    setNotifPerm(perm);
+  }
+
+  function fireNotif(title: string, body: string) {
+    if (notifPerm !== "granted") return;
+    if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type:"SHOW_NOTIF", title, body });
+    } else {
+      new Notification(title, { body, icon:"/logo.png" });
+    }
+  }
 
   async function fetchScores(tickers: string[]) {
     setLoading(true);
@@ -93,7 +116,17 @@ export default function ScoreEnginePage() {
         map[t] = { ticker:t, score:0, price:null, sma200:null, rsi14:null, ema20:null, ema21:null, volume:null, vwap:null, criteria:[], trend:"—", loading:false, error: r.status === "fulfilled" ? (r.value.error ?? "Error") : "Error de red" };
       }
     });
-    setScores(prev => ({ ...prev, ...map }));
+    setScores(prev => {
+      // Fire notification for tickers that crossed ≥80 or ≤20
+      Object.values(map).forEach(s => {
+        if (!s.error && s.score >= 80) {
+          fireNotif(`🟢 ${s.ticker} Score ${s.score}/100`, `Confluencia técnica alta — precio $${s.price?.toFixed(2) ?? "—"}`);
+        } else if (!s.error && s.score <= 20) {
+          fireNotif(`🔴 ${s.ticker} Score ${s.score}/100`, `Score técnico muy bajo — revisar posición`);
+        }
+      });
+      return { ...prev, ...map };
+    });
     setLastUpdate(new Date().toLocaleTimeString("es-ES"));
     setLoading(false);
   }
@@ -121,7 +154,7 @@ export default function ScoreEnginePage() {
     if (!t || watchlist.includes(t)) { setNewTicker(""); return; }
     const next = [...watchlist, t];
     setWatchlist(next);
-    localStorage.setItem("raxislab_watchlist_se", JSON.stringify(next));
+    localStorage.setItem("raxislab_watchlist_se_v2", JSON.stringify(next));
     fetchScores([t]);
     setNewTicker("");
   }
@@ -129,7 +162,7 @@ export default function ScoreEnginePage() {
   function removeTicker(t: string) {
     const next = watchlist.filter(x => x !== t);
     setWatchlist(next);
-    localStorage.setItem("raxislab_watchlist_se", JSON.stringify(next));
+    localStorage.setItem("raxislab_watchlist_se_v2", JSON.stringify(next));
     setScores(prev => { const n = { ...prev }; delete n[t]; return n; });
   }
 
@@ -151,9 +184,21 @@ export default function ScoreEnginePage() {
             {lastUpdate && <span style={{ marginLeft:"8px", color:"var(--accent)" }}>· Actualizado {lastUpdate}</span>}
           </p>
         </div>
-        <button onClick={() => fetchScores(watchlist)} disabled={loading} style={{ padding:"8px 16px", borderRadius:"6px", border:"1px solid var(--border-accent)", background:"var(--accent-dim)", color:"var(--accent)", fontSize:"12px", fontWeight:600, cursor:loading?"not-allowed":"pointer" }}>
-          {loading ? "Actualizando..." : "Actualizar scores"}
-        </button>
+        <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
+          {notifPerm !== "granted" ? (
+            <button onClick={enableNotifications} style={{ padding:"8px 14px", borderRadius:"6px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", fontSize:"12px", cursor:"pointer" }}>
+              🔔 Activar alertas
+            </button>
+          ) : (
+            <span style={{ fontSize:"12px", color:"var(--green)", display:"flex", alignItems:"center", gap:"4px" }}>
+              <span style={{ width:6, height:6, borderRadius:"50%", background:"var(--green)", display:"inline-block" }}/>
+              Alertas activas
+            </span>
+          )}
+          <button onClick={() => fetchScores(watchlist)} disabled={loading} style={{ padding:"8px 16px", borderRadius:"6px", border:"1px solid var(--border-accent)", background:"var(--accent-dim)", color:"var(--accent)", fontSize:"12px", fontWeight:600, cursor:loading?"not-allowed":"pointer" }}>
+            {loading ? "Actualizando..." : "Actualizar scores"}
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}

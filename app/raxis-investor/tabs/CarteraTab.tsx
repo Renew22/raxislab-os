@@ -14,35 +14,60 @@ type ModalState = { open:boolean; mode:"add"|"edit"; id:string; symbol:string; q
 // ── Config ────────────────────────────────────────────────────────────────────
 
 export const STOCKS: StockCfg[] = [
-  { symbol:"HOOD",    display:"HOOD", name:"Robinhood Markets",    region:"US" },
-  { symbol:"MRVL",   display:"MRVL", name:"Marvell Technology",   region:"US" },
-  { symbol:"AVGO",   display:"AVGO", name:"Broadcom Inc",         region:"US" },
-  { symbol:"FLEX",   display:"FLEX", name:"Flex Ltd",             region:"US" },
-  { symbol:"CRWD",   display:"CRWD", name:"CrowdStrike Holdings", region:"US" },
-  { symbol:"HIMS",   display:"HIMS", name:"Hims & Hers Health",   region:"US" },
-  { symbol:"PLTR",   display:"PLTR", name:"Palantir Technologies", region:"US" },
-  { symbol:"NVDA",   display:"NVDA", name:"NVIDIA Corp",          region:"US" },
-  { symbol:"META",   display:"META", name:"Meta Platforms",       region:"US" },
-  { symbol:"TSLA",   display:"TSLA", name:"Tesla Inc",            region:"US" },
-  { symbol:"RKLB",   display:"RKLB", name:"Rocket Lab USA",       region:"US" },
-  { symbol:"LUNR",   display:"LUNR", name:"Intuitive Machines",   region:"US" },
-  { symbol:"MO",     display:"MO",   name:"Altria Group",         region:"US" },
-  { symbol:"BBVA.MC",display:"BBVA", name:"Banco Bilbao",         region:"EU" },
-  { symbol:"AI.PA",  display:"AI",   name:"Air Liquide",          region:"EU" },
-  { symbol:"ENGI.PA",display:"ENGI", name:"Engie SA",             region:"EU" },
-  { symbol:"LOG.MC", display:"LOG",  name:"Logista",              region:"EU" },
-  { symbol:"ENI.MI", display:"ENI",  name:"ENI SpA",              region:"EU" },
-  { symbol:"REP.MC", display:"REP",  name:"Repsol SA",            region:"EU" },
+  // ── US ────────────────────────────────────────────────────────────────────────
+  { symbol:"CRCL",    display:"CRCL", name:"Circle Internet Group",    region:"US" },
+  { symbol:"RCUS",    display:"RCUS", name:"Arcus Biosciences",        region:"US" },
+  { symbol:"KEEL",    display:"KEEL", name:"Keel Infrastructure Corp", region:"US" },
+  { symbol:"MO",      display:"MO",   name:"Altria Group (PHM7/IBKR)", region:"US" },
+  { symbol:"AAOI",    display:"AAOI", name:"Applied Optoelectronics",  region:"US" },
+  { symbol:"SWKS",    display:"SWKS", name:"Skyworks Solutions",       region:"US" },
+  { symbol:"INTC",    display:"INTC", name:"Intel Corp",               region:"US" },
+  { symbol:"BE",      display:"BE",   name:"Bloom Energy Corp-A",      region:"US" },
+  // ── EU ────────────────────────────────────────────────────────────────────────
+  { symbol:"BBVA.MC", display:"BBVA", name:"Banco Bilbao Vizcaya",     region:"EU" },
+  { symbol:"AI.PA",   display:"AI",   name:"Air Liquide SA",           region:"EU" },
+  { symbol:"ENGI.PA", display:"ENGI", name:"Engie SA",                 region:"EU" },
+  { symbol:"LOG.MC",  display:"LOG",  name:"Logista Integral SA",      region:"EU" },
+  { symbol:"ENI.MI",  display:"ENI",  name:"ENI SpA",                  region:"EU" },
+  { symbol:"REP.MC",  display:"REP",  name:"Repsol SA",                region:"EU" },
 ];
 
 // ── localStorage ──────────────────────────────────────────────────────────────
 
 export const POSITIONS_KEY = "raxislab_acciones_v1";
 
+// Pre-cargadas con la cartera real de IBKR (actualizado 2026-06-30).
+// MO avg en USD ≈ 55.72 EUR avg del IBKR symbol PHM7 — verificar y ajustar si es necesario.
+const DEFAULT_POSITIONS: Position[] = [
+  { id:"d-crcl",  symbol:"CRCL",    quantity:16,      avgPrice:80.49  },
+  { id:"d-rcus",  symbol:"RCUS",    quantity:50,      avgPrice:30.40  },
+  { id:"d-keel",  symbol:"KEEL",    quantity:100,     avgPrice:6.77   },
+  { id:"d-mo",    symbol:"MO",      quantity:7,       avgPrice:59.50  },
+  { id:"d-aaoi",  symbol:"AAOI",    quantity:5,       avgPrice:165.85 },
+  { id:"d-swks",  symbol:"SWKS",    quantity:30,      avgPrice:74.43  },
+  { id:"d-intc",  symbol:"INTC",    quantity:6.5,     avgPrice:132.73 },
+  { id:"d-be",    symbol:"BE",      quantity:6,       avgPrice:319.58 },
+  { id:"d-bbva",  symbol:"BBVA.MC", quantity:21.0139, avgPrice:19.08  },
+  { id:"d-ai",    symbol:"AI.PA",   quantity:3.7146,  avgPrice:148.82 },
+  { id:"d-engi",  symbol:"ENGI.PA", quantity:28.4973, avgPrice:21.42  },
+  { id:"d-log",   symbol:"LOG.MC",  quantity:11,      avgPrice:28.14  },
+  { id:"d-eni",   symbol:"ENI.MI",  quantity:26.6792, avgPrice:21.45  },
+  { id:"d-rep",   symbol:"REP.MC",  quantity:37.3208, avgPrice:20.28  },
+];
+
+const VALID_SYMBOLS = new Set(STOCKS.map(s => s.symbol));
+
 export function loadPositions(): Position[] {
-  if (typeof window === "undefined") return [];
-  try { const r = localStorage.getItem(POSITIONS_KEY); return r ? JSON.parse(r) : []; }
-  catch { return []; }
+  if (typeof window === "undefined") return DEFAULT_POSITIONS;
+  try {
+    const r = localStorage.getItem(POSITIONS_KEY);
+    if (!r) return DEFAULT_POSITIONS;
+    const saved: Position[] = JSON.parse(r);
+    // Filtra tickers vendidos o no reconocidos; si queda vacío usa defaults
+    const filtered = saved.filter(p => VALID_SYMBOLS.has(p.symbol));
+    return filtered.length > 0 ? filtered : DEFAULT_POSITIONS;
+  }
+  catch { return DEFAULT_POSITIONS; }
 }
 export function savePositions(ps: Position[]) {
   localStorage.setItem(POSITIONS_KEY, JSON.stringify(ps));
