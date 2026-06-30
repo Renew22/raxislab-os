@@ -371,6 +371,26 @@ export default function GooglePage() {
         </div>
       )}
 
+      {/* Google Ads — pendiente de aprobación de acceso estándar */}
+      <div style={{ marginBottom: "24px", padding: "16px 20px", borderRadius: "6px", background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.3)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+          <span style={{ fontSize: "14px" }}>⏳</span>
+          <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--amber)", margin: 0 }}>Google Ads — Pendiente de aprobación de acceso estándar</p>
+        </div>
+        <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "0 0 10px", lineHeight: 1.6 }}>
+          El Developer Token del proyecto (cuenta Manager 717-986-5639) está en <strong style={{ color: "var(--amber)" }}>modo cuenta de prueba</strong> — solo puede acceder a cuentas de test, no a cuentas de producción reales.<br/>
+          <strong style={{ color: "var(--text)" }}>GSC, GA4 y GBP funcionan correctamente</strong>. Solo Google Ads está pendiente.
+        </p>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <div style={{ padding: "6px 12px", borderRadius: "4px", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.25)", fontSize: "11px", color: "var(--amber)", fontWeight: 600 }}>
+            Acción pendiente (solo René): Google Ads → Centro de la API → "Solicita el acceso estándar"
+          </div>
+          <div style={{ padding: "6px 12px", borderRadius: "4px", background: "var(--surface)", border: "1px solid var(--border)", fontSize: "11px", color: "var(--text-muted)" }}>
+            Google revisa manualmente — puede tardar varios días
+          </div>
+        </div>
+      </div>
+
       {/* Panels por cliente */}
       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         {CLIENTS.map(client => (

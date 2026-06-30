@@ -15,20 +15,13 @@ export async function POST(req: Request) {
     );
   }
 
-  // Google Ads API requires a Developer Token approved by Google.
-  // While that approval is pending, return a clear placeholder.
-  // Once the Developer Token is available, add GOOGLE_ADS_DEVELOPER_TOKEN env var
-  // and implement the REST API call to googleads.googleapis.com.
+  // Google Ads API requires a Developer Token with Standard Access (not Test Account).
+  // René must request Standard Access in: Google Ads → Centro de la API → Solicita acceso estándar
+  // Until approved, all production accounts return PERMISSION_DENIED even with valid credentials.
   const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
   if (!developerToken) {
     return NextResponse.json({
-      inversion:   '—',
-      cpl:         '—',
-      roas:        '—',
-      clics:       '—',
-      impresiones: '—',
-      leads:       '—',
-      ctr:         '—',
+      inversion: '—', cpl: '—', roas: '—', clics: '—', impresiones: '—', leads: '—', ctr: '—',
       _pending: true,
       _info: 'Developer Token pendiente. Solicítalo en Google Ads → Centro de API.',
     });
@@ -71,10 +64,19 @@ export async function POST(req: Request) {
 
     if (!res.ok) {
       const err = await res.json();
-      return NextResponse.json(
-        { error: err?.error?.message ?? 'Error Google Ads API' },
-        { status: res.status }
-      );
+      const errMsg: string = err?.error?.message ?? err?.error?.status ?? '';
+      const isTestAccount = errMsg.includes('DEVELOPER_TOKEN_NOT_APPROVED') ||
+                            errMsg.includes('test account') ||
+                            errMsg.includes('Test account') ||
+                            res.status === 403;
+      if (isTestAccount) {
+        return NextResponse.json({
+          inversion: '—', cpl: '—', roas: '—', clics: '—', impresiones: '—', leads: '—', ctr: '—',
+          _testAccount: true,
+          _info: 'Google Ads API en modo cuenta de prueba. Falta aprobación de acceso estándar (Google Ads → Centro de la API → Solicita acceso estándar). Google puede tardar varios días en aprobar.',
+        });
+      }
+      return NextResponse.json({ error: errMsg || 'Error Google Ads API' }, { status: res.status });
     }
 
     const data = await res.json();

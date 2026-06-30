@@ -6,6 +6,7 @@ const ACCOUNTS: { clientId: string; clientName: string; envKey: string }[] = [
   { clientId: 'malvarrosa-cf',       clientName: 'Malvarrosa CF',        envKey: 'META_ACCOUNT_CFMALVARROSA'       },
   { clientId: 'last-mile',           clientName: 'Last Mile',            envKey: 'META_ACCOUNT_LAST_MILE'          },
   { clientId: 'matias-benegas-tattoo', clientName: 'Matías Benegas Tattoo', envKey: 'META_ACCOUNT_BENEGASTATTOOS' },
+  { clientId: 'marta-sarmiento',       clientName: 'Marta Sarmiento',       envKey: 'META_ACCOUNT_MARTA_SARMIENTO' },
 ];
 
 const BASE = 'https://graph.facebook.com/v21.0';

@@ -1,17 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
-import { Pencil, Plus, X, Check } from "lucide-react";
+import { Pencil, Plus, X, Check, FileText, Upload } from "lucide-react";
 import SparkLine from "../components/spark-line";
 import { useTheme } from "../components/theme-provider";
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
-type Tab             = "Resumen" | "GastosFijos" | "Calendario" | "Ingresos";
+type Tab             = "Resumen" | "GastosFijos" | "Calendario" | "Ingresos" | "Impuestos";
+
+interface Factura {
+  id: string; proveedor: string; concepto: string; importe: number; iva: number;
+  fecha: string; numero_factura: string; tipo: "emitida" | "recibida";
+  categoria: string; archivo_url?: string; created_at: string;
+}
 type EstadoGasto     = "activo" | "cancelar" | "cancelado";
 type EstadoIngreso   = "activo" | "verificar";
 
@@ -76,6 +82,281 @@ function nextCobro(gastos: GastoFijo[]) {
     .filter(g => g.estado === "activo")
     .map(g => ({ ...g, daysLeft: g.dia >= d ? g.dia - d : daysInMonth - d + g.dia }))
     .sort((a, b) => a.daysLeft - b.daysLeft)[0] ?? null;
+}
+
+// ─── SUB-COMPONENT: IMPUESTOS Y FACTURAS ─────────────────────────────────────
+
+const TRIMESTRES = ["T1 (Ene-Mar)", "T2 (Abr-Jun)", "T3 (Jul-Sep)", "T4 (Oct-Dic)"];
+const TRIMESTRE_MONTHS: Record<string, number[]> = {
+  "T1 (Ene-Mar)": [1,2,3], "T2 (Abr-Jun)": [4,5,6],
+  "T3 (Jul-Sep)": [7,8,9], "T4 (Oct-Dic)": [10,11,12],
+};
+const currentMonth = new Date().getMonth() + 1;
+const DEFAULT_TRIMESTRE = TRIMESTRES.find(t => TRIMESTRE_MONTHS[t].includes(currentMonth)) ?? TRIMESTRES[1];
+
+const CATEGORIAS_FACTURA = ["Servicios profesionales","Software/SaaS","Marketing","Infraestructura","Viaje/Transporte","Material","Formación","Otros"];
+
+const CALENDARIO_FISCAL_ES = [
+  { concepto:"IVA Trimestral (Modelo 303)", trimestre:"T1", fecha_limite:"20 Abr", plazo_dias:20, modelo:"303" },
+  { concepto:"IVA Trimestral (Modelo 303)", trimestre:"T2", fecha_limite:"20 Jul", plazo_dias:20, modelo:"303" },
+  { concepto:"IVA Trimestral (Modelo 303)", trimestre:"T3", fecha_limite:"20 Oct", plazo_dias:20, modelo:"303" },
+  { concepto:"IVA Anual (Modelo 303 T4)", trimestre:"T4", fecha_limite:"30 Ene", plazo_dias:30, modelo:"303" },
+  { concepto:"IRPF Trimestral (Modelo 130)", trimestre:"T1", fecha_limite:"20 Abr", plazo_dias:20, modelo:"130" },
+  { concepto:"IRPF Trimestral (Modelo 130)", trimestre:"T2", fecha_limite:"20 Jul", plazo_dias:20, modelo:"130" },
+  { concepto:"IRPF Trimestral (Modelo 130)", trimestre:"T3", fecha_limite:"20 Oct", plazo_dias:20, modelo:"130" },
+  { concepto:"IRPF Trimestral (Modelo 130)", trimestre:"T4", fecha_limite:"30 Ene", plazo_dias:30, modelo:"130" },
+  { concepto:"Resumen Anual IVA (Modelo 390)", trimestre:"Anual", fecha_limite:"30 Ene", plazo_dias:30, modelo:"390" },
+  { concepto:"Renta Anual (IRPF)", trimestre:"Anual", fecha_limite:"30 Jun", plazo_dias:30, modelo:"RENTA" },
+];
+
+function ImpuestosTab() {
+  const [facturas, setFacturas]         = useState<Factura[]>(() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(localStorage.getItem("raxislab_facturas_v1") ?? "[]"); } catch { return []; }
+  });
+  const [trimFiltro, setTrimFiltro]     = useState<string>(DEFAULT_TRIMESTRE);
+  const [tipoFiltro, setTipoFiltro]     = useState<"todas" | "emitida" | "recibida">("todas");
+  const [uploading, setUploading]       = useState(false);
+  const [preview, setPreview]           = useState<Partial<Factura> | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [regime, setRegime]             = useState<"es" | "py">("es");
+
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function saveFacturas(f: Factura[]) {
+    setFacturas(f);
+    localStorage.setItem("raxislab_facturas_v1", JSON.stringify(f));
+  }
+
+  async function handleFile(file: File) {
+    setUploading(true); setPreviewError(null); setPreview(null);
+    try {
+      const base64 = await new Promise<string>((res, rej) => {
+        const r = new FileReader();
+        r.onload = e => res((e.target?.result as string).split(",")[1]);
+        r.onerror = rej;
+        r.readAsDataURL(file);
+      });
+      const mediaType = file.type || "image/png";
+      const resp = await fetch("/api/claude/extract-invoice", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileBase64: base64, mediaType }),
+      });
+      const json = await resp.json();
+      if (json.error) { setPreviewError(json.error); return; }
+      setPreview({ ...json.data, tipo: "recibida", categoria: "Servicios profesionales" });
+    } catch (e) { setPreviewError(String(e)); }
+    finally { setUploading(false); }
+  }
+
+  function confirmarFactura() {
+    if (!preview) return;
+    const f: Factura = {
+      id: Date.now().toString(),
+      proveedor: preview.proveedor ?? "—", concepto: preview.concepto ?? "—",
+      importe: Number(preview.importe ?? 0), iva: Number(preview.iva ?? 21),
+      fecha: preview.fecha ?? new Date().toISOString().split("T")[0],
+      numero_factura: preview.numero_factura ?? "—",
+      tipo: preview.tipo ?? "recibida", categoria: preview.categoria ?? "Otros",
+      created_at: new Date().toISOString(),
+    };
+    saveFacturas([...facturas, f]);
+    setPreview(null);
+  }
+
+  // Filter by trimestre
+  const monthsFiltro = TRIMESTRE_MONTHS[trimFiltro] ?? [];
+  const facFiltradas = facturas.filter(f => {
+    const m = new Date(f.fecha).getMonth() + 1;
+    const matchTrim = monthsFiltro.includes(m);
+    const matchTipo = tipoFiltro === "todas" || f.tipo === tipoFiltro;
+    return matchTrim && matchTipo;
+  });
+
+  // Stats del trimestre
+  const emitidas  = facFiltradas.filter(f => f.tipo === "emitida");
+  const recibidas = facFiltradas.filter(f => f.tipo === "recibida");
+  const ivaRepercutido = emitidas.reduce((s, f)  => s + (f.importe * f.iva / 100), 0);
+  const ivaSoportado   = recibidas.reduce((s, f) => s + (f.importe * f.iva / 100), 0);
+  const ivaPagar       = ivaRepercutido - ivaSoportado;
+  const baseImponible  = emitidas.reduce((s, f)  => s + f.importe, 0);
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:"24px" }}>
+
+      {/* Regime toggle */}
+      <div style={{ display:"flex", alignItems:"center", gap:"12px", padding:"10px 16px", borderRadius:"6px", background:"rgba(0,87,255,0.04)", border:"1px solid rgba(0,87,255,0.12)" }}>
+        <p style={{ fontSize:"12px", color:"var(--text-muted)", margin:0 }}>Régimen fiscal:</p>
+        {[["es","España — Autónomo (303/130)"],["py","Paraguay — por definir"]].map(([v,l]) => (
+          <button key={v} onClick={() => setRegime(v as "es"|"py")} style={{ padding:"5px 12px", borderRadius:"4px", border:"none", cursor:"pointer", fontSize:"12px", fontWeight:v===regime?600:400, background:v===regime?"var(--accent)":"var(--surface)", color:v===regime?"#000":"var(--text-muted)" }}>{l}</button>
+        ))}
+        <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:"0 0 0 auto" }}>Edita para cambiar según tu situación</p>
+      </div>
+
+      {/* ── SECCIÓN A: SUBIDA DE FACTURAS ── */}
+      <div style={{ ...CARD }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"16px" }}>
+          <FileText size={15} color="var(--accent)"/>
+          <p style={{ ...LABEL, margin:0, color:"var(--text)" }}>Subir factura</p>
+        </div>
+        <div
+          onClick={() => fileRef.current?.click()}
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+          style={{ border:"2px dashed var(--border)", borderRadius:"8px", padding:"32px 24px", textAlign:"center", cursor:"pointer", background:"var(--surface)", transition:"border-color 0.2s" }}
+        >
+          <Upload size={22} color="var(--accent)" style={{ margin:"0 auto 8px" }}/>
+          <p style={{ fontSize:"13px", color:"var(--text-mid)", margin:"0 0 4px" }}>
+            {uploading ? "Analizando con Claude..." : "Arrastra una factura aquí o haz clic"}
+          </p>
+          <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:0 }}>PNG, JPG, WEBP, PDF</p>
+        </div>
+        <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display:"none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+        {previewError && <p style={{ fontSize:"12px", color:"var(--red)", marginTop:"10px" }}>{previewError}</p>}
+
+        {/* Preview extraído */}
+        {preview && (
+          <div style={{ marginTop:"16px", padding:"16px", borderRadius:"6px", background:"var(--surface)", border:"1px solid var(--border-accent)" }}>
+            <p style={{ ...LABEL, marginBottom:"12px", color:"var(--accent)" }}>Vista previa — edita si algo no es correcto</p>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px", marginBottom:"12px" }}>
+              {([
+                ["proveedor","Proveedor","text"], ["concepto","Concepto","text"],
+                ["numero_factura","Nº Factura","text"], ["fecha","Fecha","date"],
+                ["importe","Importe (€)","number"], ["iva","IVA (%)","number"],
+              ] as [keyof Factura, string, string][]).map(([k,l,t]) => (
+                <div key={k}>
+                  <p style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"3px" }}>{l}</p>
+                  <input
+                    type={t} value={String(preview[k] ?? "")}
+                    onChange={e => setPreview(p => ({ ...p, [k]: t === "number" ? parseFloat(e.target.value)||0 : e.target.value }))}
+                    style={{ ...INPUT_S, fontSize:"12px" }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px", marginBottom:"14px" }}>
+              <div>
+                <p style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"3px" }}>Tipo</p>
+                <select value={preview.tipo ?? "recibida"} onChange={e => setPreview(p => ({ ...p, tipo: e.target.value as "emitida"|"recibida" }))} style={INPUT_S}>
+                  <option value="recibida">Recibida (gasto)</option>
+                  <option value="emitida">Emitida (ingreso)</option>
+                </select>
+              </div>
+              <div>
+                <p style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"3px" }}>Categoría</p>
+                <select value={preview.categoria ?? "Otros"} onChange={e => setPreview(p => ({ ...p, categoria: e.target.value }))} style={INPUT_S}>
+                  {CATEGORIAS_FACTURA.map(c => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:"8px" }}>
+              <button onClick={() => setPreview(null)} style={{ flex:1, padding:"8px", borderRadius:"5px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", cursor:"pointer", fontSize:"13px" }}>Descartar</button>
+              <button onClick={confirmarFactura} style={{ flex:2, padding:"8px", borderRadius:"5px", border:"none", background:"var(--accent)", color:"#000", cursor:"pointer", fontSize:"13px", fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:"6px" }}>
+                <Check size={13}/> Guardar factura
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── SECCIÓN D: RESUMEN FISCAL ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"12px" }}>
+        {[
+          { l:"IVA repercutido",  v:`${ivaRepercutido.toFixed(2)}€`, c:"var(--green)",  s:"Facturas emitidas" },
+          { l:"IVA soportado",    v:`${ivaSoportado.toFixed(2)}€`,   c:"var(--red)",    s:"Facturas recibidas" },
+          { l:"IVA a pagar",      v:`${Math.max(0,ivaPagar).toFixed(2)}€`, c: ivaPagar>0?"var(--amber)":"var(--green)", s: ivaPagar<0?"A compensar":"A ingresar a Hacienda" },
+          { l:"Base IRPF estim.", v:`${baseImponible.toFixed(2)}€`,  c:"var(--accent)", s:"Ingresos emitidos" },
+        ].map(({l,v,c,s}) => (
+          <div key={l} style={{ ...CARD }}>
+            <p style={LABEL}>{l}</p>
+            <p style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"22px", color:c, margin:"0 0 4px" }}>{v}</p>
+            <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:0 }}>{s}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── SECCIÓN B: LISTADO ── */}
+      <div style={{ ...CARD }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"16px", flexWrap:"wrap" }}>
+          <p style={{ ...LABEL, margin:0, flex:1 }}>{facFiltradas.length} facturas · {trimFiltro}</p>
+          <div style={{ display:"flex", gap:"4px" }}>
+            {TRIMESTRES.map(t => <button key={t} onClick={() => setTrimFiltro(t)} style={{ padding:"4px 10px", borderRadius:"4px", border:"none", cursor:"pointer", fontSize:"11px", fontWeight:t===trimFiltro?600:400, background:t===trimFiltro?"var(--accent-dim)":"transparent", color:t===trimFiltro?"var(--accent)":"var(--text-muted)" }}>{t.split(" ")[0]}</button>)}
+          </div>
+          <div style={{ display:"flex", gap:"4px" }}>
+            {(["todas","emitida","recibida"] as const).map(t => <button key={t} onClick={() => setTipoFiltro(t)} style={{ padding:"4px 10px", borderRadius:"4px", border:"none", cursor:"pointer", fontSize:"11px", fontWeight:t===tipoFiltro?600:400, background:t===tipoFiltro?"var(--accent-dim)":"transparent", color:t===tipoFiltro?"var(--accent)":"var(--text-muted)" }}>{t==="todas"?"Todas":t==="emitida"?"Emitidas":"Recibidas"}</button>)}
+          </div>
+        </div>
+        {facFiltradas.length === 0 ? (
+          <p style={{ fontSize:"13px", color:"var(--text-muted)", textAlign:"center", padding:"32px 0" }}>Sin facturas en {trimFiltro}. Sube una con el botón de arriba.</p>
+        ) : (
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+              <thead><tr>{["Fecha","Proveedor/Cliente","Concepto","Importe","IVA","Tipo","Categoría",""].map(h => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+              <tbody>
+                {facFiltradas.map(f => (
+                  <tr key={f.id}>
+                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"11px", color:"var(--text-muted)" }}>{f.fecha}</td>
+                    <td style={{ ...TD, fontWeight:500, color:"var(--text)" }}>{f.proveedor}</td>
+                    <td style={{ ...TD, fontSize:"12px", color:"var(--text-muted)", maxWidth:"200px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.concepto}</td>
+                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: f.tipo==="emitida"?"var(--green)":"var(--red)" }}>{f.tipo==="emitida"?"+":"-"}{f.importe.toFixed(2)}€</td>
+                    <td style={{ ...TD, fontSize:"12px", color:"var(--text-muted)" }}>{f.iva}%</td>
+                    <td style={{ ...TD }}>
+                      <span style={{ fontSize:"10px", fontWeight:600, padding:"2px 7px", borderRadius:"3px", background: f.tipo==="emitida"?"rgba(0,230,118,0.1)":"rgba(255,61,113,0.1)", color: f.tipo==="emitida"?"var(--green)":"var(--red)" }}>{f.tipo}</span>
+                    </td>
+                    <td style={{ ...TD, fontSize:"11px", color:"var(--text-muted)" }}>{f.categoria}</td>
+                    <td style={{ ...TD }}>
+                      <button onClick={() => saveFacturas(facturas.filter(x => x.id !== f.id))} style={{ padding:"3px 8px", borderRadius:"4px", border:"1px solid rgba(255,61,113,0.2)", background:"transparent", color:"var(--red)", cursor:"pointer", fontSize:"11px" }}>×</button>
+                    </td>
+                  </tr>
+                ))}
+                <tr style={{ background:"var(--accent-dim)" }}>
+                  <td colSpan={3} style={{ ...TD, fontWeight:700, color:"var(--text)", borderBottom:"none" }}>TOTAL {trimFiltro}</td>
+                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--text)", borderBottom:"none" }}>
+                    {facFiltradas.reduce((s,f) => s + (f.tipo==="emitida"?f.importe:-f.importe), 0).toFixed(2)}€
+                  </td>
+                  <td colSpan={4} style={{ borderBottom:"none" }}/>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── SECCIÓN C: CALENDARIO FISCAL ── */}
+      <div style={{ ...CARD }}>
+        <p style={{ ...LABEL, marginBottom:"16px" }}>Calendario fiscal — {regime === "es" ? "España (Autónomo)" : "Paraguay"}</p>
+        {regime === "es" ? (
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:"10px" }}>
+            {CALENDARIO_FISCAL_ES.map((item, i) => {
+              const hoy = new Date();
+              const [dia, mesStr] = item.fecha_limite.split(" ");
+              const meses: Record<string, number> = { Ene:0, Abr:3, Jul:6, Oct:9, Jun:5 };
+              const targetDate = new Date(hoy.getFullYear(), meses[mesStr] ?? 0, parseInt(dia));
+              const diff = Math.ceil((targetDate.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+              const color = diff < 0 ? "var(--text-muted)" : diff < 7 ? "var(--red)" : diff < 30 ? "var(--amber)" : "var(--green)";
+              const badge = diff < 0 ? "Pasado" : diff < 7 ? `${diff}d` : diff < 30 ? `${diff}d` : "OK";
+              return (
+                <div key={i} style={{ padding:"12px 14px", borderRadius:"6px", background:"var(--surface)", border:`1px solid ${diff < 7 && diff >= 0 ? "rgba(239,68,68,0.25)" : diff < 30 && diff >= 0 ? "rgba(251,191,36,0.25)" : "var(--border)"}` }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"8px" }}>
+                    <div style={{ flex:1 }}>
+                      <p style={{ fontSize:"12px", fontWeight:600, color:"var(--text)", margin:"0 0 2px" }}>{item.concepto}</p>
+                      <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:"0 0 4px" }}>Límite: {item.fecha_limite} — {item.trimestre}</p>
+                    </div>
+                    <span style={{ fontSize:"10px", fontWeight:700, padding:"2px 7px", borderRadius:"3px", background: diff < 0 ? "var(--surface)" : diff < 7 ? "rgba(239,68,68,0.12)" : diff < 30 ? "rgba(251,191,36,0.1)" : "rgba(0,230,118,0.1)", color }}>{badge}</span>
+                  </div>
+                  <span style={{ fontSize:"10px", fontFamily:"'Space Mono', monospace", color:"var(--accent)" }}>Modelo {item.modelo}</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ padding:"20px", textAlign:"center", color:"var(--text-muted)", fontSize:"13px" }}>
+            Régimen Paraguay pendiente de configurar. Cambia arriba a "España" para ver el calendario fiscal por ahora.
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ─── SUB-COMPONENT: CALENDARIO ───────────────────────────────────────────────
@@ -385,10 +666,11 @@ function IngresosTab({ ingresos, setIngresos }: { ingresos: Ingreso[]; setIngres
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 const TABS: [Tab, string][] = [
-  ["Resumen",    "Resumen mensual"],
-  ["GastosFijos","Gastos fijos"   ],
-  ["Calendario", "Calendario"     ],
-  ["Ingresos",   "Ingresos"       ],
+  ["Resumen",    "Resumen mensual"        ],
+  ["GastosFijos","Gastos fijos"           ],
+  ["Calendario", "Calendario"             ],
+  ["Ingresos",   "Ingresos"              ],
+  ["Impuestos",  "Impuestos y Facturas"  ],
 ];
 
 export default function FinanzasPage() {
@@ -607,6 +889,9 @@ export default function FinanzasPage() {
 
       {/* ════════ TAB 4: INGRESOS ════════ */}
       {tab === "Ingresos" && <IngresosTab ingresos={ingresos} setIngresos={setIngresos} />}
+
+      {/* ════════ TAB 5: IMPUESTOS Y FACTURAS ════════ */}
+      {tab === "Impuestos" && <ImpuestosTab />}
 
       {/* ── Edit modal ── */}
       {editId !== null && (
