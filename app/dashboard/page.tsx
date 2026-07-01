@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Wallet, TrendingUp, Users, AlertTriangle, ExternalLink, RefreshCw, Bell, BellOff, CheckCircle2, Circle, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import SparkLine from "../components/spark-line";
 import AgendaDnD from "./weekly-calendar";
+import { loadPositions, STOCKS } from "../raxis-investor/tabs/CarteraTab";
+import type { Position as CarteraPosition } from "../raxis-investor/tabs/CarteraTab";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -272,48 +274,64 @@ function NotionCalendarWidget() {
 
 // ── CarteraWidget ──────────────────────────────────────────────────────────────
 
-const CARTERA_SNAP = [
-  { sym:"SWKS", qty:30,      avg:74.43,  name:"Skyworks" },
-  { sym:"RCUS", qty:50,      avg:30.40,  name:"Arcus Bio" },
-  { sym:"CRCL", qty:16,      avg:80.49,  name:"Circle" },
-  { sym:"BE",   qty:6,       avg:319.58, name:"Bloom Energy" },
-  { sym:"INTC", qty:6.5,     avg:132.73, name:"Intel" },
-];
-
 function CarteraWidget() {
-  const [quotes, setQuotes] = useState<Record<string, FinnhubQ>>({});
-  const [loading, setLoading] = useState(true);
+  const [positions, setPositions] = useState<CarteraPosition[]>([]);
+  const [quotes, setQuotes]       = useState<Record<string, FinnhubQ>>({});
+  const [loading, setLoading]     = useState(true);
   const key = process.env.NEXT_PUBLIC_FINNHUB_KEY;
 
+  useEffect(() => { setPositions(loadPositions()); }, []);
+
   useEffect(() => {
-    if (!key) { setLoading(false); return; }
+    if (!key || !positions.length) { setLoading(false); return; }
+    setLoading(true);
+    const syms = [...new Set(positions.map(p => p.symbol))];
     Promise.all(
-      CARTERA_SNAP.map(p =>
-        fetch(`https://finnhub.io/api/v1/quote?symbol=${p.sym}&token=${key}`)
+      syms.map(s =>
+        fetch(`https://finnhub.io/api/v1/quote?symbol=${s}&token=${key}`)
           .then(r => r.ok ? r.json() : null).catch(() => null)
       )
     ).then(results => {
       const m: Record<string, FinnhubQ> = {};
-      results.forEach((r, i) => { if (r?.c) m[CARTERA_SNAP[i].sym] = r; });
+      results.forEach((r, i) => { if (r?.c) m[syms[i]] = r; });
       setQuotes(m);
     }).finally(() => setLoading(false));
-  }, [key]);
+  }, [key, positions]);
 
-  const totalVal = CARTERA_SNAP.reduce((s, p) => {
-    const q = quotes[p.sym];
-    return s + (q?.c ? q.c * p.qty : p.avg * p.qty);
-  }, 0);
-  const totalPnl = CARTERA_SNAP.reduce((s, p) => {
-    const q = quotes[p.sym];
-    return s + (q?.c ? (q.c - p.avg) * p.qty : 0);
-  }, 0);
+  const getRegion = (sym: string) => STOCKS.find(s => s.symbol === sym)?.region ?? "US";
+  const getDisplay = (sym: string) => STOCKS.find(s => s.symbol === sym)?.display ?? sym;
+
+  const usPos = positions.filter(p => getRegion(p.symbol) === "US");
+  const euPos = positions.filter(p => getRegion(p.symbol) === "EU");
+
+  function calcTotals(ps: CarteraPosition[]) {
+    let val = 0, pnl = 0, hasData = false;
+    ps.forEach(p => {
+      const q = quotes[p.symbol];
+      if (q?.c) { val += q.c * p.quantity; pnl += (q.c - p.avgPrice) * p.quantity; hasData = true; }
+      else       { val += p.avgPrice * p.quantity; }
+    });
+    return { val, pnl, hasData };
+  }
+
+  const us = calcTotals(usPos);
+  const eu = calcTotals(euPos);
+
+  const topPos = [...positions]
+    .map(p => ({ ...p, q: quotes[p.symbol], region: getRegion(p.symbol), display: getDisplay(p.symbol) }))
+    .sort((a, b) => {
+      const av = a.q?.c ? a.q.c * a.quantity : a.avgPrice * a.quantity;
+      const bv = b.q?.c ? b.q.c * b.quantity : b.avgPrice * b.quantity;
+      return bv - av;
+    })
+    .slice(0, 5);
 
   return (
     <div style={CARD}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"12px" }}>
         <div>
-          <p style={{ ...LABEL, marginBottom:"2px" }}>Cartera IBKR · US</p>
-          <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:0 }}>{CARTERA_SNAP.length} posiciones · cotización Finnhub</p>
+          <p style={{ ...LABEL, marginBottom:"2px" }}>Cartera IBKR · {positions.length} posiciones</p>
+          <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:0 }}>{usPos.length} US · {euPos.length} EU · Finnhub</p>
         </div>
         <Link href="/raxis-investor" style={{ textDecoration:"none" }}>
           <span style={{ fontSize:"11px", color:"var(--accent)", display:"flex", alignItems:"center", gap:"3px" }}>ver <ExternalLink size={10}/></span>
@@ -326,33 +344,37 @@ function CarteraWidget() {
         </div>
       ) : (
         <>
-          <div style={{ display:"flex", alignItems:"baseline", gap:"10px", marginBottom:"10px" }}>
-            <p style={{ ...MONO, fontSize:"22px", fontWeight:700, color:"var(--text)", margin:0 }}>${totalVal.toLocaleString("en-US",{maximumFractionDigits:0})}</p>
-            <span style={{ ...MONO, fontSize:"13px", fontWeight:700, color:totalPnl>=0?"var(--green)":"var(--red)" }}>{totalPnl>=0?"+":""}{totalPnl.toFixed(0)} USD</span>
+          <div style={{ display:"flex", gap:"14px", alignItems:"baseline", marginBottom:"10px", flexWrap:"wrap" }}>
+            {us.hasData && (
+              <div style={{ display:"flex", alignItems:"baseline", gap:"5px" }}>
+                <span style={{ fontSize:"9px", color:"var(--text-muted)", letterSpacing:"0.05em", textTransform:"uppercase" }}>US</span>
+                <span style={{ ...MONO, fontSize:"20px", fontWeight:700, color:"var(--text)" }}>${us.val.toLocaleString("en-US",{maximumFractionDigits:0})}</span>
+                <span style={{ ...MONO, fontSize:"11px", fontWeight:700, color:us.pnl>=0?"var(--green)":"var(--red)" }}>{us.pnl>=0?"+":""}{us.pnl.toFixed(0)}</span>
+              </div>
+            )}
+            {eu.hasData && (
+              <div style={{ display:"flex", alignItems:"baseline", gap:"5px" }}>
+                <span style={{ fontSize:"9px", color:"var(--text-muted)", letterSpacing:"0.05em", textTransform:"uppercase" }}>EU</span>
+                <span style={{ ...MONO, fontSize:"20px", fontWeight:700, color:"var(--text)" }}>{eu.val.toLocaleString("en-US",{maximumFractionDigits:0})}€</span>
+                <span style={{ ...MONO, fontSize:"11px", fontWeight:700, color:eu.pnl>=0?"var(--green)":"var(--red)" }}>{eu.pnl>=0?"+":""}{eu.pnl.toFixed(0)}</span>
+              </div>
+            )}
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:"5px" }}>
-            {CARTERA_SNAP.slice(0, 4).map(p => {
-              const q = quotes[p.sym];
-              const pnl = q?.c ? (q.c - p.avg) * p.qty : null;
-              const dp  = q?.dp ?? null;
+            {topPos.map(p => {
+              const pnl = p.q?.c ? (p.q.c - p.avgPrice) * p.quantity : null;
+              const dp  = p.q?.dp ?? null;
+              const curr = p.region === "EU" ? "€" : "$";
               return (
-                <div key={p.sym} style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                  <span style={{ fontSize:"12px", color:"var(--text-mid)" }}>
-                    <span style={{ ...MONO, fontWeight:700, color:"var(--accent)" }}>{p.sym}</span>
-                    <span style={{ color:"var(--text-muted)", marginLeft:"5px" }}>{p.qty} acc</span>
+                <div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <span style={{ fontSize:"12px", color:"var(--text-mid)", display:"flex", alignItems:"center", gap:"5px" }}>
+                    <span style={{ ...MONO, fontWeight:700, color:"var(--accent)" }}>{p.display}</span>
+                    <span style={{ color:"var(--text-muted)", fontSize:"10px" }}>{p.quantity} acc</span>
                   </span>
                   <span style={{ display:"flex", gap:"6px", alignItems:"center" }}>
-                    {q?.c && <span style={{ ...MONO, fontSize:"12px" }}>${q.c.toFixed(2)}</span>}
-                    {dp !== null && (
-                      <span style={{ ...MONO, fontSize:"10px", fontWeight:700, color:dp>=0?"var(--green)":"var(--red)" }}>
-                        {dp>=0?"+":""}{dp.toFixed(1)}%
-                      </span>
-                    )}
-                    {pnl !== null && (
-                      <span style={{ ...MONO, fontSize:"10px", color:pnl>=0?"var(--green)":"var(--red)" }}>
-                        {pnl>=0?"+":""}{pnl.toFixed(0)}$
-                      </span>
-                    )}
+                    {p.q?.c && <span style={{ ...MONO, fontSize:"12px" }}>{curr}{p.q.c.toFixed(2)}</span>}
+                    {dp !== null && <span style={{ ...MONO, fontSize:"10px", fontWeight:700, color:dp>=0?"var(--green)":"var(--red)" }}>{dp>=0?"+":""}{dp.toFixed(1)}%</span>}
+                    {pnl !== null && <span style={{ ...MONO, fontSize:"10px", color:pnl>=0?"var(--green)":"var(--red)" }}>{pnl>=0?"+":""}{pnl.toFixed(0)}{curr}</span>}
                   </span>
                 </div>
               );
