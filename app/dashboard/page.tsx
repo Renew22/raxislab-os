@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Wallet, TrendingUp, Users, AlertTriangle, ExternalLink, RefreshCw, Bell, BellOff, CheckCircle2, Circle } from "lucide-react";
+import { Wallet, TrendingUp, Users, AlertTriangle, ExternalLink, RefreshCw, Bell, BellOff, CheckCircle2, Circle, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import SparkLine from "../components/spark-line";
 import AgendaDnD from "./weekly-calendar";
 
@@ -46,6 +46,11 @@ interface ServerData {
 
 interface Task { id: string; text: string; done: boolean; priority: 'critical' | 'important' | 'low' }
 
+interface NotionTask {
+  id: string; title: string; proyecto: string;
+  estado: string; prioridad: string; fecha: string | null; soloYo: boolean;
+}
+
 // ── Static config ──────────────────────────────────────────────────────────────
 
 const CLIENTES = [
@@ -80,6 +85,189 @@ const NUM   = { ...MONO, fontWeight: 700, fontSize: "28px", lineHeight: 1, margi
 
 function cardHover(e: React.MouseEvent<HTMLDivElement>, enter: boolean) {
   (e.currentTarget as HTMLDivElement).style.borderColor = enter ? "var(--border-accent)" : "var(--border)";
+}
+
+// ── NotionCalendarWidget ───────────────────────────────────────────────────────
+
+const PRIORIDAD_COLOR: Record<string, string> = {
+  "Critica": "var(--red)",
+  "Alta":    "var(--amber)",
+  "Media":   "var(--accent)",
+  "Baja":    "var(--text-muted)",
+};
+
+const ESTADO_COLOR: Record<string, string> = {
+  "Completado":  "var(--green)",
+  "En progreso": "var(--accent)",
+  "Bloqueado":   "var(--red)",
+  "Pendiente":   "var(--text-muted)",
+};
+
+function NotionCalendarWidget() {
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+  const [viewDate, setViewDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+  const [tasks, setTasks]       = useState<NotionTask[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+
+  useEffect(() => {
+    setLoading(true);
+    const y  = viewDate.getFullYear();
+    const m  = String(viewDate.getMonth() + 1).padStart(2, "0");
+    const from = `${y}-${m}-01`;
+    const last = new Date(y, viewDate.getMonth() + 1, 0).getDate();
+    const to   = `${y}-${m}-${String(last).padStart(2, "0")}`;
+    fetch(`/api/notion/tasks?from=${from}&to=${to}`)
+      .then(r => r.json()).then(d => setTasks(d.tasks ?? []))
+      .catch(() => setTasks([])).finally(() => setLoading(false));
+  }, [viewDate]);
+
+  const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+  const firstDay    = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
+  const startBlank  = (firstDay + 6) % 7; // Mon=0
+
+  const tasksByDate: Record<string, NotionTask[]> = {};
+  tasks.forEach(t => {
+    if (t.fecha) {
+      const d = t.fecha.split("T")[0];
+      tasksByDate[d] = [...(tasksByDate[d] ?? []), t];
+    }
+  });
+
+  const selectedTasks = tasksByDate[selectedDate] ?? [];
+  const monthLabel    = viewDate.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+
+  const prevMonth = () => setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+  const nextMonth = () => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+  const goToday   = () => {
+    setViewDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    setSelectedDate(todayStr);
+  };
+
+  return (
+    <div style={CARD}>
+      {/* header */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"14px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+          <CalendarDays size={14} color="var(--text-muted)"/>
+          <p style={{ ...LABEL, marginBottom:0 }}>Tareas Notion · Calendario</p>
+          {loading && <RefreshCw size={11} color="var(--text-muted)" style={{ animation:"spin 1s linear infinite" }}/>}
+        </div>
+        <div style={{ display:"flex", gap:"4px", alignItems:"center" }}>
+          <button onClick={prevMonth} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text-muted)", padding:"3px 6px", borderRadius:"4px", display:"flex", alignItems:"center" }}>
+            <ChevronLeft size={14}/>
+          </button>
+          <span style={{ fontSize:"12px", color:"var(--text)", fontWeight:600, textTransform:"capitalize", minWidth:"140px", textAlign:"center" }}>{monthLabel}</span>
+          <button onClick={nextMonth} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--text-muted)", padding:"3px 6px", borderRadius:"4px", display:"flex", alignItems:"center" }}>
+            <ChevronRight size={14}/>
+          </button>
+          <button onClick={goToday} style={{ background:"none", border:"1px solid var(--border)", cursor:"pointer", color:"var(--text-muted)", padding:"2px 8px", borderRadius:"4px", fontSize:"10px", marginLeft:"4px" }}>Hoy</button>
+        </div>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"20px" }}>
+        {/* Calendar grid */}
+        <div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:"6px" }}>
+            {["L","M","X","J","V","S","D"].map(d => (
+              <div key={d} style={{ textAlign:"center", fontSize:"9px", fontWeight:700, color:"var(--text-muted)", letterSpacing:"0.05em" }}>{d}</div>
+            ))}
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:"2px" }}>
+            {Array.from({ length: startBlank }).map((_, i) => <div key={`b${i}`}/>)}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const ds  = `${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+              const dt  = tasksByDate[ds] ?? [];
+              const isToday    = ds === todayStr;
+              const isSelected = ds === selectedDate;
+              return (
+                <div
+                  key={day}
+                  onClick={() => setSelectedDate(ds)}
+                  style={{
+                    textAlign:"center", padding:"3px 1px", borderRadius:"5px", cursor:"pointer",
+                    minHeight:"34px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:"2px",
+                    background: isSelected ? "var(--accent-dim)" : isToday ? "rgba(255,255,255,0.04)" : "transparent",
+                    border: isToday ? "1px solid var(--border-accent)" : "1px solid transparent",
+                    transition:"background 0.1s",
+                  }}
+                >
+                  <span style={{ fontSize:"11px", fontWeight: isToday||isSelected ? 700 : 400, color: isSelected ? "var(--accent)" : isToday ? "var(--text)" : "var(--text-muted)", fontFamily:"'Space Mono',monospace" }}>{day}</span>
+                  {dt.length > 0 && (
+                    <div style={{ display:"flex", gap:"2px", justifyContent:"center", flexWrap:"wrap" }}>
+                      {dt.slice(0,4).map(t => (
+                        <div key={t.id} style={{ width:"4px", height:"4px", borderRadius:"50%", background: PRIORIDAD_COLOR[t.prioridad] ?? "var(--text-muted)" }}/>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {/* Legend */}
+          <div style={{ display:"flex", gap:"12px", marginTop:"10px", flexWrap:"wrap" }}>
+            {Object.entries(PRIORIDAD_COLOR).map(([label, color]) => (
+              <div key={label} style={{ display:"flex", alignItems:"center", gap:"4px" }}>
+                <div style={{ width:"6px", height:"6px", borderRadius:"50%", background:color }}/>
+                <span style={{ fontSize:"9px", color:"var(--text-muted)" }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Task list for selected date */}
+        <div>
+          <p style={{ fontSize:"10px", fontWeight:600, letterSpacing:"0.07em", textTransform:"uppercase", color:"var(--text-muted)", marginBottom:"10px" }}>
+            {new Date(selectedDate + "T12:00:00").toLocaleDateString("es-ES", { weekday:"long", day:"numeric", month:"long" })}
+          </p>
+          {selectedTasks.length === 0 ? (
+            <p style={{ fontSize:"12px", color:"var(--text-muted)", lineHeight:1.5 }}>
+              {loading ? "Cargando…" : "Sin tareas este día"}
+            </p>
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", gap:"6px", maxHeight:"200px", overflowY:"auto" }}>
+              {selectedTasks.map(t => (
+                <div key={t.id} style={{ display:"flex", gap:"8px", alignItems:"flex-start", padding:"7px 9px", borderRadius:"5px", border:"1px solid var(--border)", background: t.estado === "Completado" ? "transparent" : "rgba(255,255,255,0.02)" }}>
+                  <div style={{ width:"6px", height:"6px", borderRadius:"50%", background: PRIORIDAD_COLOR[t.prioridad] ?? "var(--text-muted)", flexShrink:0, marginTop:"4px" }}/>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p style={{ fontSize:"12px", color: t.estado === "Completado" ? "var(--text-muted)" : "var(--text)", margin:0, lineHeight:1.4, textDecoration: t.estado === "Completado" ? "line-through" : "none", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {t.soloYo ? "🔒 " : ""}{t.title}
+                    </p>
+                    <div style={{ display:"flex", gap:"6px", marginTop:"3px", flexWrap:"wrap" }}>
+                      {t.proyecto && <span style={{ fontSize:"9px", padding:"1px 5px", borderRadius:"3px", background:"rgba(255,255,255,0.06)", color:"var(--text-muted)" }}>{t.proyecto}</span>}
+                      <span style={{ fontSize:"9px", color: ESTADO_COLOR[t.estado] ?? "var(--text-muted)" }}>{t.estado}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Month summary */}
+          {tasks.length > 0 && (
+            <div style={{ marginTop:"14px", paddingTop:"12px", borderTop:"1px solid var(--border)" }}>
+              <p style={{ fontSize:"10px", color:"var(--text-muted)", margin:"0 0 6px", letterSpacing:"0.06em", textTransform:"uppercase" }}>Este mes</p>
+              <div style={{ display:"flex", gap:"12px" }}>
+                <div>
+                  <span style={{ ...MONO, fontSize:"18px", fontWeight:700, color:"var(--text)" }}>{tasks.length}</span>
+                  <p style={{ fontSize:"10px", color:"var(--text-muted)", margin:0 }}>total</p>
+                </div>
+                <div>
+                  <span style={{ ...MONO, fontSize:"18px", fontWeight:700, color:"var(--green)" }}>{tasks.filter(t=>t.estado==="Completado").length}</span>
+                  <p style={{ fontSize:"10px", color:"var(--text-muted)", margin:0 }}>hechas</p>
+                </div>
+                <div>
+                  <span style={{ ...MONO, fontSize:"18px", fontWeight:700, color:"var(--red)" }}>{tasks.filter(t=>t.prioridad==="Critica"&&t.estado!=="Completado").length}</span>
+                  <p style={{ fontSize:"10px", color:"var(--text-muted)", margin:0 }}>críticas</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── CarteraWidget ──────────────────────────────────────────────────────────────
@@ -532,6 +720,11 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* ── Row 2.5: Notion Calendar ── */}
+      <div style={{ marginBottom:"24px" }}>
+        <NotionCalendarWidget/>
       </div>
 
       {/* ── Row 3: Agenda + Briefing ── */}

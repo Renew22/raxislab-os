@@ -27,6 +27,16 @@ interface EarningsEvent {
   epsEstimate: number | null;
 }
 
+interface InsiderBuy {
+  filingDate: string; tradeDate: string; ticker: string; company: string;
+  insiderName: string; title: string; value: number; qty: number; price: number; score: number;
+}
+
+interface NewsItem {
+  id: string; publisher: string; title: string;
+  published_utc: string; article_url: string; tickers: string[];
+}
+
 // ── Watchlist default ─────────────────────────────────────────────────────────
 
 // Cartera real IBKR (US tickers con datos en Polygon) — 2026-06-30
@@ -66,6 +76,11 @@ export default function ScoreEnginePage() {
   const [earnings, setEarnings]         = useState<EarningsEvent[]>([]);
   const [earningsLoading, setEarningsLoading] = useState(false);
   const [earningsError, setEarningsError]     = useState<string | null>(null);
+  const [insiders, setInsiders]         = useState<InsiderBuy[]>([]);
+  const [insidersLoading, setInsidersLoading] = useState(false);
+  const [insidersError, setInsidersError]     = useState<string | null>(null);
+  const [news, setNews]                 = useState<NewsItem[]>([]);
+  const [newsLoading, setNewsLoading]   = useState(false);
   const [newTicker, setNewTicker]       = useState("");
   const [loading, setLoading]           = useState(false);
   const [lastUpdate, setLastUpdate]     = useState<string | null>(null);
@@ -131,6 +146,39 @@ export default function ScoreEnginePage() {
     setLoading(false);
   }
 
+  async function fetchInsiders() {
+    setInsidersLoading(true); setInsidersError(null);
+    try {
+      const r = await fetch("/api/openinsider");
+      const j = await r.json();
+      if (j.error) { setInsidersError(j.error); return; }
+      setInsiders(j.insiders ?? []);
+    } catch (e) { setInsidersError(String(e)); }
+    finally { setInsidersLoading(false); }
+  }
+
+  async function fetchNews() {
+    setNewsLoading(true);
+    try {
+      // Fetch news for all watchlist tickers, merge and dedupe
+      const results = await Promise.allSettled(
+        watchlist.map(t => fetch(`/api/polygon/news?ticker=${t}&limit=5`).then(r => r.json()))
+      );
+      const all: NewsItem[] = [];
+      const seen = new Set<string>();
+      results.forEach(r => {
+        if (r.status === "fulfilled" && r.value.results) {
+          r.value.results.forEach((n: NewsItem) => {
+            if (!seen.has(n.id)) { seen.add(n.id); all.push(n); }
+          });
+        }
+      });
+      all.sort((a, b) => new Date(b.published_utc).getTime() - new Date(a.published_utc).getTime());
+      setNews(all.slice(0, 20));
+    } catch { /* silent */ }
+    finally { setNewsLoading(false); }
+  }
+
   async function fetchEarnings() {
     setEarningsLoading(true); setEarningsError(null);
     try {
@@ -147,6 +195,8 @@ export default function ScoreEnginePage() {
   useEffect(() => {
     fetchScores(watchlist);
     fetchEarnings();
+    fetchInsiders();
+    fetchNews();
   }, []);
 
   function addTicker() {
@@ -322,34 +372,91 @@ export default function ScoreEnginePage() {
         </div>
       </div>
 
-      {/* Pending sections */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"16px" }}>
-        <div style={{ ...CARD, padding:"16px 20px" }}>
-          <p style={{ ...LABEL, marginBottom:"8px" }}>Insider Buys (OpenInsider)</p>
-          <div style={{ padding:"14px", borderRadius:"5px", background:"rgba(251,191,36,0.05)", border:"1px solid rgba(251,191,36,0.2)" }}>
-            <p style={{ fontSize:"12px", color:"var(--amber)", margin:"0 0 6px", fontWeight:600 }}>Pendiente — Fase 2</p>
-            <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:0, lineHeight:1.6 }}>
-              Se implementará scraping de openinsider.com con filtro &gt;$100K. Incluirá scoring por cargo (CEO/CFO/Founder) y detección de cluster buys.
-              <br/>Confirma antes si prefieres implementar esto o una alternativa de API de pago.
-            </p>
-          </div>
+      {/* Insider Buys — OpenInsider */}
+      <div style={{ ...CARD, overflow:"hidden" }}>
+        <div style={{ padding:"12px 16px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <p style={{ ...LABEL, margin:0 }}>Insider Buys — últimos 14 días &gt;$100K</p>
+          <button onClick={fetchInsiders} disabled={insidersLoading} style={{ fontSize:"11px", color:"var(--accent)", background:"none", border:"none", cursor:"pointer" }}>
+            {insidersLoading ? "..." : "↺"}
+          </button>
         </div>
-        <div style={{ ...CARD, padding:"16px 20px" }}>
-          <p style={{ ...LABEL, marginBottom:"8px" }}>Unusual Options Activity</p>
-          <div style={{ padding:"14px", borderRadius:"5px", background:"rgba(251,191,36,0.05)", border:"1px solid rgba(251,191,36,0.2)" }}>
-            <p style={{ fontSize:"12px", color:"var(--amber)", margin:"0 0 6px", fontWeight:600 }}>Pendiente — Requiere suscripción</p>
-            <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:0, lineHeight:1.6 }}>
-              Finnhub y Polygon Free no tienen unusual options data. Opciones: Unusual Whales API (~$50/mes) o aproximación con volumen anómalo de Polygon. Confirma cuál prefieres.
-            </p>
-          </div>
-        </div>
+        {insidersError && (
+          <p style={{ padding:"12px 16px", fontSize:"12px", color:"var(--red)", margin:0 }}>Error: {insidersError}</p>
+        )}
+        {!insidersLoading && !insidersError && insiders.length === 0 && (
+          <p style={{ padding:"14px 16px", fontSize:"12px", color:"var(--text-muted)", margin:0 }}>Sin insider buys &gt;$100K en los últimos 14 días.</p>
+        )}
+        {insiders.length > 0 && (
+          <table style={{ width:"100%", borderCollapse:"collapse" }}>
+            <thead>
+              <tr>{["Ticker","Insider","Cargo","Valor","Precio","Fecha","Score"].map(h => (
+                <th key={h} style={{ padding:"7px 12px", textAlign:"left", fontSize:"10px", fontWeight:600, color:"var(--text-muted)", borderBottom:"1px solid var(--border)" }}>{h}</th>
+              ))}</tr>
+            </thead>
+            <tbody>
+              {insiders.slice(0, 15).map((ins, i) => {
+                const inWatchlist = watchlist.includes(ins.ticker);
+                const scoreColors = ["","var(--text-muted)","var(--amber)","var(--green)"];
+                return (
+                  <tr key={i} style={{ borderBottom:"1px solid var(--border)", background: inWatchlist ? "rgba(0,87,255,0.04)" : "transparent" }}>
+                    <td style={{ padding:"8px 12px" }}>
+                      <span style={{ ...MONO, fontWeight:700, color: inWatchlist ? "var(--accent)" : "var(--text)", fontSize:"13px" }}>
+                        {ins.ticker} {inWatchlist && <span style={{ fontSize:"8px", color:"var(--accent)" }}>WL</span>}
+                      </span>
+                    </td>
+                    <td style={{ padding:"8px 12px", fontSize:"12px", color:"var(--text)" }}>{ins.insiderName}</td>
+                    <td style={{ padding:"8px 12px", fontSize:"11px", color:"var(--text-muted)" }}>{ins.title.slice(0, 22)}</td>
+                    <td style={{ padding:"8px 12px", ...MONO, fontSize:"12px", color:"var(--green)", fontWeight:600 }}>
+                      ${(ins.value / 1000).toFixed(0)}K
+                    </td>
+                    <td style={{ padding:"8px 12px", ...MONO, fontSize:"12px", color:"var(--text-muted)" }}>${ins.price.toFixed(2)}</td>
+                    <td style={{ padding:"8px 12px", fontSize:"11px", color:"var(--text-muted)" }}>{ins.tradeDate}</td>
+                    <td style={{ padding:"8px 12px" }}>
+                      <span style={{ fontSize:"13px" }}>{"⭐".repeat(ins.score)}</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
 
-      {/* Finviz screener notice */}
-      <div style={{ ...CARD, padding:"14px 18px" }}>
-        <p style={{ fontSize:"12px", color:"var(--text-muted)", margin:0 }}>
-          <strong style={{ color:"var(--text)" }}>Screener Finviz:</strong> El scraping de finviz.com está implementado en la fase 2. Si Finviz bloquea el scraping, se puede usar Finviz Elite (~$40/mes) para CSV limpio. Por ahora, el Score Engine usa Polygon para todos los datos técnicos de la watchlist.
-        </p>
+      {/* Noticias — Polygon Starter */}
+      <div style={{ ...CARD, overflow:"hidden" }}>
+        <div style={{ padding:"12px 16px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <p style={{ ...LABEL, margin:0 }}>Noticias watchlist (Polygon)</p>
+          <button onClick={fetchNews} disabled={newsLoading} style={{ fontSize:"11px", color:"var(--accent)", background:"none", border:"none", cursor:"pointer" }}>
+            {newsLoading ? "..." : "↺"}
+          </button>
+        </div>
+        {!newsLoading && news.length === 0 && (
+          <p style={{ padding:"14px 16px", fontSize:"12px", color:"var(--text-muted)", margin:0 }}>Sin noticias recientes en watchlist.</p>
+        )}
+        <div style={{ display:"flex", flexDirection:"column" }}>
+          {news.slice(0, 12).map((n, i) => {
+            const ts   = new Date(n.published_utc);
+            const diff = Math.floor((Date.now() - ts.getTime()) / 60000);
+            const timeStr = diff < 60 ? `${diff}m` : diff < 1440 ? `${Math.floor(diff/60)}h` : `${Math.floor(diff/1440)}d`;
+            const tks = (n.tickers ?? []).filter((t: string) => watchlist.includes(t));
+            return (
+              <div key={n.id ?? i} style={{ padding:"10px 14px", borderBottom:"1px solid var(--border)", display:"flex", gap:"12px", alignItems:"flex-start" }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:"flex", gap:"6px", flexWrap:"wrap", marginBottom:"4px" }}>
+                    {tks.map((t: string) => (
+                      <span key={t} style={{ ...MONO, fontSize:"9px", fontWeight:700, padding:"1px 5px", borderRadius:"3px", background:"var(--accent-dim)", color:"var(--accent)" }}>{t}</span>
+                    ))}
+                  </div>
+                  <a href={n.article_url as string} target="_blank" rel="noopener noreferrer"
+                     style={{ fontSize:"13px", color:"var(--text)", textDecoration:"none", lineHeight:1.4, display:"block" }}>
+                    {n.title as string}
+                  </a>
+                  <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:"3px 0 0" }}>{n.publisher} · {timeStr}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
