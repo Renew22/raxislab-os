@@ -18,84 +18,93 @@ type Flow = {
 type ModalState = { open: boolean; nombre: string; frecuencia: string; accion: string };
 type ResultState = { flowId: number; content: string; error?: boolean } | null;
 
+// Genera fechas relativas reales en lugar de hardcodear "9 Jun"
+function nextWeekday(day: number, hour: string): string {
+  // day: 0=Dom, 1=Lun... 6=Sab
+  const now   = new Date();
+  const d     = new Date(now);
+  const diff  = (day - now.getDay() + 7) % 7 || 7;
+  d.setDate(now.getDate() + diff);
+  const days  = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  return `${days[d.getDay()]} ${d.getDate()} ${d.toLocaleDateString("es-ES",{month:"short"})} · ${hour}`;
+}
+function yesterday(hour: string) { return `Ayer · ${hour}`; }
+function today(hour: string)     { return `Hoy · ${hour}`; }
+
 const INITIAL_FLOWS: Flow[] = [
+  // ── ACTIVOS EN HETZNER ───────────────────────────────────────────────────
   {
-    id: 8, nombre: "Reporte semanal Identity",
-    descripcion: "Extrae métricas de Identity Peluqueros → Claude genera resumen narrativo → envía WhatsApp al cliente cada lunes",
-    stack: "Windsor.ai + Claude + WhatsApp", frecuencia: "Semanal · Lun 09:00",
-    ultimaEjecucion: "Lun 9 Jun · 09:00", proximaEjecucion: "Lun 16 Jun · 09:00", activo: true,
+    id: 20, nombre: "Briefing diario · 07:00 UTC",
+    descripcion: "Resumen de cartera + Meta + tareas críticas Notion → Telegram cada mañana L-V",
+    stack: "Finnhub + Meta API + Notion + Telegram", frecuencia: "Diario L-V · 07:00 UTC",
+    ultimaEjecucion: today("07:00"), proximaEjecucion: "Mañana · 07:00", activo: true,
   },
   {
-    id: 9, nombre: "Backup trading",
-    descripcion: "Exporta posiciones e historial de IBKR → comprime y sube a Google Drive → confirmación por Telegram",
-    stack: "IBKR + Google Drive + Telegram", frecuencia: "Diario · 22:00",
-    ultimaEjecucion: "Ayer · 22:00", proximaEjecucion: "Hoy · 22:00", activo: true,
+    id: 21, nombre: "M15 Pre-señales · cada 5 min",
+    descripcion: "Detecta pre-señales técnicas (vol, RSI, SMA200, EMA cruce) en cartera → Telegram 🔮",
+    stack: "Polygon + Hetzner Scanner", frecuencia: "Cada 5 min · L-V 15:00-22:00",
+    ultimaEjecucion: today("última ventana"), proximaEjecucion: "Próxima apertura", activo: true,
   },
+  {
+    id: 22, nombre: "Noticias por ticker · c/30 min",
+    descripcion: "Finnhub company-news para CRCL/RCUS/KEEL/MO/AAOI/SWKS/INTC/BE → Telegram si hay nueva",
+    stack: "Finnhub + Hetzner + Telegram", frecuencia: "L-V · 0min y 30min",
+    ultimaEjecucion: today("última hora"), proximaEjecucion: "Próxima media hora", activo: true,
+  },
+  {
+    id: 23, nombre: "Catalizadores semanales · Lun 08:00",
+    descripcion: "Earnings Finnhub + eventos macro por sector para toda la semana → Telegram resumen",
+    stack: "Finnhub + Hetzner + Telegram", frecuencia: "Semanal · Lun 08:00 Madrid",
+    ultimaEjecucion: nextWeekday(1, "08:00"), proximaEjecucion: nextWeekday(1, "08:00"), activo: true,
+  },
+  // ── FLOWS EJECUTABLES DESDE OS ───────────────────────────────────────────
   {
     id: 10, nombre: "Recordatorio plan domingo",
-    descripcion: "Cada domingo a las 20:00 envía Telegram con el plan de la semana y bloques de Deep Work pendientes",
+    descripcion: "Cada domingo a las 20:00 envía Telegram con el plan de la semana y tareas críticas",
     stack: "Telegram", frecuencia: "Semanal · Dom 20:00",
-    ultimaEjecucion: "Dom 8 Jun · 20:00", proximaEjecucion: "Dom 15 Jun · 20:00", activo: true,
+    ultimaEjecucion: nextWeekday(0, "20:00"), proximaEjecucion: nextWeekday(0, "20:00"), activo: true,
     apiPath: "/api/telegram/send",
-    apiBody: { text: "📅 <b>Plan semanal RaxisLab</b>\n\n🔵 <b>Deep Work (mañanas)</b>\n• Desarrollo RaxisLab OS\n• Contenido clientes\n• Prospección nuevos leads\n\n🟡 <b>Clientes</b>\n• Identity Peluqueros — revisar métricas\n• Desancho — reseñas pendientes\n\n🔴 <b>Urgente</b>\n• Cerrar propuesta Last Mile\n\n¡Buena semana! 💪" },
+    apiBody: { text: "📅 <b>Plan semanal RaxisLab</b>\n\n🔵 <b>Deep Work (mañanas)</b>\n• Desarrollo RaxisLab OS\n• Contenido clientes\n• Captación nuevos leads\n\n🟡 <b>Clientes</b>\n• Identity Peluqueros — revisar métricas\n• Desancho — reseñas pendientes\n\n🔴 <b>Urgente</b>\n• Ver tareas en OS → Calendario Notion\n\n¡Buena semana! 💪" },
   },
   {
-    id: 11, nombre: "Notificación cobros",
-    descripcion: "Revisa gastos fijos del día siguiente a las 20:00 — alerta en Telegram si hay cobros programados mañana",
-    stack: "Telegram", frecuencia: "Diario · 20:00",
-    ultimaEjecucion: "Ayer · 20:00", proximaEjecucion: "Hoy · 20:00", activo: true,
+    id: 11, nombre: "Notificación cobros del día",
+    descripcion: "Alerta manual con recordatorio de cobros programados para hoy",
+    stack: "Telegram", frecuencia: "Manual / Diario 20:00",
+    ultimaEjecucion: yesterday("20:00"), proximaEjecucion: today("20:00"), activo: true,
     apiPath: "/api/telegram/send",
-    apiBody: { text: "💳 <b>Cobros mañana</b>\n\nRevisa tu cuenta — puede haber cargos programados.\nVe a Finanzas para ver el detalle." },
+    apiBody: { text: "💳 <b>Recordatorio cobros</b>\n\nRevisa tu cuenta bancaria — puede haber cargos programados hoy.\nVe a /finanzas para ver el detalle completo." },
   },
   {
-    id: 1, nombre: "Flow 01 — Reporte Semanal",
-    descripcion: "Extrae métricas de Windsor.ai → Claude genera resumen narrativo → envía email al cliente",
-    stack: "Windsor.ai + Claude + Gmail", frecuencia: "Semanal · Lun 08:00",
-    ultimaEjecucion: null, proximaEjecucion: "Lun 16 Jun · 08:00", activo: false,
-  },
-  {
-    id: 2, nombre: "Flow 02 — GBP Post Semanal",
-    descripcion: "Claude redacta post → publica en Google Business Profile del cliente seleccionado",
+    id: 2, nombre: "GBP Post Semanal",
+    descripcion: "Claude redacta post para Google Business Profile del cliente seleccionado",
     stack: "Claude + Google Business", frecuencia: "Semanal · Mié 10:00",
-    ultimaEjecucion: null, proximaEjecucion: "Mié 18 Jun · 10:00", activo: false,
+    ultimaEjecucion: null, proximaEjecucion: nextWeekday(3, "10:00"), activo: false,
     apiPath: "/api/flows/blog",
     apiBody: { topic: "Novedades y promociones del negocio", sector: "estética/peluquería" },
   },
   {
-    id: 3, nombre: "Flow 03 — Respuesta Reseñas",
-    descripcion: "Detecta nueva reseña → Claude genera respuesta personalizada → aprobación por Telegram → publica",
-    stack: "Claude + Telegram + Google Business", frecuencia: "Tiempo real",
+    id: 3, nombre: "Respuesta Reseñas Google",
+    descripcion: "Genera respuesta personalizada para reseña → copia lista para publicar en GBP",
+    stack: "Claude + Google Business", frecuencia: "Tiempo real",
     ultimaEjecucion: null, proximaEjecucion: "Al recibir reseña", activo: false,
     apiPath: "/api/flows/reviews",
     apiBody: { reviewText: "Muy buen servicio, el personal muy atento y el resultado excelente. Volveré sin duda.", reviewerName: "María García", rating: 5, clientName: "Identity Peluqueros", sector: "Peluquería" },
   },
   {
-    id: 4, nombre: "Flow 04 — Briefing Trading",
-    descripcion: "IBKR obtiene posiciones → Claude genera briefing → Telegram a las 08:45",
-    stack: "IBKR + Claude + Telegram", frecuencia: "Diario (lab) · 08:45",
-    ultimaEjecucion: "Hoy · 08:45", proximaEjecucion: "Mañana · 08:45", activo: false,
-  },
-  {
-    id: 5, nombre: "Flow 05 — Blog EN",
-    descripcion: "Detecta tendencias de búsqueda → Claude redacta artículo en inglés → crea borrador",
+    id: 5, nombre: "Blog artículo EN (AdSense)",
+    descripcion: "Claude redacta artículo SEO en inglés para Blog AdSense → borrador listo para publicar",
     stack: "Claude", frecuencia: "Semanal · Vie 15:00",
-    ultimaEjecucion: null, proximaEjecucion: "Vie 20 Jun · 15:00", activo: false,
+    ultimaEjecucion: null, proximaEjecucion: nextWeekday(5, "15:00"), activo: false,
     apiPath: "/api/flows/blog",
     apiBody: { topic: "How to grow your local business with Meta Ads in 2025", keyword: "local business marketing", sector: "digital marketing" },
   },
   {
-    id: 6, nombre: "Flow 06 — Guiones YouTube",
-    descripcion: "Analiza temas trending del nicho → Claude genera guión estructurado → envía a Telegram cada viernes",
+    id: 6, nombre: "Guión YouTube",
+    descripcion: "Claude genera guión estructurado de 8-10 min para canal YouTube automation",
     stack: "Claude + Telegram", frecuencia: "Semanal · Vie 16:00",
-    ultimaEjecucion: null, proximaEjecucion: "Vie 20 Jun · 16:00", activo: false,
+    ultimaEjecucion: null, proximaEjecucion: nextWeekday(5, "16:00"), activo: false,
     apiPath: "/api/flows/youtube-script",
     apiBody: { topic: "Cómo conseguir más clientes para tu negocio local con Meta Ads", duracion: "8-10 minutos" },
-  },
-  {
-    id: 7, nombre: "Flow 07 — Cazador de Empresas",
-    descripcion: "SEC EDGAR filtra empresas por criterios → Claude analiza y puntúa → alerta en Telegram",
-    stack: "SEC EDGAR + Claude + Telegram", frecuencia: "Semanal · Dom 18:00",
-    ultimaEjecucion: null, proximaEjecucion: "Dom 15 Jun · 18:00", activo: false,
   },
 ];
 
