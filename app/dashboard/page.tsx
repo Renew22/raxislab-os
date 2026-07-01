@@ -16,17 +16,7 @@ interface BriefingEntry {
   briefingCompleto: string;
 }
 
-interface HoodData {
-  ticker: string; price: number | null; open: number | null;
-  high52w: number | null; low52w: number | null;
-  vol: number | null; volAvg20: number | null; volRatio: number | null;
-  entry: number; qty: number;
-  pnl: number | null; pnlPct: number | null; valor: number | null;
-  earnings: { date: string; hour: string; epsEstimate: number | null; daysLeft: number | null } | null;
-  sparkline: { t: number; c: number }[];
-  updatedAt: string;
-  error?: string;
-}
+interface FinnhubQ { c: number; d: number; dp: number }
 
 interface M9Candidate {
   ticker: string; price?: number; score: number;
@@ -92,54 +82,94 @@ function cardHover(e: React.MouseEvent<HTMLDivElement>, enter: boolean) {
   (e.currentTarget as HTMLDivElement).style.borderColor = enter ? "var(--border-accent)" : "var(--border)";
 }
 
-// ── HoodWidget ─────────────────────────────────────────────────────────────────
+// ── CarteraWidget ──────────────────────────────────────────────────────────────
 
-function HoodWidget() {
-  const [data, setData]     = useState<HoodData | null>(null);
+const CARTERA_SNAP = [
+  { sym:"SWKS", qty:30,      avg:74.43,  name:"Skyworks" },
+  { sym:"RCUS", qty:50,      avg:30.40,  name:"Arcus Bio" },
+  { sym:"CRCL", qty:16,      avg:80.49,  name:"Circle" },
+  { sym:"BE",   qty:6,       avg:319.58, name:"Bloom Energy" },
+  { sym:"INTC", qty:6.5,     avg:132.73, name:"Intel" },
+];
+
+function CarteraWidget() {
+  const [quotes, setQuotes] = useState<Record<string, FinnhubQ>>({});
   const [loading, setLoading] = useState(true);
+  const key = process.env.NEXT_PUBLIC_FINNHUB_KEY;
 
   useEffect(() => {
-    fetch("/api/trading/hood")
-      .then(r => r.json()).then(setData).catch(() => setData(null)).finally(() => setLoading(false));
-  }, []);
+    if (!key) { setLoading(false); return; }
+    Promise.all(
+      CARTERA_SNAP.map(p =>
+        fetch(`https://finnhub.io/api/v1/quote?symbol=${p.sym}&token=${key}`)
+          .then(r => r.ok ? r.json() : null).catch(() => null)
+      )
+    ).then(results => {
+      const m: Record<string, FinnhubQ> = {};
+      results.forEach((r, i) => { if (r?.c) m[CARTERA_SNAP[i].sym] = r; });
+      setQuotes(m);
+    }).finally(() => setLoading(false));
+  }, [key]);
 
-  const pnlClr = data?.pnl != null ? (data.pnl >= 0 ? "var(--green)" : "var(--red)") : "var(--text-muted)";
-  const sparkData = data?.sparkline?.map(p => p.c) ?? [];
+  const totalVal = CARTERA_SNAP.reduce((s, p) => {
+    const q = quotes[p.sym];
+    return s + (q?.c ? q.c * p.qty : p.avg * p.qty);
+  }, 0);
+  const totalPnl = CARTERA_SNAP.reduce((s, p) => {
+    const q = quotes[p.sym];
+    return s + (q?.c ? (q.c - p.avg) * p.qty : 0);
+  }, 0);
 
   return (
     <div style={CARD}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"12px" }}>
         <div>
-          <p style={{ ...LABEL, marginBottom:"2px" }}>HOOD · Robinhood</p>
-          <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:0 }}>{data?.qty ?? 30} acc · entrada ${data?.entry ?? "107.70"}</p>
+          <p style={{ ...LABEL, marginBottom:"2px" }}>Cartera IBKR · US</p>
+          <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:0 }}>{CARTERA_SNAP.length} posiciones · cotización Finnhub</p>
         </div>
-        <Link href="/mercado" style={{ textDecoration:"none" }}>
+        <Link href="/raxis-investor" style={{ textDecoration:"none" }}>
           <span style={{ fontSize:"11px", color:"var(--accent)", display:"flex", alignItems:"center", gap:"3px" }}>ver <ExternalLink size={10}/></span>
         </Link>
       </div>
-      {loading && <div style={{ color:"var(--text-muted)", fontSize:"13px", display:"flex", alignItems:"center", gap:"8px" }}><RefreshCw size={13} style={{ animation:"spin 1s linear infinite" }}/> Cargando...</div>}
-      {!loading && data?.error && <p style={{ fontSize:"12px", color:"var(--red)", margin:0 }}>{data.error}</p>}
-      {!loading && !data?.error && data && (
+
+      {loading ? (
+        <div style={{ color:"var(--text-muted)", fontSize:"13px", display:"flex", alignItems:"center", gap:"8px" }}>
+          <RefreshCw size={13} style={{ animation:"spin 1s linear infinite" }}/> Cargando…
+        </div>
+      ) : (
         <>
-          <div style={{ display:"flex", alignItems:"baseline", gap:"10px", marginBottom:"4px" }}>
-            <p style={{ ...MONO, fontSize:"26px", fontWeight:700, color:"var(--text)", margin:0, lineHeight:1 }}>{data.price != null ? `$${data.price.toFixed(2)}` : "—"}</p>
-            {data.pnl != null && <span style={{ ...MONO, fontSize:"13px", fontWeight:700, color:pnlClr }}>{data.pnl >= 0 ? "+" : ""}${data.pnl.toFixed(2)} ({data.pnlPct != null && data.pnlPct >= 0 ? "+" : ""}{data.pnlPct?.toFixed(2)}%)</span>}
+          <div style={{ display:"flex", alignItems:"baseline", gap:"10px", marginBottom:"10px" }}>
+            <p style={{ ...MONO, fontSize:"22px", fontWeight:700, color:"var(--text)", margin:0 }}>${totalVal.toLocaleString("en-US",{maximumFractionDigits:0})}</p>
+            <span style={{ ...MONO, fontSize:"13px", fontWeight:700, color:totalPnl>=0?"var(--green)":"var(--red)" }}>{totalPnl>=0?"+":""}{totalPnl.toFixed(0)} USD</span>
           </div>
-          {sparkData.length > 0 && <div style={{ marginBottom:"10px" }}><SparkLine data={sparkData} id="hood"/></div>}
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px", fontSize:"11px" }}>
-            {[["Valor pos.", data.valor != null ? `$${data.valor.toLocaleString("en-US")}` : "—"],
-              ["Vol ratio", data.volRatio != null ? `${data.volRatio}×` : "—"],
-              ["Máx 30d",   data.high52w != null ? `$${data.high52w.toFixed(2)}` : "—"],
-              ["Mín 30d",   data.low52w  != null ? `$${data.low52w.toFixed(2)}`  : "—"]].map(([lbl, val]) => (
-              <div key={lbl}><span style={{ color:"var(--text-muted)" }}>{lbl} </span><span style={{ ...MONO, color:"var(--text-mid)" }}>{val}</span></div>
-            ))}
+          <div style={{ display:"flex", flexDirection:"column", gap:"5px" }}>
+            {CARTERA_SNAP.slice(0, 4).map(p => {
+              const q = quotes[p.sym];
+              const pnl = q?.c ? (q.c - p.avg) * p.qty : null;
+              const dp  = q?.dp ?? null;
+              return (
+                <div key={p.sym} style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <span style={{ fontSize:"12px", color:"var(--text-mid)" }}>
+                    <span style={{ ...MONO, fontWeight:700, color:"var(--accent)" }}>{p.sym}</span>
+                    <span style={{ color:"var(--text-muted)", marginLeft:"5px" }}>{p.qty} acc</span>
+                  </span>
+                  <span style={{ display:"flex", gap:"6px", alignItems:"center" }}>
+                    {q?.c && <span style={{ ...MONO, fontSize:"12px" }}>${q.c.toFixed(2)}</span>}
+                    {dp !== null && (
+                      <span style={{ ...MONO, fontSize:"10px", fontWeight:700, color:dp>=0?"var(--green)":"var(--red)" }}>
+                        {dp>=0?"+":""}{dp.toFixed(1)}%
+                      </span>
+                    )}
+                    {pnl !== null && (
+                      <span style={{ ...MONO, fontSize:"10px", color:pnl>=0?"var(--green)":"var(--red)" }}>
+                        {pnl>=0?"+":""}{pnl.toFixed(0)}$
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
           </div>
-          {data.earnings && (
-            <div style={{ marginTop:"10px", padding:"7px 10px", background:"rgba(251,191,36,0.06)", border:"1px solid rgba(251,191,36,0.25)", borderRadius:"5px", fontSize:"11px" }}>
-              <span style={{ color:"var(--amber)" }}>Earnings {data.earnings.date}</span>
-              <span style={{ color:"var(--text-muted)", marginLeft:"6px" }}>en {data.earnings.daysLeft}d · {data.earnings.hour === "amc" ? "cierre" : "apertura"}</span>
-            </div>
-          )}
         </>
       )}
       <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
@@ -464,9 +494,9 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* ── Row 2: HOOD + Clientes + Meta ── */}
+      {/* ── Row 2: Cartera + Clientes + Meta ── */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"12px", marginBottom:"24px" }}>
-        <HoodWidget/>
+        <CarteraWidget/>
         <div style={CARD}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"12px" }}>
             <p style={{ ...LABEL, marginBottom:0 }}>Clientes agencia</p>

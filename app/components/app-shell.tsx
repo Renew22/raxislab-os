@@ -20,8 +20,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             inset: 0,
             background: "rgba(0,0,0,0.55)",
             zIndex: 45,
-            WebkitBackdropFilter: "blur(2px)",
-            backdropFilter: "blur(2px)",
           }}
         />
       )}
