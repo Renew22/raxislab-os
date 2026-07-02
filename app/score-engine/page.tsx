@@ -344,7 +344,7 @@ export default function ScoreEnginePage() {
             <div style={{ padding:"12px 16px" }}>
               <p style={{ fontSize:"12px", color:"var(--red)", margin:0 }}>{earningsError}</p>
               <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:"6px 0 0" }}>
-                Diagnóstico: El endpoint /calendar/earnings de Finnhub está disponible en el plan gratuito. Si devuelve vacío, prueba ampliar el rango de fechas o verificar que NEXT_PUBLIC_FINNHUB_KEY está configurado en Vercel.
+                Verifica que <code style={{ background:"var(--surface)", padding:"1px 4px", borderRadius:"3px" }}>NEXT_PUBLIC_FINNHUB_KEY</code> está configurado en Vercel → Settings → Environment Variables.
               </p>
             </div>
           )}
