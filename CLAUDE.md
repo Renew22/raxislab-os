@@ -328,34 +328,174 @@ npx wrangler deploy
 
 ---
 
-## 🔑 BREVO — ESTRUCTURA DE KEYS (NUNCA MEZCLAR)
+## 🔐 CUENTAS Y ACCESOS CENTRALIZADOS
 
-> Archivo fuente: `C:\Users\rene0\OneDrive\Escritorio\brevo.txt`
-
-| Key | Sufijo final | Para quién |
-|---|---|---|
-| **General** | `...QfQxDjxUlGiOADXW` | RaxisLab interno + Identity + DeSancho + Ripieno + M15 scanner |
-| **LMD** | `...o2GBILJ0vGgN6msB` | EXCLUSIVA Last Mile Distribution |
-
-**Mezclarlas contamina las listas y automatizaciones por cliente.**
+> Todo lo que necesitas para arrancar un nuevo chat sin preguntar nada.
 
 ---
 
-## 🔑 UBICACIÓN DE SECRETOS (nunca en código)
+### VERCEL
 
-| Secreto | Ubicación |
+| Campo | Valor |
 |---|---|
-| SSH Hetzner | `~/.ssh/raxislab_ed25519` |
-| CF deploy token (raxislab.com) | `C:\Users\rene0\OneDrive\Escritorio\could.txt` línea 2 |
-| CF token Last Mile landing | `C:\Users\rene0\OneDrive\Escritorio\couldlast.txt` |
-| CF DNS token | `C:\Users\rene0\OneDrive\Escritorio\dns.txt` |
-| Brevo API keys (General + LMD) | `C:\Users\rene0\OneDrive\Escritorio\brevo.txt` |
-| Meta token (⚠️ EXPIRADO) | `C:\Users\rene0\OneDrive\Escritorio\meta.txt` |
-| WP app passwords (DeSancho + Identity) | `C:\Users\rene0\OneDrive\Escritorio\pass.txt` |
-| Hetzner data key | `rxl_dash_k9m4p7q2x8` |
-| Ripieno admin key | Vercel: RIPIENO_ADMIN_KEY |
-| Meta account IDs | Vercel: META_ACCOUNT_* (con prefijo `act_`) |
-| Raxis AI plugin ZIP | `C:\Users\rene0\OneDrive\Escritorio\raxis-ai-v1.0.zip` |
+| Cuenta | renebenegasrb-3069 |
+| Equipo | raxislab-s-projects |
+| Team ID | team_u7fizFcEmoR4QR0OXeOoewR8 |
+| Proyecto OS | raxislab-os |
+| Project ID | prj_p3RYdHfKTaRRHVG4uVn8ZdPMF7VF |
+| Plan | Hobby |
+| URL producción | https://raxislab-os.vercel.app |
+| Login CLI | `vercel login` (OAuth browser) |
+| Link proyecto | `vercel link --yes --project raxislab-os` desde `C:\Users\rene0\raxislab-os` |
+
+---
+
+### SUPABASE
+
+| Campo | Valor |
+|---|---|
+| Personal Access Token | `C:\Users\rene0\OneDrive\Escritorio\baseapi.txt` |
+| Login CLI | `$env:SUPABASE_ACCESS_TOKEN = "<PAT>"; supabase projects list` |
+| CLI versión | 2.109.0 (instalado global npm) |
+
+**Proyectos:**
+
+| Nombre | Ref/ID | Región | Org | Quién lo usa |
+|---|---|---|---|---|
+| Renew22's Project | `jdcnjcmyudenthtuojdk` | eu-central-1 | cyynespphijisdpfxvlq | Uso interno / Raxis Club |
+| supabase-aero-xylophone | `wrwznqnvkrwwtpxxgbsa` | us-east-1 | vercel_icfg_iWwCSxHGHZHnkE6OCJulzWSd | **Integración Vercel ↔ raxislab-os** |
+
+⚠️ Supabase plan gratuito pausa proyectos tras ~7 días sin uso. Si Vercel da `Resource provisioning failed`, restaurar con:
+```powershell
+$h = @{ Authorization = "Bearer <PAT>"; "Content-Type" = "application/json" }
+Invoke-RestMethod -Uri "https://api.supabase.com/v1/projects/wrwznqnvkrwwtpxxgbsa/restore" -Method POST -Headers $h -Body "{}"
+Invoke-RestMethod -Uri "https://api.supabase.com/v1/projects/jdcnjcmyudenthtuojdk/restore" -Method POST -Headers $h -Body "{}"
+```
+
+---
+
+### META ADS
+
+| Campo | Valor |
+|---|---|
+| App ID | `1414977773171281` |
+| App Secret | Vercel: `META_APP_SECRET` |
+| Access Token | Vercel: `META_ACCESS_TOKEN` (renovado 2026-07-05, expira ~60 días) |
+| Renovar token | developers.facebook.com/tools/explorer → App 1414977773171281 → permisos `ads_read, ads_management, business_management` → Generate Token |
+| Archivo token | `C:\Users\rene0\OneDrive\Escritorio\meta.txt` |
+
+**Cuentas publicitarias (todas en Vercel como env vars):**
+
+| Cliente | Env Var | Account ID |
+|---|---|---|
+| Desancho Estilistas | META_ACCOUNT_DESANCHO | act_386268642951204 |
+| Identity Peluqueros | META_ACCOUNT_IDENTITY_PELUQUEROS | act_1784662885533732 |
+| Malvarrosa CF | META_ACCOUNT_CFMALVARROSA | act_925429943227041 |
+| Last Mile Distribution | META_ACCOUNT_LAST_MILE | act_1244692137856631 |
+| Matías Benegas Tattoo | META_ACCOUNT_BENEGASTATTOOS | act_933810958804673 |
+| Marta Sarmiento | META_ACCOUNT_MARTA_SARMIENTO | act_1203877137635628 |
+
+---
+
+### GOOGLE
+
+| Campo | Valor |
+|---|---|
+| OAuth Client ID | `884261846704-pdo38lblku5rfn6kj644in6um56oofh6.apps.googleusercontent.com` |
+| OAuth Client Secret | Vercel: `GOOGLE_CLIENT_SECRET` |
+| Refresh Token | Vercel: `GOOGLE_REFRESH_TOKEN` (puede caducar — regenerar en /api/auth/google) |
+| Developer Token Ads | Vercel: `GOOGLE_ADS_DEVELOPER_TOKEN` ❌ **FALTA** — obtener en Google Ads → Herramientas → Centro de la API |
+| Email cuenta | renebenegas.rb@gmail.com |
+
+**Google Ads Customer IDs (formato XXX-XXX-XXXX):**
+
+| Cliente | Customer ID | Estado en código |
+|---|---|---|
+| Desancho Estilistas | `739-542-7320` | ✅ en clients-data.ts |
+| Last Mile Distribution | `949-709-1021` | ✅ en clients-data.ts |
+| Identity Peluqueros | ❌ pendiente | ❌ falta añadir |
+
+**GA4 Property IDs y GSC URLs:**
+
+| Cliente | GSC URL | GA4 Property ID |
+|---|---|---|
+| Identity Peluqueros | `https://identitypeluqueros.com/` | ❌ pendiente |
+| Desancho Estilistas | `https://desancho.com/` | ❌ pendiente |
+| Malvarrosa CF | ❌ pendiente | ❌ pendiente |
+| Matías Benegas Tattoo | ❌ pendiente | ❌ pendiente |
+
+> GSC URLs y GA4 IDs se guardan en localStorage del browser vía `/google` — una vez introducidos persisten sin tocar código.
+
+---
+
+### HETZNER (SuperSignal)
+
+| Campo | Valor |
+|---|---|
+| Host | `rene@167.233.72.200` puerto `2222` |
+| SSH key | `~/.ssh/raxislab_ed25519` |
+| Directorio raíz | `/opt/raxislab/` |
+| Dashboard data endpoint | `GET http://167.233.72.200/data/dashboard?key=rxl_dash_k9m4p7q2x8` |
+| Disco | 4.7G / 38G usado |
+| Ripieno backend | `127.0.0.1:3001 → nginx:8080` (NUNCA tocar puerto 80 = trading) |
+
+---
+
+### BREVO ⚠️ NUNCA MEZCLAR KEYS
+
+| Key | Para quién | Archivo fuente |
+|---|---|---|
+| **General** (sufijo `...QfQxDjxUlGiOADXW`) | RaxisLab + Identity + DeSancho + Ripieno + M15 | `C:\Users\rene0\OneDrive\Escritorio\brevo.txt` |
+| **LMD** (sufijo `...o2GBILJ0vGgN6msB`) | EXCLUSIVA Last Mile Distribution | `C:\Users\rene0\OneDrive\Escritorio\brevo.txt` |
+
+⚠️ Brevo tiene IP restriction activada — desactivar en Brevo → Account → Security → Authorised IPs para que funcione desde Vercel.
+
+---
+
+### WORDPRESS CLIENTES
+
+| Cliente | URL | Stack | User REST API | App Password |
+|---|---|---|---|---|
+| DeSancho Estilistas | https://desancho.com | Elementor Pro + Astra Pro + WPML / Hostinger | `DeSancho` | `C:\Users\rene0\OneDrive\Escritorio\pass.txt` línea 2 |
+| Identity Peluqueros | https://identitypeluqueros.com | Salient + WPBakery / Hostinger | `renebenegas` | `C:\Users\rene0\OneDrive\Escritorio\pass.txt` línea 1 |
+| Last Mile WP | https://lastmiledist.com | WP / 10Web (NO Cloudflare de René) | renebenegas.rb@gmail.com | `C:\Users\rene0\OneDrive\Escritorio\pass.txt` |
+
+⚠️ Identity: SIEMPRE `User-Agent: Mozilla/5.0` en requests REST o Wordfence da 403.
+
+---
+
+### CLOUDFLARE
+
+| Proyecto | Token | Archivo |
+|---|---|---|
+| raxislab.com (Workers) | deploy token | `C:\Users\rene0\OneDrive\Escritorio\could.txt` línea 2 |
+| Last Mile landing | deploy token | `C:\Users\rene0\OneDrive\Escritorio\couldlast.txt` |
+| DNS general | DNS token | `C:\Users\rene0\OneDrive\Escritorio\dns.txt` |
+
+Deploy raxislab.com: editar en `raxislab-web\` → copiar a `C:\Users\rene0\AppData\Local\Temp\raxislab-web-fix\` → `npx wrangler deploy`
+
+---
+
+### NOTION
+
+| Campo | Valor |
+|---|---|
+| Token | Vercel: `notion_token` |
+| Briefing DB ID | Vercel: `NOTION_BRIEFING_DB_ID` |
+| Propuestas page ID | Vercel: `NOTION_PROPOSALS_PAGE_ID` |
+
+---
+
+### OTROS
+
+| Servicio | Dato | Ubicación |
+|---|---|---|
+| Ripieno admin key | `ripieno_admin_8a58d7c4a58ba181619ae091` | Vercel: RIPIENO_ADMIN_KEY |
+| Raxis AI plugin | ZIP instalable WP | `C:\Users\rene0\OneDrive\Escritorio\raxis-ai-v1.0.zip` |
+| Windsor API key | `7dbc3c3fa8a629e48f73458a8860ce436f29` | **NO USAR** — Meta siempre por API directa |
+| Polygon API | Plan Starter $29/mes | Vercel: POLYGON_API_KEY |
+| Finnhub | plan gratuito | Vercel: NEXT_PUBLIC_FINNHUB_KEY |
+| Anthropic | API para Claude flows | Vercel: ANTHROPIC_API_KEY |
 
 ---
 
@@ -383,14 +523,14 @@ npx wrangler deploy
 15. **/leads → Notion** — backend persistente
 
 ### ⬜ BACKLOG FUTURO
-16. Raxis Club — conectar Supabase y deployar en club.raxislab.com
+16. Raxis Club — conectar Supabase `jdcnjcmyudenthtuojdk` y deployar en club.raxislab.com
 17. Secuencias email Brevo — drip 3 emails para Last Mile nuevos contactos
-18. Google Ads API programática — Developer Token pendiente aprobación
-19. Search Console API + GA4 API en RaxisLab OS
-20. Portfolio Identity — /portfolio/ CPTs via wp-admin (René)
-21. DeSancho auditoría SEO final
-22. RaxisLab.com — landing pages por sector (peluquería, restaurante)
-23. cases.html — casos Discóbolo y Campus Alcácer (cuando haya métricas)
-24. SIFEN Service — verificar estado, posible deploy para cliente PY
-25. /proyectos OS — datos reales
-26. /plan OS — bloques dinámicos
+18. GA4 Property IDs — rellenar tabla en sección CUENTAS para activar analytics en /google
+19. Portfolio Identity — /portfolio/ CPTs via wp-admin (René)
+20. DeSancho auditoría SEO final (cuando el sitio vuelva de HTTP 500)
+21. RaxisLab.com — landing pages por sector (peluquería, restaurante)
+22. cases.html — casos Discóbolo y Campus Alcácer (cuando haya métricas)
+23. SIFEN Service — verificar estado, posible deploy para cliente PY
+24. /proyectos OS — datos reales
+25. /plan OS — bloques dinámicos
+26. Agente central Raxislab — orquestar Meta + Google + Hetzner + Notion desde lenguaje natural (arquitectura diseñada 2026-07-05)
