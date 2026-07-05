@@ -50,8 +50,8 @@ export const SEED_CLIENTS: Client[] = [
     status: 'activo',
     startDate: '2025-03-01',
     contact: { name: 'Desancho Estilistas' },
-    services: ['Meta Ads', 'GMB'],
-    adAccounts: { metaAccountId: 'act_386268642951204' },
+    services: ['Meta Ads', 'Google Ads', 'GMB'],
+    adAccounts: { metaAccountId: 'act_386268642951204', googleCustomerId: '739-542-7320', googleSiteUrl: 'https://desancho.com/' },
     createdAt: '2025-03-01T00:00:00.000Z',
   },
   {

@@ -26,10 +26,10 @@ interface ClientConfig {
 // ── Static clients ─────────────────────────────────────────────────────────────
 
 const CLIENTS: ClientConfig[] = [
-  { id: 'identity-peluqueros',    name: 'Identity Peluqueros',    sector: 'Peluquería', googleSiteUrl: '', ga4PropertyId: '' },
-  { id: 'desancho-estilistas',    name: 'Desancho Estilistas',    sector: 'Peluquería', googleSiteUrl: '', ga4PropertyId: '' },
-  { id: 'malvarrosa-cf',          name: 'Malvarrosa CF',          sector: 'Deporte',    googleSiteUrl: '', ga4PropertyId: '' },
-  { id: 'matias-benegas-tattoo',  name: 'Matías Benegas Tattoo',  sector: 'Tattoo',     googleSiteUrl: '', ga4PropertyId: '' },
+  { id: 'identity-peluqueros',    name: 'Identity Peluqueros',    sector: 'Peluquería', googleSiteUrl: 'https://identitypeluqueros.com/', ga4PropertyId: '' },
+  { id: 'desancho-estilistas',    name: 'Desancho Estilistas',    sector: 'Peluquería', googleSiteUrl: 'https://desancho.com/',            ga4PropertyId: '' },
+  { id: 'malvarrosa-cf',          name: 'Malvarrosa CF',          sector: 'Deporte',    googleSiteUrl: '',                                 ga4PropertyId: '' },
+  { id: 'matias-benegas-tattoo',  name: 'Matías Benegas Tattoo',  sector: 'Tattoo',     googleSiteUrl: '',                                 ga4PropertyId: '' },
 ];
 
 const STORAGE_KEY = 'raxislab_google_ids_v1';
