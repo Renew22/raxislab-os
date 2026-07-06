@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import {
   ChevronLeft, ChevronRight,
   LayoutDashboard, Users, Megaphone, Globe, Package, Sparkles,
-  TrendingUp, FolderKanban, Workflow, Wallet, FileText, Zap, Eye, Crosshair, ShieldCheck, Bot, Flame,
+  TrendingUp, FolderKanban, Workflow, Wallet, FileText, Crosshair,
 } from "lucide-react";
 
 const NAV = [
@@ -19,14 +19,9 @@ const NAV = [
   { href: "/propuestas",       label: "Propuestas",       Icon: FileText        },
   { href: "/contenido",        label: "Contenido",        Icon: Sparkles        },
   { href: "/captacion",        label: "Captación",        Icon: Crosshair       },
-  { href: "/raxis-investor",       label: "Raxis Investor",   Icon: TrendingUp      },
-  { href: "/raxis-investor/analisis", label: "Copiloto Visual",  Icon: Eye             },
-  { href: "/score-engine",     label: "Score Engine",     Icon: Zap             },
+  { href: "/raxis-investor",   label: "Inversión",        Icon: TrendingUp      },
   { href: "/proyectos",        label: "Proyectos",        Icon: FolderKanban    },
-  { href: "/pionex",           label: "Bot Pionex",       Icon: Bot             },
-  { href: "/futuros",          label: "Bot Futuros",      Icon: Flame           },
   { href: "/finanzas",         label: "Finanzas",         Icon: Wallet          },
-  { href: "/fondeo",           label: "Fondeo",           Icon: ShieldCheck     },
   { href: "/automatizaciones", label: "Automatizaciones", Icon: Workflow        },
 ];
 
