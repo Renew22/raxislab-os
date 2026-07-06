@@ -11,7 +11,7 @@ import { useTheme } from "../components/theme-provider";
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
-type Tab             = "Resumen" | "GastosFijos" | "Calendario" | "Ingresos" | "Impuestos";
+type Tab             = "Resumen" | "GastosFijos" | "Calendario" | "Ingresos" | "Impuestos" | "Extracto";
 
 interface Factura {
   id: string; proveedor: string; concepto: string; importe: number; iva: number;
@@ -663,6 +663,299 @@ function IngresosTab({ ingresos, setIngresos }: { ingresos: Ingreso[]; setIngres
   );
 }
 
+// ─── SUB-COMPONENT: EXTRACTO BANCARIO ────────────────────────────────────────
+
+type CategoriaMov = "negocio" | "personal";
+interface Movimiento {
+  id: string; fecha: string; concepto: string; importe: number; saldo?: number; categoria: CategoriaMov;
+}
+
+const KWORDS_NEG = ["amazon web","aws","anthropic","meta ads","google ads","cloudflare","hetzner","vercel","stripe","brevo","sendgrid","canva","genspark","openai","notion","jetbrains","github","figma","digitalocean","ovh","hostinger","godaddy","namecheap","mailchimp","activecampaign","raxislab","raxis"];
+const KWORDS_PER = ["mercadona","carrefour","lidl","aldi","alcampo","eroski","consum","dia super","gasolinera","repsol","cepsa","bp petro","shell","farmacia","clinica","hospital","dentista","netflix","spotify","hbo","disney","corte ingles","zara","mango","h&m","uniqlo","decathlon","restaurante","cafe ","cafeter","taberna","gimnasio","gym","natacion","peluquer","correos"];
+
+function parseEsNum(s: string): number {
+  s = s.replace(/[€$\s]/g, "").trim();
+  if (s.includes(",") && s.includes(".")) {
+    s = s.indexOf(".") < s.indexOf(",") ? s.replace(/\./g,"").replace(",",".") : s.replace(",","");
+  } else if (s.includes(",")) {
+    s = s.replace(",",".");
+  }
+  return parseFloat(s) || 0;
+}
+
+function parseFechaStr(s: string): string {
+  const m = s.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
+  if (!m) return s;
+  const [,d,mo,y] = m;
+  return `${y.length===2?"20"+y:y}-${mo.padStart(2,"0")}-${d.padStart(2,"0")}`;
+}
+
+function autoClasif(concepto: string): CategoriaMov {
+  const l = concepto.toLowerCase();
+  if (KWORDS_NEG.some(k => l.includes(k))) return "negocio";
+  if (KWORDS_PER.some(k => l.includes(k))) return "personal";
+  return "personal";
+}
+
+function splitCSVLine(line: string, sep: string): string[] {
+  const res: string[] = []; let cur = ""; let q = false;
+  for (const ch of line) {
+    if (ch === '"') { q = !q; }
+    else if (ch === sep && !q) { res.push(cur); cur = ""; }
+    else cur += ch;
+  }
+  res.push(cur); return res;
+}
+
+function csvToMovimientos(text: string): Movimiento[] {
+  const sep = (text.split("\n")[0]?.split(";").length || 0) > (text.split("\n")[0]?.split(",").length || 0) ? ";" : ",";
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  let hi = -1; let hdr: string[] = [];
+  for (let i = 0; i < Math.min(15, lines.length); i++) {
+    const cols = splitCSVLine(lines[i], sep).map(c => c.replace(/"/g,"").toLowerCase().trim());
+    if (cols.some(c => c.includes("fecha") || c.includes("date") || c.includes("data"))) { hi = i; hdr = cols; break; }
+  }
+  if (hi === -1) return [];
+  const fi = hdr.findIndex(h => h.includes("fecha")||h.includes("date")||h.includes("data"));
+  const ci = hdr.findIndex(h => h.includes("concepto")||h.includes("descripci")||h.includes("movimiento")||h.includes("detail")||h.includes("comercio"));
+  const ii = hdr.findIndex(h => h.includes("importe")||h.includes("import")||h.includes("amount")||h==="cargo"||h==="abono"||h.includes("movim"));
+  const si = hdr.findIndex(h => h.includes("saldo")||h.includes("balance"));
+  if (fi < 0 || ci < 0) return [];
+  return lines.slice(hi+1).flatMap((line, idx) => {
+    const cols = splitCSVLine(line, sep).map(c => c.replace(/^"|"$/g,"").trim());
+    if (cols.length < 2) return [];
+    const fecha = parseFechaStr(cols[fi] || "");
+    const concepto = cols[ci] || "";
+    const importe = ii >= 0 ? parseEsNum(cols[ii] || "0") : 0;
+    const saldo = si >= 0 ? parseEsNum(cols[si] || "0") : undefined;
+    if (!fecha || !concepto) return [];
+    return [{ id:`m${idx}_${Date.now()}`, fecha, concepto, importe, saldo, categoria: autoClasif(concepto) }];
+  });
+}
+
+function ExtractoTab() {
+  const [movimientos, setMovimientos] = useState<Movimiento[]>(() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(localStorage.getItem("raxislab_extracto_v1") ?? "[]"); } catch { return []; }
+  });
+  const [filtro, setFiltro]     = useState<"todos" | CategoriaMov>("todos");
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function save(m: Movimiento[]) {
+    setMovimientos(m);
+    localStorage.setItem("raxislab_extracto_v1", JSON.stringify(m));
+  }
+
+  function toggleCat(id: string) {
+    save(movimientos.map(m => m.id === id ? { ...m, categoria: m.categoria === "negocio" ? "personal" : "negocio" } : m));
+  }
+
+  async function handleFile(file: File) {
+    setLoading(true); setError(null);
+    try {
+      if (file.name.endsWith(".csv") || file.name.endsWith(".txt")) {
+        const text = await file.text();
+        const movs = csvToMovimientos(text);
+        if (movs.length === 0) { setError("No se pudo leer el CSV. Asegúrate de que tiene columnas Fecha, Concepto e Importe."); return; }
+        save([...movimientos, ...movs]);
+      } else if (file.type === "application/pdf" || file.type.startsWith("image/")) {
+        const base64 = await new Promise<string>((res, rej) => {
+          const r = new FileReader();
+          r.onload = e => res((e.target?.result as string).split(",")[1]);
+          r.onerror = rej;
+          r.readAsDataURL(file);
+        });
+        const resp = await fetch("/api/claude/extract-bank-statement", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileBase64: base64, mimeType: file.type }),
+        });
+        const json = await resp.json();
+        if (!resp.ok || !json.data) { setError(json.error ?? "Error al procesar el archivo"); return; }
+        const prefix = file.type.startsWith("image/") ? "img" : "pdf";
+        const movs: Movimiento[] = (json.data as Partial<Movimiento>[]).map((m, i) => ({
+          id: `${prefix}_${i}_${Date.now()}`,
+          fecha: m.fecha ?? "",
+          concepto: m.concepto ?? "",
+          importe: m.importe ?? 0,
+          saldo: m.saldo,
+          categoria: autoClasif(m.concepto ?? ""),
+        }));
+        save([...movimientos, ...movs]);
+      } else {
+        setError("Formato no soportado. Usa CSV, PDF o imagen (PNG, JPG, WebP).");
+      }
+    } catch { setError("Error al procesar el archivo."); }
+    finally { setLoading(false); }
+  }
+
+  const filtrados = filtro === "todos" ? movimientos : movimientos.filter(m => m.categoria === filtro);
+  const gastoNeg  = movimientos.filter(m => m.categoria === "negocio" && m.importe < 0).reduce((s, m) => s + m.importe, 0);
+  const gastoPer  = movimientos.filter(m => m.categoria === "personal" && m.importe < 0).reduce((s, m) => s + m.importe, 0);
+  const totalIng  = movimientos.filter(m => m.importe > 0).reduce((s, m) => s + m.importe, 0);
+  const balance   = totalIng + gastoNeg + gastoPer;
+  const hasSaldo  = movimientos.some(m => m.saldo !== undefined);
+  const totalGastos = Math.abs(gastoNeg) + Math.abs(gastoPer) || 1;
+
+  return (
+    <div>
+      {/* ── Upload zone ── */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+        onClick={() => fileRef.current?.click()}
+        style={{
+          border: `2px dashed ${dragging ? "var(--accent)" : "var(--border)"}`,
+          borderRadius: "8px", padding: "32px", textAlign: "center", cursor: "pointer",
+          background: dragging ? "var(--accent-dim)" : "var(--card)", marginBottom: "20px", transition: "all 0.2s",
+        }}
+      >
+        <input ref={fileRef} type="file" accept=".csv,.txt,.pdf,image/*" style={{ display: "none" }}
+          onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+        <Upload size={28} style={{ color: "var(--text-muted)", marginBottom: "10px" }} />
+        <p style={{ color: "var(--text)", fontWeight: 600, marginBottom: "4px" }}>
+          {loading ? "Procesando con Claude…" : "Arrastra tu extracto bancario aquí"}
+        </p>
+        <p style={{ color: "var(--text-muted)", fontSize: "12px" }}>
+          CSV · PDF · Screenshot de PayPal, banco o tarjeta (PNG, JPG, WebP) — se acumula con los anteriores
+        </p>
+        {error && <p style={{ color: "var(--red)", fontSize: "12px", marginTop: "8px" }}>{error}</p>}
+      </div>
+
+      {movimientos.length > 0 && (
+        <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
+
+          {/* ── Tabla principal ── */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", gap: "8px", marginBottom: "14px", alignItems: "center", flexWrap: "wrap" }}>
+              {(["todos", "negocio", "personal"] as const).map(f => (
+                <button key={f} onClick={() => setFiltro(f)} style={{
+                  padding: "5px 14px", borderRadius: "20px", border: "1px solid var(--border)", cursor: "pointer",
+                  fontSize: "12px", fontWeight: 600,
+                  background: filtro === f ? (f === "negocio" ? "rgba(33,150,243,0.2)" : f === "personal" ? "rgba(255,152,0,0.2)" : "var(--accent-dim)") : "transparent",
+                  color: filtro === f ? (f === "negocio" ? "#2196F3" : f === "personal" ? "#FF9800" : "var(--accent)") : "var(--text-muted)",
+                }}>
+                  {f === "todos" ? "Todos" : f.charAt(0).toUpperCase() + f.slice(1)}
+                  {" "}({f === "todos" ? movimientos.length : movimientos.filter(m => m.categoria === f).length})
+                </button>
+              ))}
+              <span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--text-muted)" }}>
+                {movimientos.length} movimientos cargados
+              </span>
+              <button
+                onClick={() => { if (confirm("¿Borrar todos los movimientos cargados?")) save([]); }}
+                style={{ padding: "5px 12px", borderRadius: "4px", border: "1px solid rgba(255,61,113,0.3)", background: "transparent", color: "var(--red)", fontSize: "11px", cursor: "pointer" }}
+              >
+                Borrar todo
+              </button>
+            </div>
+
+            <div style={{ ...CARD, padding: 0, overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "var(--surface)" }}>
+                    <th style={TH}>Tipo</th>
+                    <th style={TH}>Fecha</th>
+                    <th style={{ ...TH, width: "99%" }}>Concepto</th>
+                    <th style={{ ...TH, textAlign: "right" }}>Importe</th>
+                    {hasSaldo && <th style={{ ...TH, textAlign: "right" }}>Saldo</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtrados.slice().reverse().map(m => (
+                    <tr key={m.id} style={{ background: m.importe > 0 ? "rgba(0,230,118,0.03)" : "transparent" }}>
+                      <td style={TD}>
+                        <button onClick={() => toggleCat(m.id)} title="Clic para cambiar categoría" style={{
+                          padding: "2px 8px", borderRadius: "12px", border: "none", cursor: "pointer",
+                          fontSize: "10px", fontWeight: 700, whiteSpace: "nowrap",
+                          background: m.categoria === "negocio" ? "rgba(33,150,243,0.18)" : "rgba(255,152,0,0.18)",
+                          color: m.categoria === "negocio" ? "#2196F3" : "#FF9800",
+                        }}>
+                          {m.categoria === "negocio" ? "NEGOCIO" : "PERSONAL"}
+                        </button>
+                      </td>
+                      <td style={{ ...TD, fontFamily: "'Space Mono',monospace", fontSize: "12px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                        {m.fecha}
+                      </td>
+                      <td style={{ ...TD, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "340px" }} title={m.concepto}>
+                        {m.concepto}
+                      </td>
+                      <td style={{ ...TD, textAlign: "right", fontFamily: "'Space Mono',monospace", fontWeight: 600, whiteSpace: "nowrap", color: m.importe >= 0 ? "var(--green)" : "var(--red)" }}>
+                        {m.importe >= 0 ? "+" : ""}{m.importe.toFixed(2)}€
+                      </td>
+                      {hasSaldo && (
+                        <td style={{ ...TD, textAlign: "right", fontFamily: "'Space Mono',monospace", fontSize: "12px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                          {m.saldo !== undefined ? m.saldo.toFixed(2) + "€" : "—"}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ── Panel resumen ── */}
+          <div style={{ width: "240px", flexShrink: 0, display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={CARD}>
+              <p style={LABEL}>Gastos negocio</p>
+              <p style={{ ...NUM, fontSize: "22px", color: "#2196F3" }}>{Math.abs(gastoNeg).toFixed(2)}€</p>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                {movimientos.filter(m => m.categoria === "negocio" && m.importe < 0).length} movimientos
+              </p>
+            </div>
+            <div style={CARD}>
+              <p style={LABEL}>Gastos personales</p>
+              <p style={{ ...NUM, fontSize: "22px", color: "#FF9800" }}>{Math.abs(gastoPer).toFixed(2)}€</p>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                {movimientos.filter(m => m.categoria === "personal" && m.importe < 0).length} movimientos
+              </p>
+            </div>
+            <div style={CARD}>
+              <p style={LABEL}>Ingresos recibidos</p>
+              <p style={{ ...NUM, fontSize: "22px", color: "var(--green)" }}>{totalIng.toFixed(2)}€</p>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                {movimientos.filter(m => m.importe > 0).length} entradas
+              </p>
+            </div>
+            <div style={CARD}>
+              <p style={LABEL}>Balance período</p>
+              <p style={{ ...NUM, fontSize: "22px", color: balance >= 0 ? "var(--accent)" : "var(--red)" }}>
+                {balance >= 0 ? "+" : ""}{balance.toFixed(2)}€
+              </p>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>Ingresos − todos gastos</p>
+            </div>
+            <div style={{ ...CARD, padding: "16px" }}>
+              <p style={{ ...LABEL, marginBottom: "12px" }}>Proporción de gastos</p>
+              {[
+                { label: "Negocio", val: Math.abs(gastoNeg), color: "#2196F3" },
+                { label: "Personal", val: Math.abs(gastoPer), color: "#FF9800" },
+              ].map(item => {
+                const pct = ((item.val / totalGastos) * 100).toFixed(0);
+                return (
+                  <div key={item.label} style={{ marginBottom: "10px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
+                      <span style={{ color: "var(--text-muted)" }}>{item.label}</span>
+                      <span style={{ color: item.color, fontWeight: 600 }}>{pct}%</span>
+                    </div>
+                    <div style={{ height: "6px", background: "var(--surface)", borderRadius: "3px", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: item.color, borderRadius: "3px", transition: "width 0.3s" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 const TABS: [Tab, string][] = [
@@ -671,6 +964,7 @@ const TABS: [Tab, string][] = [
   ["Calendario", "Calendario"             ],
   ["Ingresos",   "Ingresos"              ],
   ["Impuestos",  "Impuestos y Facturas"  ],
+  ["Extracto",   "Extracto bancario"     ],
 ];
 
 export default function FinanzasPage() {
@@ -892,6 +1186,9 @@ export default function FinanzasPage() {
 
       {/* ════════ TAB 5: IMPUESTOS Y FACTURAS ════════ */}
       {tab === "Impuestos" && <ImpuestosTab />}
+
+      {/* ════════ TAB 6: EXTRACTO BANCARIO ════════ */}
+      {tab === "Extracto" && <ExtractoTab />}
 
       {/* ── Edit modal ── */}
       {editId !== null && (
