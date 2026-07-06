@@ -9,17 +9,22 @@ const CarteraTab  = dynamic(() => import("./tabs/CarteraTab"),  { ssr:false });
 const CryptoTab   = dynamic(() => import("./tabs/CryptoTab"),   { ssr:false });
 const M9Tab       = dynamic(() => import("./tabs/M9Tab"),       { ssr:false });
 const BotsTab     = dynamic(() => import("./tabs/BotsTab"),     { ssr:false });
+const ScoreTab    = dynamic(() => import("./tabs/ScoreTab"),    { ssr:false });
+const FondeoTab   = dynamic(() => import("./tabs/FondeoTab"),   { ssr:false });
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Tab =
   | "Dashboard" | "Cartera" | "Crypto" | "M9/Stokers"
   | "Técnico" | "Diario" | "Dividendos" | "Calendario"
-  | "Prompts" | "Publicar" | "Imagen" | "Telegram" | "Bots";
+  | "Prompts" | "Publicar" | "Imagen" | "Telegram"
+  | "Bots" | "Score" | "Fondeo";
 
 const TABS: [Tab, string][] = [
   ["Dashboard",  "Dashboard"],
-  ["Bots",       "🤖 Bots Cripto"],
+  ["Bots",       "Bots Cripto"],
+  ["Score",      "Score Engine"],
+  ["Fondeo",     "Fondeo"],
   ["Cartera",    "Cartera IBKR"],
   ["Crypto",     "Crypto"],
   ["M9/Stokers", "M9 · Stokers"],
@@ -255,6 +260,12 @@ export default function RaxisInvestorPage() {
 
       {/* ── BOTS CRIPTO ──────────────────────────────────────────────────────── */}
       {tab==="Bots" && <BotsTab/>}
+
+      {/* ── SCORE ENGINE ─────────────────────────────────────────────────────── */}
+      {tab==="Score" && <ScoreTab/>}
+
+      {/* ── FONDEO ───────────────────────────────────────────────────────────── */}
+      {tab==="Fondeo" && <FondeoTab/>}
 
       {/* ── CARTERA ──────────────────────────────────────────────────────────── */}
       {tab==="Cartera" && <CarteraTab/>}
