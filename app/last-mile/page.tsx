@@ -8,6 +8,28 @@ type LeadStatus = 'nuevo' | 'contactado' | 'interesado' | 'propuesta' | 'cerrado
 type TrackerStatus = 'sin_contactar' | 'primer_contacto' | 'en_conversacion' | 'muestra_enviada' | 'propuesta_enviada' | 'activo' | 'descartado';
 type StockStatus = 'disponible' | 'bajo_pedido' | 'no_disponible';
 type TabType = 'Resumen' | 'Pipeline' | 'Emails' | 'Tracker' | 'Catálogo' | 'Comerciales' | 'Precios';
+type UserRole = 'admin' | 'comercial' | 'dueno';
+
+interface LMUser {
+  id: string;
+  nombre: string;
+  role: UserRole;
+  password: string;
+  comercialId?: string;
+}
+
+const LM_USERS: LMUser[] = [
+  { id: 'admin',   nombre: 'René (Admin)',   role: 'admin',    password: 'raxis2026' },
+  { id: 'com1',    nombre: 'Comercial 1',    role: 'comercial', password: 'lm2026', comercialId: 'com1' },
+  { id: 'com2',    nombre: 'Comercial 2',    role: 'comercial', password: 'lm2026b', comercialId: 'com2' },
+  { id: 'juan',    nombre: 'Juan (Dueño)',   role: 'dueno',    password: 'juan2026' },
+];
+
+function getTabs(role: UserRole): TabType[] {
+  if (role === 'admin')    return ['Resumen', 'Pipeline', 'Emails', 'Tracker', 'Catálogo', 'Comerciales', 'Precios'];
+  if (role === 'comercial') return ['Pipeline', 'Emails', 'Catálogo'];
+  return ['Resumen', 'Pipeline', 'Precios'];
+}
 type NivelPrecio = 'A' | 'B' | 'C';
 type MonedaPres = 'EUR' | 'PYG';
 type EstadoPres = 'Enviado' | 'Visto' | 'Aceptado' | 'Rechazado' | 'Expirado';
@@ -44,7 +66,10 @@ interface Lead {
   fecha: string;
   ultimaAccion: string;
   proximaAccion: string;
+  proximaAccionFecha?: string;
+  ultimoContactoFecha?: string;
   status: LeadStatus;
+  asignadoA?: string;
 }
 
 interface TrackerEntry {
@@ -222,6 +247,49 @@ function useLocalStorage<T>(key: string, init: T): [T, (v: T | ((prev: T) => T))
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+function LoginScreen({ onLogin }: { onLogin: (user: LMUser) => void }) {
+  const [sel, setSel] = useState('admin');
+  const [pwd, setPwd] = useState('');
+  const [err, setErr] = useState('');
+  function handleLogin() {
+    const user = LM_USERS.find(u => u.id === sel);
+    if (!user || user.password !== pwd) { setErr('Contraseña incorrecta'); return; }
+    setErr('');
+    onLogin(user);
+  }
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+      <div style={{ ...CARD_S, width: 340, padding: 32 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: VINO, letterSpacing: '-0.04em' }}>Last Mile</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Panel comercial — acceso privado</div>
+        </div>
+        <label style={LABEL_S}>Usuario</label>
+        <select value={sel} onChange={e => setSel(e.target.value)} style={{ ...INPUT, marginBottom: 12 }}>
+          {LM_USERS.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+        </select>
+        <label style={LABEL_S}>Contraseña</label>
+        <input type="password" value={pwd} onChange={e => setPwd(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleLogin()}
+          placeholder="••••••••" style={{ ...INPUT, marginBottom: 16 }} />
+        {err && <div style={{ fontSize: 12, color: '#E74C3C', marginBottom: 12 }}>{err}</div>}
+        <button onClick={handleLogin} style={{ width: '100%', background: VINO, color: '#fff', border: 'none', borderRadius: 6, padding: '10px 0', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          Entrar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function UrgenciaBadge({ lead }: { lead: Lead }) {
+  const now = new Date();
+  const fechaUltimo = lead.ultimoContactoFecha ? new Date(lead.ultimoContactoFecha) : new Date(lead.fecha);
+  const diffH = (now.getTime() - fechaUltimo.getTime()) / (1000 * 3600);
+  if (diffH > 168) return <span style={{ fontSize: 10, background: '#E74C3C', color: '#fff', borderRadius: 4, padding: '1px 5px' }}>🔴 +7d sin contacto</span>;
+  if (diffH > 48)  return <span style={{ fontSize: 10, background: '#F39C12', color: '#fff', borderRadius: 4, padding: '1px 5px' }}>🟡 +48h sin contacto</span>;
+  return <span style={{ fontSize: 10, background: '#27AE60', color: '#fff', borderRadius: 4, padding: '1px 5px' }}>🟢 Al día</span>;
+}
+
 function KpiCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
     <div style={{ ...CARD_S, textAlign: 'center' }}>
@@ -235,6 +303,9 @@ function KpiCard({ label, value, sub }: { label: string; value: string | number;
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LastMilePage() {
+  const [activeUser, setActiveUser] = useLocalStorage<LMUser | null>('lm_usuario_activo', null);
+  const role: UserRole = activeUser?.role ?? 'admin';
+  const TABS = getTabs(role);
   const [tab, setTab] = useState<TabType>('Resumen');
   const [leads, setLeads] = useLocalStorage<Lead[]>('lm_leads', INITIAL_LEADS);
   const [tracker, setTracker] = useLocalStorage<TrackerEntry[]>('lm_tracker', INITIAL_TRACKER);
@@ -281,6 +352,9 @@ export default function LastMilePage() {
   const [emailContexto, setEmailContexto] = useState('');
   const [emailResult, setEmailResult] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
+
+  // Pipeline
+  const [pipelineFiltro, setPipelineFiltro] = useState('todos');
 
   // Lead modal
   const [showAddLead, setShowAddLead] = useState(false);
@@ -584,7 +658,7 @@ ${listaProductos}`;
   const nuevosUrgentes = leads.filter(l => l.status === 'nuevo');
   const tareasUrgentes = [...nuevosUrgentes.slice(0, 3).map(l => ({ texto: `Contactar a ${l.nombre}`, urgencia: '🔴' })), { texto: 'Subir catálogo PDF a lastmiledist.com', urgencia: '🟡' }, { texto: 'Configurar Brevo SMTP en WordPress', urgencia: '🟡' }, { texto: 'Crear página /gracias para tracking Google Ads', urgencia: '🟡' }].slice(0, 5);
 
-  const TABS: TabType[] = ['Resumen', 'Pipeline', 'Emails', 'Tracker', 'Catálogo', 'Comerciales', 'Precios'];
+  if (!activeUser) return <LoginScreen onLogin={u => { setActiveUser(u); setTab(getTabs(u.role)[0]); }} />;
 
   return (
     <div style={{ padding: '32px 40px', maxWidth: '1400px' }}>
@@ -601,8 +675,10 @@ ${listaProductos}`;
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '6px 10px' }}>{activeUser.nombre}</span>
           <a href="https://lastmiledist.com" target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '6px', border: `1px solid ${VINO_BORDER}`, color: VINO, textDecoration: 'none', background: VINO_DIM }}>lastmiledist.com ↗</a>
-          <span style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', background: 'rgba(39,174,96,0.1)', color: '#27AE60', border: '1px solid rgba(39,174,96,0.25)', fontWeight: 600 }}>EN CURSO</span>
+          <button onClick={() => setActiveUser(null)} style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', cursor: 'pointer' }}>Salir</button>
+          {role === 'admin' && <span style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', background: 'rgba(39,174,96,0.1)', color: '#27AE60', border: '1px solid rgba(39,174,96,0.25)', fontWeight: 600 }}>EN CURSO</span>}
         </div>
       </div>
 
@@ -719,9 +795,18 @@ ${listaProductos}`;
       {/* ─────────────────── PESTAÑA 2: PIPELINE ─────────────────────── */}
       {tab === 'Pipeline' && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{leads.length} leads en pipeline · {nuevosUrgentes.length} sin contactar</div>
-            <button onClick={() => setShowAddLead(true)} style={{ padding: '8px 16px', borderRadius: '6px', background: VINO, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>+ Añadir lead</button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {role === 'admin' && (
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {[['todos', 'Todos'], ['sin', 'Sin asignar'], ['com1', 'Comercial 1'], ['com2', 'Comercial 2']].map(([k, l]) => (
+                    <button key={k} onClick={() => setPipelineFiltro(k)} style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '4px', border: `1px solid ${pipelineFiltro === k ? VINO : 'var(--border)'}`, background: pipelineFiltro === k ? VINO_DIM : 'transparent', color: pipelineFiltro === k ? VINO : 'var(--text-muted)', cursor: 'pointer', fontWeight: pipelineFiltro === k ? 600 : 400 }}>{l}</button>
+                  ))}
+                </div>
+              )}
+              {role === 'admin' && <button onClick={() => setShowAddLead(true)} style={{ padding: '8px 16px', borderRadius: '6px', background: VINO, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>+ Añadir lead</button>}
+            </div>
           </div>
 
           {showAddLead && (
@@ -758,7 +843,11 @@ ${listaProductos}`;
           {/* Kanban columns */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', overflowX: 'auto' }}>
             {PIPELINE_COLS.map(col => {
-              const colLeads = leads.filter(l => l.status === col.key);
+              let colLeads = leads.filter(l => l.status === col.key);
+              if (role === 'comercial') colLeads = colLeads.filter(l => l.asignadoA === activeUser?.comercialId);
+              else if (pipelineFiltro === 'sin') colLeads = colLeads.filter(l => !l.asignadoA);
+              else if (pipelineFiltro === 'com1') colLeads = colLeads.filter(l => l.asignadoA === 'com1');
+              else if (pipelineFiltro === 'com2') colLeads = colLeads.filter(l => l.asignadoA === 'com2');
               return (
                 <div key={col.key} style={{ background: 'var(--surface)', borderRadius: '8px', padding: '12px', minHeight: '300px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
@@ -768,13 +857,27 @@ ${listaProductos}`;
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {colLeads.map(lead => (
                       <div key={lead.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', cursor: 'default' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
                           <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '3px', background: `${TIPO_COLORS[lead.tipo]}20`, color: TIPO_COLORS[lead.tipo], fontWeight: 600 }}>{lead.tipo}</span>
+                          <UrgenciaBadge lead={lead} />
                         </div>
                         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '2px' }}>{lead.nombre}</div>
                         {lead.empresa && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{lead.empresa}</div>}
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.4 }}>{lead.mensaje.slice(0, 60)}{lead.mensaje.length > 60 ? '...' : ''}</div>
                         <div style={{ fontSize: '10px', color: VINO, marginTop: '6px', fontWeight: 500 }}>→ {lead.proximaAccion.slice(0, 50)}</div>
+                        {role === 'admin' && (
+                          <div style={{ marginTop: '8px' }}>
+                            <select value={lead.asignadoA || ''} onChange={e => setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, asignadoA: e.target.value || undefined } : l))}
+                              style={{ ...INPUT, fontSize: '10px', padding: '3px 6px', color: lead.asignadoA ? VINO : 'var(--text-muted)' }}>
+                              <option value="">Sin asignar</option>
+                              <option value="com1">Comercial 1</option>
+                              <option value="com2">Comercial 2</option>
+                            </select>
+                          </div>
+                        )}
+                        {lead.asignadoA && role !== 'admin' && (
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>👤 {lead.asignadoA === 'com1' ? 'Comercial 1' : 'Comercial 2'}</div>
+                        )}
                         <div style={{ display: 'flex', gap: '4px', marginTop: '8px', flexWrap: 'wrap' }}>
                           {PIPELINE_COLS.filter(c => c.key !== col.key).map(c => (
                             <button key={c.key} onClick={() => moveLead(lead.id, c.key)} style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '3px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' }}>→ {c.label}</button>
@@ -913,7 +1016,20 @@ ${listaProductos}`;
       {/* ─────────────────── PESTAÑA 5: CATÁLOGO ─────────────────────── */}
       {tab === 'Catálogo' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>{catalog.filter(c => c.stock === 'disponible').length} referencias con stock en Paraguay</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{catalog.filter(c => c.stock === 'disponible').length} referencias con stock en Paraguay</div>
+            <button
+              onClick={() => {
+                const items = catalog.map(i => `<tr><td style="padding:8px 12px;border-bottom:1px solid #f0e6e6">${i.tipo === 'Aceite AOVE' ? '🫒' : '🍷'} <strong>${i.nombre}</strong></td><td style="padding:8px 12px;border-bottom:1px solid #f0e6e6;color:#666">${i.do}${i.bodega ? ` · ${i.bodega}` : ''}</td><td style="padding:8px 12px;border-bottom:1px solid #f0e6e6;font-size:12px;color:${i.stock === 'disponible' ? '#16a34a' : '#ca8a04'}">${i.stock === 'disponible' ? '✅ Stock Paraguay' : i.stock === 'bajo_pedido' ? '📦 Bajo pedido' : '—'}</td></tr>`).join('');
+                const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Catálogo Last Mile 2026</title><style>body{font-family:Georgia,serif;color:#1a1a1a;margin:0;padding:40px}h1{color:#722F37;font-size:28px;margin-bottom:4px}.sub{color:#666;font-size:14px;margin-bottom:32px}table{width:100%;border-collapse:collapse}th{text-align:left;padding:10px 12px;background:#722F37;color:#fff;font-size:13px}@media print{button{display:none}}</style></head><body><h1>Catálogo de Productos 2026</h1><p class="sub">Distribuidora de Vinos y Aceites Españoles D.O. · ventas@lastmiledist.com · +34 654835593</p><table><thead><tr><th>Producto</th><th>D.O. / Bodega</th><th>Disponibilidad</th></tr></thead><tbody>${items}</tbody></table><p style="margin-top:40px;font-size:12px;color:#999">Precios disponibles bajo solicitud · lastmiledist.com</p><button onclick="window.print()" style="margin-top:20px;padding:10px 24px;background:#722F37;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px">🖨 Imprimir / Guardar PDF</button></body></html>`;
+                const w = window.open('', '_blank');
+                if (w) { w.document.write(html); w.document.close(); }
+              }}
+              style={{ padding: '8px 18px', borderRadius: '6px', background: VINO, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}
+            >
+              ⬇ Descargar PDF para cliente
+            </button>
+          </div>
           {catalog.map(item => {
             const stockInfo = STOCK_LABELS[item.stock];
             const isGenerating = fichaLoading && fichaResult?.id === item.id;
