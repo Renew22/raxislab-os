@@ -12,25 +12,22 @@ type NivelPrecio = 'A' | 'B' | 'C';
 type MonedaPres = 'EUR' | 'PYG';
 type EstadoPres = 'Enviado' | 'Visto' | 'Aceptado' | 'Rechazado' | 'Expirado';
 
-interface FilaPresupuesto { productoId: string; cantidad: number; }
+interface FilaPresupuesto { productoId: string; }
 
 interface Presupuesto {
   id: string;
   numero: string;
   cliente: string;
   empresa?: string;
-  email: string;
-  pais: string;
+  email?: string;
+  mercado: string;
   moneda: MonedaPres;
-  nivel: NivelPrecio;
   validez: '30' | '60' | '90';
   filas: FilaPresupuesto[];
   notas: string;
   condiciones: string;
   fecha: string;
   fechaValidez: string;
-  importeEur: number;
-  importeGs: number;
   estado: EstadoPres;
   contenido?: string;
 }
@@ -157,6 +154,14 @@ const PVP_MULTIPLIER: Record<string, number> = {
 
 const DEFAULT_CONDICIONES = '30% anticipo al confirmar pedido.\n70% contra entrega. FOB Paraguay.';
 
+const MERCADOS: { label: string; moneda: MonedaPres }[] = [
+  { label: 'Paraguay',        moneda: 'PYG' },
+  { label: 'Colombia',        moneda: 'EUR' },
+  { label: 'EEUU',            moneda: 'EUR' },
+  { label: 'Rep. Dominicana', moneda: 'EUR' },
+  { label: 'Otro',            moneda: 'EUR' },
+];
+
 const PIPELINE_COLS: { key: LeadStatus; label: string }[] = [
   { key: 'nuevo',      label: 'NUEVO' },
   { key: 'contactado', label: 'CONTACTADO' },
@@ -251,13 +256,12 @@ export default function LastMilePage() {
   const [presCliente, setPresCliente] = useState('');
   const [presEmpresa, setPresEmpresa] = useState('');
   const [presEmail, setPresEmail] = useState('');
-  const [presPais, setPresPais] = useState('Paraguay');
+  const [presMercado, setPresMercado] = useState('Paraguay');
   const [presMoneda, setPresMoneda] = useState<MonedaPres>('PYG');
-  const [presNivel, setPresNivel] = useState<NivelPrecio>('B');
   const [presValidez, setPresValidez] = useState<'30'|'60'|'90'>('30');
   const [presNotas, setPresNotas] = useState('');
   const [presCondiciones, setPresCondiciones] = useState(DEFAULT_CONDICIONES);
-  const [presFilas, setPresFilas] = useState<FilaPresupuesto[]>([{ productoId: 'ivanto_crianza', cantidad: 0 }]);
+  const [presFilas, setPresFilas] = useState<FilaPresupuesto[]>([{ productoId: 'ivanto_crianza' }]);
   const [presLoading, setPresLoading] = useState(false);
   const [presError, setPresError] = useState('');
   const [emailSending, setEmailSending] = useState<string | null>(null);
@@ -340,31 +344,28 @@ export default function LastMilePage() {
 
   function buildPdfHtml(p: Presupuesto, contenido: string): string {
     const logoUrl = window.location.origin + '/logo-lastmile.png';
-    const filasProd = p.filas.filter(f => f.cantidad > 0);
-    const totalEur = filasProd.reduce((acc, f) => acc + precioProducto(f.productoId, p.nivel) * f.cantidad, 0);
-    const totalGs  = totalEur * tipoCambio;
-
     const introMatch  = contenido.match(/INTRO:\s*([\s\S]*?)(?=CIERRE:|$)/);
     const cierreMatch = contenido.match(/CIERRE:\s*([\s\S]*?)$/);
     const intro  = introMatch?.[1]?.trim()  || '';
     const cierre = cierreMatch?.[1]?.trim() || '';
 
-    const rows = filasProd.map(f => {
+    const showGs = p.moneda === 'PYG';
+    const price  = (eur: number) => showGs
+      ? `${fmtGs(eur * tipoCambio)}<br/><small style="color:#888">${fmtEur(eur)}</small>`
+      : fmtEur(eur);
+
+    const rows = p.filas.map(f => {
       const prod = PRODUCTOS_PRECIOS.find(x => x.id === f.productoId)!;
-      const pu   = precioProducto(f.productoId, p.nivel);
-      const tot  = pu * f.cantidad;
-      const display = (v: number) => p.moneda === 'EUR' ? fmtEur(v) : fmtGs(v * tipoCambio);
       return `<tr>
-        <td>${prod.nombre}</td>
+        <td><strong>${prod.nombre}</strong></td>
         <td>${prod.do}</td>
-        <td>${prod.formato}</td>
-        <td style="text-align:center">${f.cantidad}</td>
-        <td style="text-align:right">${display(pu)}</td>
-        <td style="text-align:right">${display(tot)}</td>
+        <td style="text-align:center">${price(prod.A)}</td>
+        <td style="text-align:center">${price(prod.B)}</td>
+        <td style="text-align:center">${price(prod.C)}</td>
       </tr>`;
     }).join('');
 
-    const totalDisplay = p.moneda === 'EUR' ? fmtEur(totalEur) : fmtGs(totalGs);
+    const clientInfo = [p.mercado, p.email].filter(Boolean).join(' · ');
 
     return `<!DOCTYPE html>
 <html lang="es">
@@ -387,10 +388,12 @@ export default function LastMilePage() {
   .client-block span { font-size: 12px; color: #555; }
   .intro { margin-bottom: 24px; font-size: 13px; color: #333; line-height: 1.8; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-  th { background: #722F37; color: #fff; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
-  td { padding: 8px 10px; border-bottom: 1px solid #e8e8e8; font-size: 12px; }
+  th { background: #722F37; color: #fff; padding: 10px 12px; text-align: center; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; line-height: 1.4; }
+  th:first-child, th:nth-child(2) { text-align: left; }
+  td { padding: 10px 12px; border-bottom: 1px solid #e8e8e8; font-size: 12px; text-align: center; vertical-align: middle; }
+  td:first-child, td:nth-child(2) { text-align: left; }
   tr:nth-child(even) td { background: #faf8f6; }
-  .total-row td { font-weight: bold; border-top: 2px solid #722F37; font-size: 13px; padding-top: 10px; }
+  .note-nivel { font-size: 10px; color: #aaa; font-weight: normal; display: block; margin-top: 2px; }
   .conditions { margin-bottom: 20px; }
   .conditions h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-bottom: 6px; }
   .conditions p { font-size: 12px; color: #444; white-space: pre-line; }
@@ -414,25 +417,20 @@ export default function LastMilePage() {
   <div class="client-block">
     <h3>Preparado para</h3>
     <p>${p.cliente}${p.empresa ? ' — ' + p.empresa : ''}</p>
-    <span>${p.pais} · ${p.email}</span>
+    ${clientInfo ? `<span>${clientInfo}</span>` : ''}
   </div>
   ${intro ? `<div class="intro">${intro.replace(/\n/g, '<br/>')}</div>` : ''}
   <table>
     <thead>
       <tr>
-        <th>Producto</th><th>D.O.</th><th>Formato</th>
-        <th style="text-align:center">Cant.</th>
-        <th style="text-align:right">Precio unit.</th>
-        <th style="text-align:right">Total</th>
+        <th>Producto</th>
+        <th>D.O.</th>
+        <th>Nivel A<span class="note-nivel">1 pallet</span></th>
+        <th>Nivel B<span class="note-nivel">1–6 pallets</span></th>
+        <th>Nivel C<span class="note-nivel">Contenedor</span></th>
       </tr>
     </thead>
-    <tbody>
-      ${rows}
-      <tr class="total-row">
-        <td colspan="5" style="text-align:right">TOTAL</td>
-        <td style="text-align:right">${totalDisplay}</td>
-      </tr>
-    </tbody>
+    <tbody>${rows}</tbody>
   </table>
   <div class="conditions">
     <h3>Condiciones de pago y entrega</h3>
@@ -453,9 +451,8 @@ export default function LastMilePage() {
   }
 
   async function generarPresupuesto() {
-    if (!presCliente || !presEmail) { setPresError('Nombre y email son obligatorios'); return; }
-    const filasValidas = presFilas.filter(f => f.cantidad > 0);
-    if (filasValidas.length === 0) { setPresError('Añade al menos un producto con cantidad > 0'); return; }
+    if (!presCliente) { setPresError('El nombre del cliente es obligatorio'); return; }
+    if (presFilas.length === 0) { setPresError('Añade al menos un producto'); return; }
 
     setPresError('');
     setPresLoading(true);
@@ -467,23 +464,19 @@ export default function LastMilePage() {
     const fv  = new Date(); fv.setDate(fv.getDate() + parseInt(presValidez));
     const fechaValidez = fv.toISOString().split('T')[0];
 
-    const totalEur = filasValidas.reduce((acc, f) => acc + precioProducto(f.productoId, presNivel) * f.cantidad, 0);
-    const totalGs  = totalEur * tipoCambio;
-
-    const listaProductos = filasValidas.map(f => {
+    const listaProductos = presFilas.map(f => {
       const prod = PRODUCTOS_PRECIOS.find(x => x.id === f.productoId)!;
-      return `- ${f.cantidad} uds. ${prod.nombre} (${prod.do})`;
+      return `- ${prod.nombre} (${prod.do})`;
     }).join('\n');
 
     const prompt = `Eres el asistente comercial de Last Mile Distribution. Genera el contenido para un presupuesto formal. Responde EXACTAMENTE en este formato (sin texto adicional):
 
-INTRO: [párrafo de saludo personalizado dirigido a "${presCliente}"${presEmpresa ? ' de "' + presEmpresa + '"' : ''} de ${presPais}. Presentar brevemente los productos cotizados. Tono corporativo. 3-4 frases.]
+INTRO: [párrafo de saludo personalizado dirigido a "${presCliente}"${presEmpresa ? ' de "' + presEmpresa + '"' : ''}, mercado ${presMercado}. Presentar brevemente los productos incluidos, destacando las denominaciones de origen. Tono corporativo. 3-4 frases.]
 
-CIERRE: [párrafo de cierre invitando a confirmar y resolver dudas. Firma como ventas@lastmiledist.com. 2 frases.]
+CIERRE: [párrafo de cierre invitando a confirmar y resolver dudas. Mencionar que los precios se muestran en 3 niveles según volumen. Firma como ventas@lastmiledist.com. 2 frases.]
 
-Productos cotizados:
-${listaProductos}
-Nivel de precio: ${presNivel === 'A' ? 'A (1 pallet)' : presNivel === 'B' ? 'B (1-6 pallets)' : 'C (Contenedor)'}`;
+Productos incluidos:
+${listaProductos}`;
 
     try {
       const r = await fetch('/api/claude/generate', {
@@ -499,18 +492,15 @@ Nivel de precio: ${presNivel === 'A' ? 'A (1 pallet)' : presNivel === 'B' ? 'B (
         numero,
         cliente: presCliente,
         empresa: presEmpresa || undefined,
-        email: presEmail,
-        pais: presPais,
+        email: presEmail || undefined,
+        mercado: presMercado,
         moneda: presMoneda,
-        nivel: presNivel,
         validez: presValidez,
-        filas: filasValidas,
+        filas: [...presFilas],
         notas: presNotas,
         condiciones: presCondiciones,
         fecha: hoy,
         fechaValidez,
-        importeEur: totalEur,
-        importeGs: totalGs,
         estado: 'Enviado',
         contenido,
       };
@@ -523,9 +513,8 @@ Nivel de precio: ${presNivel === 'A' ? 'A (1 pallet)' : presNivel === 'B' ? 'B (
       const win  = window.open(url, '_blank');
       if (win) setTimeout(() => win.print(), 800);
 
-      // Reset form
       setPresCliente(''); setPresEmpresa(''); setPresEmail('');
-      setPresFilas([{ productoId: 'ivanto_crianza', cantidad: 0 }]);
+      setPresFilas([{ productoId: 'ivanto_crianza' }]);
       setPresNotas('');
     } catch {
       setPresError('Error generando presupuesto');
@@ -534,7 +523,7 @@ Nivel de precio: ${presNivel === 'A' ? 'A (1 pallet)' : presNivel === 'B' ? 'B (
   }
 
   async function enviarPorEmail(p: Presupuesto) {
-    if (!p.contenido) return;
+    if (!p.contenido || !p.email) return;
     setEmailSending(p.id);
     const html = buildPdfHtml(p, p.contenido);
     try {
@@ -561,11 +550,11 @@ Nivel de precio: ${presNivel === 'A' ? 'A (1 pallet)' : presNivel === 'B' ? 'B (
   }
 
   function addFilaPresupuesto() {
-    setPresFilas(prev => [...prev, { productoId: PRODUCTOS_PRECIOS[0].id, cantidad: 0 }]);
+    setPresFilas(prev => [...prev, { productoId: PRODUCTOS_PRECIOS[0].id }]);
   }
 
-  function updateFila(i: number, field: keyof FilaPresupuesto, value: string | number) {
-    setPresFilas(prev => prev.map((f, idx) => idx === i ? { ...f, [field]: value } : f));
+  function updateFilaProd(i: number, productoId: string) {
+    setPresFilas(prev => prev.map((f, idx) => idx === i ? { productoId } : f));
   }
 
   function removeFila(i: number) {
@@ -1098,16 +1087,26 @@ Nivel de precio: ${presNivel === 'A' ? 'A (1 pallet)' : presNivel === 'B' ? 'B (
                   <input style={INPUT} value={presCliente} onChange={e => setPresCliente(e.target.value)} placeholder="Ej: Martina Castillo" />
                 </div>
                 <div>
-                  <label style={LABEL_S}>Empresa</label>
+                  <label style={LABEL_S}>Empresa <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcional)</span></label>
                   <input style={INPUT} value={presEmpresa} onChange={e => setPresEmpresa(e.target.value)} placeholder="Ej: Distribuidora XY" />
                 </div>
                 <div>
-                  <label style={LABEL_S}>Email cliente *</label>
+                  <label style={LABEL_S}>Email cliente <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcional)</span></label>
                   <input style={INPUT} type="email" value={presEmail} onChange={e => setPresEmail(e.target.value)} placeholder="cliente@email.com" />
                 </div>
                 <div>
-                  <label style={LABEL_S}>País / Ciudad</label>
-                  <input style={INPUT} value={presPais} onChange={e => setPresPais(e.target.value)} placeholder="Asunción, Paraguay" />
+                  <label style={LABEL_S}>Mercado</label>
+                  <select
+                    style={{ ...INPUT, cursor: 'pointer' }}
+                    value={presMercado}
+                    onChange={e => {
+                      const m = MERCADOS.find(x => x.label === e.target.value);
+                      setPresMercado(e.target.value);
+                      if (m) setPresMoneda(m.moneda);
+                    }}
+                  >
+                    {MERCADOS.map(m => <option key={m.label} value={m.label}>{m.label}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label style={LABEL_S}>Moneda del presupuesto</label>
@@ -1119,28 +1118,18 @@ Nivel de precio: ${presNivel === 'A' ? 'A (1 pallet)' : presNivel === 'B' ? 'B (
                     ))}
                   </div>
                 </div>
-                <div>
-                  <label style={LABEL_S}>Nivel de precio</label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    {(['A', 'B', 'C'] as NivelPrecio[]).map(n => (
-                      <button key={n} onClick={() => setPresNivel(n)} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: `1px solid ${presNivel === n ? VINO : 'var(--border)'}`, background: presNivel === n ? VINO : 'var(--surface)', color: presNivel === n ? '#fff' : 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               {/* Tabla de productos */}
               <div style={{ marginBottom: '12px' }}>
-                <label style={LABEL_S}>Productos</label>
+                <label style={LABEL_S}>Productos a incluir</label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {presFilas.map((fila, i) => (
                     <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <select
-                        style={{ ...INPUT, flex: 3, cursor: 'pointer' }}
+                        style={{ ...INPUT, flex: 1, cursor: 'pointer' }}
                         value={fila.productoId}
-                        onChange={e => updateFila(i, 'productoId', e.target.value)}
+                        onChange={e => updateFilaProd(i, e.target.value)}
                       >
                         <optgroup label="── VINOS ──">
                           {PRODUCTOS_PRECIOS.slice(0, 6).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
@@ -1149,40 +1138,17 @@ Nivel de precio: ${presNivel === 'A' ? 'A (1 pallet)' : presNivel === 'B' ? 'B (
                           {PRODUCTOS_PRECIOS.slice(6).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                         </optgroup>
                       </select>
-                      <input
-                        type="number"
-                        min={0}
-                        placeholder="Uds."
-                        value={fila.cantidad || ''}
-                        onChange={e => updateFila(i, 'cantidad', parseInt(e.target.value) || 0)}
-                        style={{ ...INPUT, flex: 1, textAlign: 'center' }}
-                      />
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', minWidth: '90px', textAlign: 'right', fontFamily: "'Space Mono', monospace" }}>
-                        {fila.cantidad > 0 ? fmtEur(precioProducto(fila.productoId, presNivel) * fila.cantidad) : '—'}
-                      </span>
                       {presFilas.length > 1 && (
-                        <button onClick={() => removeFila(i)} style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'transparent', color: '#E74C3C', cursor: 'pointer', fontSize: '13px' }}>✕</button>
+                        <button onClick={() => removeFila(i)} style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid var(--border)', background: 'transparent', color: '#E74C3C', cursor: 'pointer', fontSize: '13px' }}>✕</button>
                       )}
                     </div>
                   ))}
-                  <button onClick={addFilaPresupuesto} style={{ alignSelf: 'flex-start', padding: '6px 14px', borderRadius: '6px', border: `1px dashed ${VINO_BORDER}`, background: VINO_DIM, color: VINO, cursor: 'pointer', fontSize: '12px' }}>+ Añadir fila</button>
+                  <button onClick={addFilaPresupuesto} style={{ alignSelf: 'flex-start', padding: '6px 14px', borderRadius: '6px', border: `1px dashed ${VINO_BORDER}`, background: VINO_DIM, color: VINO, cursor: 'pointer', fontSize: '12px' }}>+ Añadir producto</button>
+                </div>
+                <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  El PDF mostrará los 3 niveles de precio (A/B/C) para cada producto seleccionado.
                 </div>
               </div>
-
-              {/* Total preview */}
-              {presFilas.some(f => f.cantidad > 0) && (
-                <div style={{ padding: '10px 14px', borderRadius: '6px', background: VINO_DIM, border: `1px solid ${VINO_BORDER}`, marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', color: VINO, fontWeight: 600 }}>Total estimado</span>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '16px', fontWeight: 700, color: VINO, fontFamily: "'Space Mono', monospace" }}>
-                      {fmtEur(presFilas.reduce((acc, f) => acc + precioProducto(f.productoId, presNivel) * f.cantidad, 0))}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: "'Space Mono', monospace" }}>
-                      {fmtGs(presFilas.reduce((acc, f) => acc + precioProducto(f.productoId, presNivel) * f.cantidad, 0) * tipoCambio)}
-                    </div>
-                  </div>
-                </div>
-              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                 <div>
@@ -1196,7 +1162,7 @@ Nivel de precio: ${presNivel === 'A' ? 'A (1 pallet)' : presNivel === 'B' ? 'B (
                   </div>
                 </div>
                 <div>
-                  <label style={LABEL_S}>Notas adicionales</label>
+                  <label style={LABEL_S}>Notas adicionales <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcional)</span></label>
                   <input style={INPUT} value={presNotas} onChange={e => setPresNotas(e.target.value)} placeholder="Ej: Muestras enviadas el 01/07..." />
                 </div>
               </div>
@@ -1212,7 +1178,7 @@ Nivel de precio: ${presNivel === 'A' ? 'A (1 pallet)' : presNivel === 'B' ? 'B (
                 <button onClick={generarPresupuesto} disabled={presLoading} style={{ padding: '10px 24px', borderRadius: '6px', background: presLoading ? 'var(--border)' : VINO, color: '#fff', border: 'none', cursor: presLoading ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700 }}>
                   {presLoading ? 'Generando...' : '📄 Generar presupuesto'}
                 </button>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Genera PDF + guarda en historial · Claude redacta el contenido</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Solo "Nombre cliente" es obligatorio · Claude redacta el contenido</span>
               </div>
             </div>
 
@@ -1225,7 +1191,7 @@ Nivel de precio: ${presNivel === 'A' ? 'A (1 pallet)' : presNivel === 'B' ? 'B (
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                      {['Nº', 'Cliente', 'Fecha', 'Importe', 'Estado', 'Acciones'].map(h => (
+                      {['Nº', 'Cliente', 'Productos', 'Fecha', 'Estado', 'Acciones'].map(h => (
                         <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>{h}</th>
                       ))}
                     </tr>
@@ -1239,15 +1205,19 @@ Nivel de precio: ${presNivel === 'A' ? 'A (1 pallet)' : presNivel === 'B' ? 'B (
                           <td style={{ padding: '10px 14px' }}>
                             <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{p.cliente}</div>
                             {p.empresa && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{p.empresa}</div>}
-                            <div style={{ fontSize: '11px', color: '#00C8FF' }}>{p.email}</div>
+                            {p.email && <div style={{ fontSize: '11px', color: '#00C8FF' }}>{p.email}</div>}
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>{p.mercado}</div>
+                          </td>
+                          <td style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                            {p.filas.slice(0, 3).map(f => {
+                              const prod = PRODUCTOS_PRECIOS.find(x => x.id === f.productoId);
+                              return <div key={f.productoId}>· {prod?.nombre.split(' ').slice(0, 4).join(' ')}</div>;
+                            })}
+                            {p.filas.length > 3 && <div>+{p.filas.length - 3} más</div>}
                           </td>
                           <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>
                             <div>{p.fecha}</div>
                             <div style={{ fontSize: '10px' }}>válido hasta {p.fechaValidez}</div>
-                          </td>
-                          <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, fontFamily: "'Space Mono', monospace", color: 'var(--text)' }}>
-                            <div>{fmtEur(p.importeEur)}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400 }}>{fmtGs(p.importeGs)}</div>
                           </td>
                           <td style={{ padding: '10px 14px' }}>
                             <select
@@ -1261,12 +1231,14 @@ Nivel de precio: ${presNivel === 'A' ? 'A (1 pallet)' : presNivel === 'B' ? 'B (
                           <td style={{ padding: '10px 14px' }}>
                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                               <button onClick={() => abrirPdf(p)} style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: `1px solid ${VINO_BORDER}`, background: VINO_DIM, color: VINO, cursor: 'pointer' }}>Ver PDF</button>
-                              <button onClick={() => enviarPorEmail(p)} disabled={emailSending === p.id} style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                                {emailSending === p.id ? '...' : '✉ Reenviar'}
-                              </button>
+                              {p.email && (
+                                <button onClick={() => enviarPorEmail(p)} disabled={emailSending === p.id} style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                                  {emailSending === p.id ? '...' : '✉ Reenviar'}
+                                </button>
+                              )}
                               <button onClick={() => {
-                                setPresCliente(p.cliente); setPresEmpresa(p.empresa || ''); setPresEmail(p.email);
-                                setPresPais(p.pais); setPresMoneda(p.moneda); setPresNivel(p.nivel);
+                                setPresCliente(p.cliente); setPresEmpresa(p.empresa || ''); setPresEmail(p.email || '');
+                                setPresMercado(p.mercado); setPresMoneda(p.moneda);
                                 setPresValidez(p.validez); setPresFilas([...p.filas]);
                                 setPresCondiciones(p.condiciones); setPresNotas(p.notas);
                               }} style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' }}>Duplicar</button>
