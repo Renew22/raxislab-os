@@ -265,6 +265,7 @@ export default function LastMilePage() {
   const [presLoading, setPresLoading] = useState(false);
   const [presError, setPresError] = useState('');
   const [emailSending, setEmailSending] = useState<string | null>(null);
+  const [lastGenerated, setLastGenerated] = useState<Presupuesto | null>(null);
 
   // Google Ads state
   const [adsData, setAdsData] = useState<Record<string, string> | null>(null);
@@ -506,16 +507,13 @@ ${listaProductos}`;
       };
 
       setPresupuestos(prev => [pres, ...prev]);
+      setLastGenerated(pres);
 
       const html = buildPdfHtml(pres, contenido);
       const blob = new Blob([html], { type: 'text/html' });
       const url  = URL.createObjectURL(blob);
       const win  = window.open(url, '_blank');
       if (win) setTimeout(() => win.print(), 800);
-
-      setPresCliente(''); setPresEmpresa(''); setPresEmail('');
-      setPresFilas([{ productoId: 'ivanto_crianza' }]);
-      setPresNotas('');
     } catch {
       setPresError('Error generando presupuesto');
     }
@@ -1174,12 +1172,51 @@ ${listaProductos}`;
 
               {presError && <div style={{ marginBottom: '10px', fontSize: '12px', color: '#E74C3C', padding: '8px 12px', borderRadius: '4px', background: 'rgba(231,76,60,0.08)' }}>{presError}</div>}
 
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: lastGenerated ? '16px' : 0 }}>
                 <button onClick={generarPresupuesto} disabled={presLoading} style={{ padding: '10px 24px', borderRadius: '6px', background: presLoading ? 'var(--border)' : VINO, color: '#fff', border: 'none', cursor: presLoading ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700 }}>
                   {presLoading ? 'Generando...' : '📄 Generar presupuesto'}
                 </button>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Solo "Nombre cliente" es obligatorio · Claude redacta el contenido</span>
               </div>
+
+              {lastGenerated && (
+                <div style={{ padding: '16px 20px', borderRadius: '8px', background: 'rgba(39,174,96,0.07)', border: '1px solid rgba(39,174,96,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#27AE60' }}>✅ {lastGenerated.numero} generado</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{lastGenerated.cliente}{lastGenerated.empresa ? ` — ${lastGenerated.empresa}` : ''} · {lastGenerated.mercado}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => abrirPdf(lastGenerated)}
+                      style={{ padding: '8px 18px', borderRadius: '6px', background: VINO, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}
+                    >
+                      ⬇ Descargar PDF
+                    </button>
+                    {lastGenerated.email && (
+                      <button
+                        onClick={async () => {
+                          setEmailSending(lastGenerated.id);
+                          await enviarPorEmail(lastGenerated);
+                        }}
+                        disabled={emailSending === lastGenerated.id}
+                        style={{ padding: '8px 18px', borderRadius: '6px', background: '#27AE60', color: '#fff', border: 'none', cursor: emailSending === lastGenerated.id ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700 }}
+                      >
+                        {emailSending === lastGenerated.id ? 'Enviando...' : '✉ Enviar al cliente'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setLastGenerated(null);
+                        setPresCliente(''); setPresEmpresa(''); setPresEmail('');
+                        setPresFilas([{ productoId: 'ivanto_crianza' }]); setPresNotas('');
+                      }}
+                      style={{ padding: '8px 14px', borderRadius: '6px', background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '12px' }}
+                    >
+                      + Nuevo
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ── SECCIÓN D: Historial ── */}
