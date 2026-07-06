@@ -8,16 +8,18 @@ import dynamic from "next/dynamic";
 const CarteraTab  = dynamic(() => import("./tabs/CarteraTab"),  { ssr:false });
 const CryptoTab   = dynamic(() => import("./tabs/CryptoTab"),   { ssr:false });
 const M9Tab       = dynamic(() => import("./tabs/M9Tab"),       { ssr:false });
+const BotsTab     = dynamic(() => import("./tabs/BotsTab"),     { ssr:false });
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Tab =
   | "Dashboard" | "Cartera" | "Crypto" | "M9/Stokers"
   | "Técnico" | "Diario" | "Dividendos" | "Calendario"
-  | "Prompts" | "Publicar" | "Imagen" | "Telegram";
+  | "Prompts" | "Publicar" | "Imagen" | "Telegram" | "Bots";
 
 const TABS: [Tab, string][] = [
   ["Dashboard",  "Dashboard"],
+  ["Bots",       "🤖 Bots Cripto"],
   ["Cartera",    "Cartera IBKR"],
   ["Crypto",     "Crypto"],
   ["M9/Stokers", "M9 · Stokers"],
@@ -250,6 +252,9 @@ export default function RaxisInvestorPage() {
           </div>
         </div>
       )}
+
+      {/* ── BOTS CRIPTO ──────────────────────────────────────────────────────── */}
+      {tab==="Bots" && <BotsTab/>}
 
       {/* ── CARTERA ──────────────────────────────────────────────────────────── */}
       {tab==="Cartera" && <CarteraTab/>}
