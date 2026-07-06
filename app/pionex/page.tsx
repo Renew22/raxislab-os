@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-const HETZNER = process.env.NEXT_PUBLIC_HETZNER_URL || "http://167.233.72.200";
-const KEY = "rxl_dash_k9m4p7q2x8";
+const API_URL = "/api/server/pionex";
 
 interface Position {
   symbol: string;
@@ -71,7 +70,7 @@ export default function PionexPage() {
 
   async function load() {
     try {
-      const r = await fetch(`${HETZNER}/data/pionex?key=${KEY}`);
+      const r = await fetch(API_URL);
       const j = await r.json();
       if (j.detail) throw new Error(j.detail);
       setData(j);
