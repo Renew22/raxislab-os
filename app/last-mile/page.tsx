@@ -7,7 +7,33 @@ import { useState, useEffect, useCallback } from "react";
 type LeadStatus = 'nuevo' | 'contactado' | 'interesado' | 'propuesta' | 'cerrado';
 type TrackerStatus = 'sin_contactar' | 'primer_contacto' | 'en_conversacion' | 'muestra_enviada' | 'propuesta_enviada' | 'activo' | 'descartado';
 type StockStatus = 'disponible' | 'bajo_pedido' | 'no_disponible';
-type TabType = 'Resumen' | 'Pipeline' | 'Emails' | 'Tracker' | 'Catálogo' | 'Comerciales';
+type TabType = 'Resumen' | 'Pipeline' | 'Emails' | 'Tracker' | 'Catálogo' | 'Comerciales' | 'Precios';
+type NivelPrecio = 'A' | 'B' | 'C';
+type MonedaPres = 'EUR' | 'PYG';
+type EstadoPres = 'Enviado' | 'Visto' | 'Aceptado' | 'Rechazado' | 'Expirado';
+
+interface FilaPresupuesto { productoId: string; cantidad: number; }
+
+interface Presupuesto {
+  id: string;
+  numero: string;
+  cliente: string;
+  empresa?: string;
+  email: string;
+  pais: string;
+  moneda: MonedaPres;
+  nivel: NivelPrecio;
+  validez: '30' | '60' | '90';
+  filas: FilaPresupuesto[];
+  notas: string;
+  condiciones: string;
+  fecha: string;
+  fechaValidez: string;
+  importeEur: number;
+  importeGs: number;
+  estado: EstadoPres;
+  contenido?: string;
+}
 
 interface Lead {
   id: string;
@@ -59,17 +85,20 @@ interface Comercial {
 // ─── Initial Data ─────────────────────────────────────────────────────────────
 
 const INITIAL_LEADS: Lead[] = [
-  { id: 'l1', nombre: 'Martina Castillo', email: 'marticast1175@gmail.com', mensaje: 'Quiero ser distribuidora en Paraguay', tipo: 'Distribuidor', canal: 'Formulario web', fecha: '2026-06-20', ultimaAccion: 'Lead recibido por formulario', proximaAccion: 'Llamar + enviar catálogo URGENTE', status: 'nuevo' },
-  { id: 'l2', nombre: 'Pablo (Le Club)', empresa: 'Le Club', email: 'lionsbrokerspablo@gmail.com', telefono: '0992 323308', mensaje: 'Quiero WhatsApp, mi número es 0992 323308', tipo: 'HORECA', canal: 'Formulario web', fecha: '2026-06-21', ultimaAccion: 'Lead recibido por formulario', proximaAccion: 'Llamar al 0992 323308 HOY', status: 'nuevo' },
-  { id: 'l3', nombre: 'Marcos Griffith', email: 'marcos.griffith@gmail.com', mensaje: 'Catálogo y precios aceite y vinos, minorista', tipo: 'Minorista', canal: 'Formulario web', fecha: '2026-06-22', ultimaAccion: 'Lead recibido por formulario', proximaAccion: 'Enviar catálogo + lista de precios HOY', status: 'nuevo' },
-  { id: 'l4', nombre: 'Hernán Candia', email: 'hercand@gmail.com', mensaje: 'Favor enviar catálogo y precios', tipo: 'Minorista', canal: 'Formulario web', fecha: '2026-06-22', ultimaAccion: 'Lead recibido por formulario', proximaAccion: 'Enviar catálogo HOY', status: 'nuevo' },
-  { id: 'l5', nombre: 'Guillermo Torres', email: 'gtamd@email.com', mensaje: 'Lista precios aceites, compra mínima', tipo: 'Minorista', canal: 'Formulario web', fecha: '2026-06-23', ultimaAccion: 'Lead recibido por formulario', proximaAccion: 'Enviar precios aceite + mínimos HOY', status: 'nuevo' },
-  { id: 'l6', nombre: 'Manuel Mejías', email: 'mejiasmanuel006@gmail.com', mensaje: 'Más información de productos', tipo: 'Minorista', canal: 'Formulario web', fecha: '2026-06-18', ultimaAccion: 'Lead recibido', proximaAccion: 'Seguimiento esta semana', status: 'contactado' },
-  { id: 'l7', nombre: 'Sandra Bartolozzi', email: 'sbartolozzi@hotmail.com', mensaje: 'Conocer el aceite para la compra', tipo: 'Minorista', canal: 'Formulario web', fecha: '2026-06-19', ultimaAccion: 'Lead recibido', proximaAccion: 'Enviar info Urzante AOVE', status: 'contactado' },
-  { id: 'l8', nombre: 'Gricelda Boggino', email: 'lis59boggino@gmail.com', mensaje: 'Vendedores independientes del interior Paraguay', tipo: 'Comercial', canal: 'Formulario web', fecha: '2026-06-20', ultimaAccion: 'Lead recibido', proximaAccion: 'Evaluar perfil para red comercial', status: 'contactado' },
-  { id: 'l9', nombre: 'Julio Lois', email: 'juliolois2014@gmail.com', mensaje: 'Uruguayo en Paraguay, bueno en ventas, contactos Brasil SP', tipo: 'Comercial', canal: 'Formulario web', fecha: '2026-06-20', ultimaAccion: 'Lead recibido', proximaAccion: 'Evaluar como comercial zona Sur/Brasil', status: 'contactado' },
-  { id: 'l10', nombre: 'Fabio Duré', email: 'fabio.dure@hotmail.com', mensaje: 'A qué número puedo contactar', tipo: 'Minorista', canal: 'Formulario web', fecha: '2026-06-21', ultimaAccion: 'Lead recibido', proximaAccion: 'Responder con WhatsApp + catálogo', status: 'contactado' },
-  { id: 'l11', nombre: 'Sdriano Alvarez', email: 'alvarezadriano57@gmail.com', mensaje: 'Adquirir vinos y aceites españoles', tipo: 'Minorista', canal: 'Formulario web', fecha: '2026-06-22', ultimaAccion: 'Lead recibido', proximaAccion: 'Enviar catálogo + precios', status: 'contactado' },
+  { id: 'l1', nombre: 'Martina Castillo', email: 'marticast1175@gmail.com', mensaje: 'Quiero ser distribuidora en Paraguay', tipo: 'Distribuidor', canal: 'Formulario web', fecha: '2026-06-20', ultimaAccion: 'Contactada — catálogo enviado', proximaAccion: 'Seguimiento 7 días', status: 'contactado' },
+  { id: 'l2', nombre: 'Pablo (Le Club)', empresa: 'Le Club', email: 'lionsbrokerspablo@gmail.com', telefono: '0992 323308', mensaje: 'Quiero WhatsApp, mi número es 0992 323308', tipo: 'HORECA', canal: 'Formulario web', fecha: '2026-06-21', ultimaAccion: 'Contactado — WhatsApp + catálogo', proximaAccion: 'Seguimiento precio por copa', status: 'contactado' },
+  { id: 'l3', nombre: 'Carlos Ramos Huertas', email: 'ramoshuertascarlos@gmail.com', mensaje: 'Restaurante en Luque, interesado en vinos', tipo: 'HORECA', canal: 'Formulario web', fecha: '2026-06-24', ultimaAccion: 'Lead recibido — contactado', proximaAccion: 'Enviar propuesta carta de vinos', status: 'contactado' },
+  { id: 'l4', nombre: 'Fabricio Beckelmann', email: 'sebastian.beckelmann@protonmail.com', mensaje: 'Interesado en colaboración comercial', tipo: 'Comercial', canal: 'Formulario web', fecha: '2026-06-25', ultimaAccion: 'Lead recibido — contactado', proximaAccion: 'Evaluar perfil para zona Este', status: 'contactado' },
+  { id: 'l5', nombre: 'Sonia Barreto', email: 'soniaelizabethbarreto2@gmail.com', mensaje: 'Mayorista vinos, solicita catálogo', tipo: 'Distribuidor', canal: 'Formulario web', fecha: '2026-06-25', ultimaAccion: 'Lead recibido — contactado', proximaAccion: 'Enviar catálogo + condiciones mayorista', status: 'contactado' },
+  { id: 'l6', nombre: 'Julio Lois', email: 'juliolois2014@gmail.com', mensaje: 'Uruguayo en Paraguay, bueno en ventas, contactos Brasil SP', tipo: 'Comercial', canal: 'Formulario web', fecha: '2026-06-20', ultimaAccion: 'Contactado', proximaAccion: 'Evaluar como comercial zona Sur/Brasil', status: 'contactado' },
+  { id: 'l7', nombre: 'A.J. Vierci (Yamil + María Liz)', empresa: 'A.J. Vierci', email: 'contacto@ajvierci.com.py', mensaje: 'Distribuidor nacional interesado en exclusividad', tipo: 'Distribuidor', canal: 'Referido', fecha: '2026-06-15', ultimaAccion: 'Reunión inicial — muy interesados', proximaAccion: 'Enviar propuesta distribuidor exclusivo', status: 'interesado' },
+  { id: 'l8', nombre: 'Manuel Mejías', email: 'mejiasmanuel006@gmail.com', mensaje: 'Más información de productos', tipo: 'Minorista', canal: 'Formulario web', fecha: '2026-06-18', ultimaAccion: 'Contactado — catálogo enviado', proximaAccion: 'Seguimiento esta semana', status: 'contactado' },
+  { id: 'l9', nombre: 'Gricelda Boggino', email: 'lis59boggino@gmail.com', mensaje: 'Vendedores independientes del interior Paraguay', tipo: 'Comercial', canal: 'Formulario web', fecha: '2026-06-20', ultimaAccion: 'Contactada', proximaAccion: 'Evaluar perfil para red comercial interior', status: 'contactado' },
+  { id: 'l10', nombre: 'Guillermo Torres', email: 'gtamd@email.com', mensaje: 'Lista precios aceites, compra mínima', tipo: 'Minorista', canal: 'Formulario web', fecha: '2026-06-23', ultimaAccion: 'Contactado — precios enviados', proximaAccion: 'Confirmar pedido inicial', status: 'contactado' },
+  { id: 'l11', nombre: 'Hernán Candia', email: 'hercand@gmail.com', mensaje: 'Favor enviar catálogo y precios', tipo: 'Minorista', canal: 'Formulario web', fecha: '2026-06-22', ultimaAccion: 'Contactado — catálogo enviado', proximaAccion: 'Seguimiento 7 días', status: 'contactado' },
+  { id: 'l12', nombre: 'Marcos Griffith', email: 'marcos.griffith@gmail.com', mensaje: 'Catálogo y precios aceite y vinos, minorista', tipo: 'Minorista', canal: 'Formulario web', fecha: '2026-06-22', ultimaAccion: 'Contactado — catálogo enviado', proximaAccion: 'Enviar lista de precios', status: 'contactado' },
+  { id: 'l13', nombre: 'Fabio Duré', email: 'fabio.dure@hotmail.com', mensaje: 'A qué número puedo contactar', tipo: 'Minorista', canal: 'Formulario web', fecha: '2026-06-21', ultimaAccion: 'Contactado — WhatsApp enviado', proximaAccion: 'Esperar respuesta WA', status: 'contactado' },
+  { id: 'l14', nombre: 'Sdriano Alvarez', email: 'alvarezadriano57@gmail.com', mensaje: 'Adquirir vinos y aceites españoles', tipo: 'Minorista', canal: 'Formulario web', fecha: '2026-06-22', ultimaAccion: 'Contactado — catálogo enviado', proximaAccion: 'Seguimiento pedido', status: 'contactado' },
 ];
 
 const INITIAL_TRACKER: TrackerEntry[] = [
@@ -81,6 +110,7 @@ const INITIAL_TRACKER: TrackerEntry[] = [
   { id: 't6', empresa: 'Casa Módiga', tipo: 'Distribuidor regional', ciudad: 'Ciudad del Este', zona: 'Sur', status: 'sin_contactar', web: 'modiga.com.py', proximoPaso: 'Email de presentación' },
   { id: 't7', empresa: 'EDESA', tipo: 'Distribuidor CDE', ciudad: 'Ciudad del Este', zona: 'Sur', status: 'sin_contactar', proximoPaso: 'Localizar contacto + email' },
   { id: 't8', empresa: 'Monalisa', tipo: 'Lujo y alta gama frontera', ciudad: 'Pedro Juan Caballero', zona: 'Norte', status: 'sin_contactar', proximoPaso: 'Email de presentación' },
+  { id: 't9', empresa: 'A.J. Vierci', tipo: 'Distribuidor nacional multi-canal', ciudad: 'Asunción', zona: 'Asunción', status: 'en_conversacion', web: 'ajvierci.com.py', contacto: 'Yamil + María Liz', ultimoContacto: '2026-06-15', proximoPaso: 'Enviar propuesta distribuidor exclusivo' },
 ];
 
 const INITIAL_CATALOG: CatalogItem[] = [
@@ -103,6 +133,29 @@ const VINO_DIM = 'rgba(114,47,55,0.12)';
 const VINO_BORDER = 'rgba(114,47,55,0.3)';
 const GOLD = '#C8A97E';
 const GOOGLE_ADS_CUSTOMER_ID = '9497091021';
+
+const PRODUCTOS_PRECIOS: { id: string; nombre: string; do: string; formato: string; A: number; B: number; C: number }[] = [
+  { id: 'ivanto_joven',      nombre: 'D.O. Rioja Ivanto Joven 75cl',                    do: 'D.O. Rioja',              formato: '75cl', A: 6.75,  B: 6.30,  C: 5.85  },
+  { id: 'ivanto_crianza',    nombre: 'D.O. Rioja Ivanto Crianza 75cl',                  do: 'D.O. Rioja',              formato: '75cl', A: 7.50,  B: 7.00,  C: 6.50  },
+  { id: 'torremoron_joven',  nombre: 'D.O. Ribera del Duero Torremorón Joven 75cl',     do: 'D.O. Ribera del Duero',   formato: '75cl', A: 9.75,  B: 9.10,  C: 8.45  },
+  { id: 'torremoron_crianza',nombre: 'D.O. Ribera del Duero Torremorón Crianza 75cl',   do: 'D.O. Ribera del Duero',   formato: '75cl', A: 13.50, B: 12.75, C: 11.05 },
+  { id: 'navarra_rosado',    nombre: 'D.O. Navarra Rosado 75cl',                        do: 'D.O. Navarra',            formato: '75cl', A: 6.15,  B: 5.74,  C: 5.33  },
+  { id: 'rueda_verdejo',     nombre: 'D.O. Rueda Verdejo Blanco 75cl',                  do: 'D.O. Rueda',              formato: '75cl', A: 6.15,  B: 5.74,  C: 5.33  },
+  { id: 'aove_ev_1l',        nombre: 'Urzante AOVE Extra Virgen 1L',                    do: 'DOP Navarra',             formato: '1L',   A: 4.40,  B: 3.85,  C: 3.30  },
+  { id: 'aove_cristal_500',  nombre: 'Urzante AOVE Premium Cristal 500ml',              do: 'DOP Navarra',             formato: '500ml',A: 7.69,  B: 6.72,  C: 5.76  },
+  { id: 'aove_cristal_250',  nombre: 'Urzante AOVE Premium Cristal 250ml',              do: 'DOP Navarra',             formato: '250ml',A: 8.61,  B: 7.53,  C: 6.65  },
+  { id: 'aove_pet_1l',       nombre: 'Urzante AOVE Premium PET 1L',                     do: 'DOP Navarra',             formato: '1L',   A: 14.92, B: 12.57, C: 10.73 },
+  { id: 'girasol',           nombre: 'Urzante Refinado Girasol Alto Oleico',             do: 'DOP Navarra',             formato: '1L',   A: 5.44,  B: 4.78,  C: 4.08  },
+];
+
+const PVP_MULTIPLIER: Record<string, number> = {
+  'Distribuidor regional':                 1.40,
+  'HORECA directo (restaurante/hotel)':    2.80,
+  'Vinoteca/retail':                       1.65,
+  'Exportación (Colombia, EEUU, etc.)':    1.20,
+};
+
+const DEFAULT_CONDICIONES = '30% anticipo al confirmar pedido.\n70% contra entrega. FOB Paraguay.';
 
 const PIPELINE_COLS: { key: LeadStatus; label: string }[] = [
   { key: 'nuevo',      label: 'NUEVO' },
@@ -136,7 +189,7 @@ const STOCK_LABELS: Record<StockStatus, { label: string; color: string }> = {
   no_disponible: { label: '❌ No disponible',           color: '#E74C3C' },
 };
 
-const LM_SYSTEM_PROMPT = `Eres el asistente comercial de Last Mile Distribution, importadora de vinos españoles con Denominación de Origen (Rioja, Ribera del Duero, Rueda, Navarra) y aceite de oliva AOVE para el mercado paraguayo. El tono es profesional y cercano. Siempre enfatizar: origen español, D.O. certificada, respaldo de DISXUQUER (+20 años de experiencia), stock disponible en Paraguay, acompañamiento comercial continuo. Nunca competir en precio — competir en calidad y prestigio. Firma siempre como "Last Mile Distribution | info@lastmiledist.com".`;
+const LM_SYSTEM_PROMPT = `Eres el asistente comercial de Last Mile Distribution, importadora directa de vinos y aceites españoles D.O. para Paraguay. Canal B2B puro. Tono: profesional y cercano. Siempre en español. Énfasis en: D.O. certificada, respaldo DISXUQUER +20 años, stock Paraguay, entrega inmediata, nunca competir en precio sino en calidad y prestigio. WhatsApp comercial: +34 654835593. Email: ventas@lastmiledist.com. Web: lastmiledist.com`;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -183,6 +236,31 @@ export default function LastMilePage() {
   const [catalog, setCatalog] = useLocalStorage<CatalogItem[]>('lm_catalogo', INITIAL_CATALOG);
   const [comerciales, setComerciales] = useLocalStorage<Comercial[]>('lm_comerciales', INITIAL_COMERCIALES);
   const [notaMes, setNotaMes] = useLocalStorage<string>('lm_nota', '');
+
+  // ── Precios & Presupuestos state ──
+  const [tipoCambio, setTipoCambio] = useLocalStorage<number>('lm_tipo_cambio', 7800);
+  const [presupuestos, setPresupuestos] = useLocalStorage<Presupuesto[]>('lm_presupuestos', []);
+  const [presCounter, setPresCounter] = useLocalStorage<number>('lm_pres_num', 0);
+
+  // Calculadora
+  const [calcProd, setCalcProd] = useState('ivanto_crianza');
+  const [calcNivel, setCalcNivel] = useState<NivelPrecio>('B');
+  const [calcCliente, setCalcCliente] = useState('Distribuidor regional');
+
+  // Formulario presupuesto
+  const [presCliente, setPresCliente] = useState('');
+  const [presEmpresa, setPresEmpresa] = useState('');
+  const [presEmail, setPresEmail] = useState('');
+  const [presPais, setPresPais] = useState('Paraguay');
+  const [presMoneda, setPresMoneda] = useState<MonedaPres>('PYG');
+  const [presNivel, setPresNivel] = useState<NivelPrecio>('B');
+  const [presValidez, setPresValidez] = useState<'30'|'60'|'90'>('30');
+  const [presNotas, setPresNotas] = useState('');
+  const [presCondiciones, setPresCondiciones] = useState(DEFAULT_CONDICIONES);
+  const [presFilas, setPresFilas] = useState<FilaPresupuesto[]>([{ productoId: 'ivanto_crianza', cantidad: 0 }]);
+  const [presLoading, setPresLoading] = useState(false);
+  const [presError, setPresError] = useState('');
+  const [emailSending, setEmailSending] = useState<string | null>(null);
 
   // Google Ads state
   const [adsData, setAdsData] = useState<Record<string, string> | null>(null);
@@ -251,6 +329,249 @@ export default function LastMilePage() {
     setFichaLoading(false);
   }
 
+  // ── Helpers precios ──
+  function precioProducto(id: string, nivel: NivelPrecio): number {
+    const p = PRODUCTOS_PRECIOS.find(x => x.id === id);
+    return p ? p[nivel] : 0;
+  }
+
+  function fmtGs(n: number) { return new Intl.NumberFormat('es-PY').format(Math.round(n)) + ' Gs'; }
+  function fmtEur(n: number) { return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(n); }
+
+  function buildPdfHtml(p: Presupuesto, contenido: string): string {
+    const logoUrl = window.location.origin + '/logo-lastmile.png';
+    const filasProd = p.filas.filter(f => f.cantidad > 0);
+    const totalEur = filasProd.reduce((acc, f) => acc + precioProducto(f.productoId, p.nivel) * f.cantidad, 0);
+    const totalGs  = totalEur * tipoCambio;
+
+    const introMatch  = contenido.match(/INTRO:\s*([\s\S]*?)(?=CIERRE:|$)/);
+    const cierreMatch = contenido.match(/CIERRE:\s*([\s\S]*?)$/);
+    const intro  = introMatch?.[1]?.trim()  || '';
+    const cierre = cierreMatch?.[1]?.trim() || '';
+
+    const rows = filasProd.map(f => {
+      const prod = PRODUCTOS_PRECIOS.find(x => x.id === f.productoId)!;
+      const pu   = precioProducto(f.productoId, p.nivel);
+      const tot  = pu * f.cantidad;
+      const display = (v: number) => p.moneda === 'EUR' ? fmtEur(v) : fmtGs(v * tipoCambio);
+      return `<tr>
+        <td>${prod.nombre}</td>
+        <td>${prod.do}</td>
+        <td>${prod.formato}</td>
+        <td style="text-align:center">${f.cantidad}</td>
+        <td style="text-align:right">${display(pu)}</td>
+        <td style="text-align:right">${display(tot)}</td>
+      </tr>`;
+    }).join('');
+
+    const totalDisplay = p.moneda === 'EUR' ? fmtEur(totalEur) : fmtGs(totalGs);
+
+    return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Presupuesto ${p.numero}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Georgia', serif; color: #222; font-size: 13px; line-height: 1.6; padding: 40px 48px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 36px; }
+  .logo { max-width: 140px; max-height: 60px; object-fit: contain; }
+  .title-block { text-align: right; }
+  .title-block h1 { font-size: 20px; color: #722F37; letter-spacing: 0.05em; }
+  .title-block .num { font-size: 13px; color: #555; margin-top: 4px; }
+  .title-block .dates { font-size: 12px; color: #888; margin-top: 2px; }
+  .divider { border: none; border-top: 2px solid #722F37; margin: 24px 0; }
+  .client-block { margin-bottom: 24px; }
+  .client-block h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-bottom: 6px; }
+  .client-block p { font-size: 14px; font-weight: bold; color: #222; }
+  .client-block span { font-size: 12px; color: #555; }
+  .intro { margin-bottom: 24px; font-size: 13px; color: #333; line-height: 1.8; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  th { background: #722F37; color: #fff; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  td { padding: 8px 10px; border-bottom: 1px solid #e8e8e8; font-size: 12px; }
+  tr:nth-child(even) td { background: #faf8f6; }
+  .total-row td { font-weight: bold; border-top: 2px solid #722F37; font-size: 13px; padding-top: 10px; }
+  .conditions { margin-bottom: 20px; }
+  .conditions h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-bottom: 6px; }
+  .conditions p { font-size: 12px; color: #444; white-space: pre-line; }
+  .cierre { font-size: 13px; color: #333; line-height: 1.8; margin-bottom: 32px; }
+  .footer { border-top: 1px solid #ddd; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; }
+  .footer .info { font-size: 11px; color: #888; line-height: 1.8; }
+  .footer .valid { font-size: 11px; color: #722F37; font-weight: bold; }
+  @media print { body { padding: 24px 32px; } }
+</style>
+</head>
+<body>
+  <div class="header">
+    <img class="logo" src="${logoUrl}" alt="Last Mile Distribution" onerror="this.style.display='none'" />
+    <div class="title-block">
+      <h1>PRESUPUESTO COMERCIAL</h1>
+      <div class="num">${p.numero}</div>
+      <div class="dates">Fecha de emisión: ${p.fecha}<br/>Válido hasta: ${p.fechaValidez}</div>
+    </div>
+  </div>
+  <hr class="divider"/>
+  <div class="client-block">
+    <h3>Preparado para</h3>
+    <p>${p.cliente}${p.empresa ? ' — ' + p.empresa : ''}</p>
+    <span>${p.pais} · ${p.email}</span>
+  </div>
+  ${intro ? `<div class="intro">${intro.replace(/\n/g, '<br/>')}</div>` : ''}
+  <table>
+    <thead>
+      <tr>
+        <th>Producto</th><th>D.O.</th><th>Formato</th>
+        <th style="text-align:center">Cant.</th>
+        <th style="text-align:right">Precio unit.</th>
+        <th style="text-align:right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows}
+      <tr class="total-row">
+        <td colspan="5" style="text-align:right">TOTAL</td>
+        <td style="text-align:right">${totalDisplay}</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="conditions">
+    <h3>Condiciones de pago y entrega</h3>
+    <p>${p.condiciones}</p>
+  </div>
+  ${p.notas ? `<div class="conditions"><h3>Notas adicionales</h3><p>${p.notas}</p></div>` : ''}
+  ${cierre ? `<div class="cierre">${cierre.replace(/\n/g, '<br/>')}</div>` : ''}
+  <div class="footer">
+    <div class="info">
+      Last Mile Distribution<br/>
+      ventas@lastmiledist.com · +34 654835593<br/>
+      lastmiledist.com
+    </div>
+    <div class="valid">Presupuesto válido hasta ${p.fechaValidez}</div>
+  </div>
+</body>
+</html>`;
+  }
+
+  async function generarPresupuesto() {
+    if (!presCliente || !presEmail) { setPresError('Nombre y email son obligatorios'); return; }
+    const filasValidas = presFilas.filter(f => f.cantidad > 0);
+    if (filasValidas.length === 0) { setPresError('Añade al menos un producto con cantidad > 0'); return; }
+
+    setPresError('');
+    setPresLoading(true);
+
+    const num = presCounter + 1;
+    setPresCounter(num);
+    const numero = `LM-${new Date().getFullYear()}-${String(num).padStart(3, '0')}`;
+    const hoy = new Date().toISOString().split('T')[0];
+    const fv  = new Date(); fv.setDate(fv.getDate() + parseInt(presValidez));
+    const fechaValidez = fv.toISOString().split('T')[0];
+
+    const totalEur = filasValidas.reduce((acc, f) => acc + precioProducto(f.productoId, presNivel) * f.cantidad, 0);
+    const totalGs  = totalEur * tipoCambio;
+
+    const listaProductos = filasValidas.map(f => {
+      const prod = PRODUCTOS_PRECIOS.find(x => x.id === f.productoId)!;
+      return `- ${f.cantidad} uds. ${prod.nombre} (${prod.do})`;
+    }).join('\n');
+
+    const prompt = `Eres el asistente comercial de Last Mile Distribution. Genera el contenido para un presupuesto formal. Responde EXACTAMENTE en este formato (sin texto adicional):
+
+INTRO: [párrafo de saludo personalizado dirigido a "${presCliente}"${presEmpresa ? ' de "' + presEmpresa + '"' : ''} de ${presPais}. Presentar brevemente los productos cotizados. Tono corporativo. 3-4 frases.]
+
+CIERRE: [párrafo de cierre invitando a confirmar y resolver dudas. Firma como ventas@lastmiledist.com. 2 frases.]
+
+Productos cotizados:
+${listaProductos}
+Nivel de precio: ${presNivel === 'A' ? 'A (1 pallet)' : presNivel === 'B' ? 'B (1-6 pallets)' : 'C (Contenedor)'}`;
+
+    try {
+      const r = await fetch('/api/claude/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'custom', data: { prompt } }),
+      });
+      const d = await r.json();
+      const contenido = d.content || '';
+
+      const pres: Presupuesto = {
+        id: `pres-${Date.now()}`,
+        numero,
+        cliente: presCliente,
+        empresa: presEmpresa || undefined,
+        email: presEmail,
+        pais: presPais,
+        moneda: presMoneda,
+        nivel: presNivel,
+        validez: presValidez,
+        filas: filasValidas,
+        notas: presNotas,
+        condiciones: presCondiciones,
+        fecha: hoy,
+        fechaValidez,
+        importeEur: totalEur,
+        importeGs: totalGs,
+        estado: 'Enviado',
+        contenido,
+      };
+
+      setPresupuestos(prev => [pres, ...prev]);
+
+      const html = buildPdfHtml(pres, contenido);
+      const blob = new Blob([html], { type: 'text/html' });
+      const url  = URL.createObjectURL(blob);
+      const win  = window.open(url, '_blank');
+      if (win) setTimeout(() => win.print(), 800);
+
+      // Reset form
+      setPresCliente(''); setPresEmpresa(''); setPresEmail('');
+      setPresFilas([{ productoId: 'ivanto_crianza', cantidad: 0 }]);
+      setPresNotas('');
+    } catch {
+      setPresError('Error generando presupuesto');
+    }
+    setPresLoading(false);
+  }
+
+  async function enviarPorEmail(p: Presupuesto) {
+    if (!p.contenido) return;
+    setEmailSending(p.id);
+    const html = buildPdfHtml(p, p.contenido);
+    try {
+      await fetch('/api/lastmile/send-presupuesto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: p.email,
+          clientName: p.cliente,
+          subject: `Presupuesto Last Mile Distribution - ${p.cliente}`,
+          htmlContent: html,
+        }),
+      });
+      setPresupuestos(prev => prev.map(x => x.id === p.id ? { ...x, estado: 'Enviado' } : x));
+    } catch { /* ignore */ }
+    setEmailSending(null);
+  }
+
+  function abrirPdf(p: Presupuesto) {
+    if (!p.contenido) return;
+    const html = buildPdfHtml(p, p.contenido);
+    const blob = new Blob([html], { type: 'text/html' });
+    window.open(URL.createObjectURL(blob), '_blank');
+  }
+
+  function addFilaPresupuesto() {
+    setPresFilas(prev => [...prev, { productoId: PRODUCTOS_PRECIOS[0].id, cantidad: 0 }]);
+  }
+
+  function updateFila(i: number, field: keyof FilaPresupuesto, value: string | number) {
+    setPresFilas(prev => prev.map((f, idx) => idx === i ? { ...f, [field]: value } : f));
+  }
+
+  function removeFila(i: number) {
+    setPresFilas(prev => prev.filter((_, idx) => idx !== i));
+  }
+
   function addLead() {
     if (!newLead.nombre || !newLead.email) return;
     const lead: Lead = { id: `l${Date.now()}`, nombre: newLead.nombre!, email: newLead.email!, empresa: newLead.empresa, telefono: newLead.telefono, mensaje: newLead.mensaje || '', tipo: newLead.tipo as Lead['tipo'] || 'Minorista', canal: newLead.canal || 'Manual', fecha: new Date().toISOString().split('T')[0], ultimaAccion: 'Lead añadido manualmente', proximaAccion: newLead.proximaAccion || 'Contactar', status: newLead.status as LeadStatus || 'nuevo' };
@@ -276,7 +597,7 @@ export default function LastMilePage() {
   const nuevosUrgentes = leads.filter(l => l.status === 'nuevo');
   const tareasUrgentes = [...nuevosUrgentes.slice(0, 3).map(l => ({ texto: `Contactar a ${l.nombre}`, urgencia: '🔴' })), { texto: 'Subir catálogo PDF a lastmiledist.com', urgencia: '🟡' }, { texto: 'Configurar Brevo SMTP en WordPress', urgencia: '🟡' }, { texto: 'Crear página /gracias para tracking Google Ads', urgencia: '🟡' }].slice(0, 5);
 
-  const TABS: TabType[] = ['Resumen', 'Pipeline', 'Emails', 'Tracker', 'Catálogo', 'Comerciales'];
+  const TABS: TabType[] = ['Resumen', 'Pipeline', 'Emails', 'Tracker', 'Catálogo', 'Comerciales', 'Precios'];
 
   return (
     <div style={{ padding: '32px 40px', maxWidth: '1400px' }}>
@@ -647,6 +968,320 @@ export default function LastMilePage() {
           </div>
         </div>
       )}
+
+      {/* ─────────────────── PESTAÑA 7: PRECIOS Y PRESUPUESTOS ──────────── */}
+      {tab === 'Precios' && (() => {
+        const calcData  = PRODUCTOS_PRECIOS.find(p => p.id === calcProd) || PRODUCTOS_PRECIOS[0];
+        const precioEur = calcData[calcNivel];
+        const precioGs  = precioEur * tipoCambio;
+        const mult      = PVP_MULTIPLIER[calcCliente] ?? 1.40;
+        const pvpGs     = precioGs * mult;
+        const esHoreca  = calcCliente.startsWith('HORECA');
+        const pvpCopa   = precioGs * 2.80 / 5;
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+            {/* ── SECCIÓN A: Tipo de cambio ── */}
+            <div style={{ ...CARD_S, borderLeft: `3px solid ${GOLD}` }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: GOLD, marginBottom: '12px' }}>A — Tipo de Cambio</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>1€ =</span>
+                  <input
+                    type="number"
+                    value={tipoCambio}
+                    onChange={e => setTipoCambio(Number(e.target.value))}
+                    style={{ ...INPUT, width: '110px', fontSize: '18px', fontWeight: 700, color: VINO, fontFamily: "'Space Mono', monospace", textAlign: 'center' }}
+                  />
+                  <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>Gs</span>
+                </div>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>Actualizar mensualmente según cambio real</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: '24px' }}>
+
+              {/* ── SECCIÓN B izquierda: inputs calculadora ── */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ ...CARD_S }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: VINO, marginBottom: '14px' }}>B — Calculadora de Precio y Margen</div>
+
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={LABEL_S}>Producto</label>
+                    <select style={{ ...INPUT, cursor: 'pointer' }} value={calcProd} onChange={e => setCalcProd(e.target.value)}>
+                      <optgroup label="── VINOS ──">
+                        {PRODUCTOS_PRECIOS.slice(0, 6).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                      </optgroup>
+                      <optgroup label="── ACEITES ──">
+                        {PRODUCTOS_PRECIOS.slice(6).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={LABEL_S}>Nivel de precio</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {(['A', 'B', 'C'] as NivelPrecio[]).map(n => (
+                        <button key={n} onClick={() => setCalcNivel(n)} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: `1px solid ${calcNivel === n ? VINO : 'var(--border)'}`, background: calcNivel === n ? VINO : 'var(--surface)', color: calcNivel === n ? '#fff' : 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                          {n === 'A' ? 'A · 1 pallet' : n === 'B' ? 'B · 1–6 pallets' : 'C · Contenedor'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={LABEL_S}>Tipo de cliente</label>
+                    <select style={{ ...INPUT, cursor: 'pointer' }} value={calcCliente} onChange={e => setCalcCliente(e.target.value)}>
+                      {Object.keys(PVP_MULTIPLIER).map(k => <option key={k}>{k}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── SECCIÓN B derecha: outputs ── */}
+              <div style={{ ...CARD_S, background: 'var(--surface)', borderLeft: `3px solid ${VINO}` }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: VINO, marginBottom: '16px' }}>Resultado — {calcData.nombre}</div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+                  <div style={{ padding: '14px', borderRadius: '8px', background: 'var(--card)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Precio Last Mile</div>
+                    <div style={{ fontSize: '20px', fontWeight: 700, color: VINO, fontFamily: "'Space Mono', monospace" }}>{fmtEur(precioEur)}<span style={{ fontSize: '12px', fontWeight: 400 }}>/ud</span></div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px', fontFamily: "'Space Mono', monospace" }}>{fmtGs(precioGs)}<span style={{ fontSize: '11px' }}>/ud</span></div>
+                  </div>
+
+                  <div style={{ padding: '14px', borderRadius: '8px', background: 'rgba(200,169,126,0.08)', border: `1px solid ${VINO_BORDER}` }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>PVP Recomendado <span style={{ color: GOLD }}>(×{mult})</span></div>
+                    <div style={{ fontSize: '20px', fontWeight: 700, color: GOLD, fontFamily: "'Space Mono', monospace" }}>{fmtGs(pvpGs)}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>{fmtEur(pvpGs / tipoCambio)}</div>
+                    {esHoreca && <div style={{ fontSize: '11px', color: GOLD, marginTop: '6px' }}>Por copa (150ml): <strong>{fmtGs(pvpCopa)}</strong></div>}
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(39,174,96,0.06)', border: '1px solid rgba(39,174,96,0.2)' }}>
+                    <div style={{ fontSize: '10px', color: '#27AE60', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Margen del cliente</div>
+                    <div style={{ fontSize: '16px', fontWeight: 700, color: '#27AE60', fontFamily: "'Space Mono', monospace" }}>{fmtGs(pvpGs - precioGs)}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>+{Math.round((mult - 1) * 100)}% sobre compra</div>
+                  </div>
+
+                  <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(114,47,55,0.06)', border: `1px solid ${VINO_BORDER}` }}>
+                    <div style={{ fontSize: '10px', color: VINO, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Margen Last Mile</div>
+                    <div style={{ fontSize: '16px', fontWeight: 700, color: VINO, fontFamily: "'Space Mono', monospace" }}>~67%</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>sobre coste estimado</div>
+                  </div>
+                </div>
+
+                {/* Tabla referencia todos los niveles */}
+                <div style={{ marginTop: '16px', padding: '12px', borderRadius: '6px', background: 'var(--card)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>Todos los niveles — {calcData.do}</div>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    {(['A', 'B', 'C'] as NivelPrecio[]).map(n => (
+                      <div key={n} style={{ flex: 1, textAlign: 'center', padding: '6px', borderRadius: '4px', background: calcNivel === n ? VINO_DIM : 'transparent', border: calcNivel === n ? `1px solid ${VINO_BORDER}` : '1px solid transparent' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>{n === 'A' ? '1 pallet' : n === 'B' ? '1-6 pallets' : 'Contenedor'}</div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: VINO, fontFamily: "'Space Mono', monospace", marginTop: '2px' }}>{fmtEur(calcData[n])}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{fmtGs(calcData[n] * tipoCambio)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── SECCIÓN C: Generador de presupuesto ── */}
+            <div style={{ ...CARD_S }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: VINO, marginBottom: '16px' }}>C — Generar Presupuesto para Cliente</div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div>
+                  <label style={LABEL_S}>Nombre cliente / empresa *</label>
+                  <input style={INPUT} value={presCliente} onChange={e => setPresCliente(e.target.value)} placeholder="Ej: Martina Castillo" />
+                </div>
+                <div>
+                  <label style={LABEL_S}>Empresa</label>
+                  <input style={INPUT} value={presEmpresa} onChange={e => setPresEmpresa(e.target.value)} placeholder="Ej: Distribuidora XY" />
+                </div>
+                <div>
+                  <label style={LABEL_S}>Email cliente *</label>
+                  <input style={INPUT} type="email" value={presEmail} onChange={e => setPresEmail(e.target.value)} placeholder="cliente@email.com" />
+                </div>
+                <div>
+                  <label style={LABEL_S}>País / Ciudad</label>
+                  <input style={INPUT} value={presPais} onChange={e => setPresPais(e.target.value)} placeholder="Asunción, Paraguay" />
+                </div>
+                <div>
+                  <label style={LABEL_S}>Moneda del presupuesto</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {(['EUR', 'PYG'] as MonedaPres[]).map(m => (
+                      <button key={m} onClick={() => setPresMoneda(m)} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: `1px solid ${presMoneda === m ? VINO : 'var(--border)'}`, background: presMoneda === m ? VINO : 'var(--surface)', color: presMoneda === m ? '#fff' : 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                        {m === 'EUR' ? '€ Euros' : 'Gs Guaraníes'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label style={LABEL_S}>Nivel de precio</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {(['A', 'B', 'C'] as NivelPrecio[]).map(n => (
+                      <button key={n} onClick={() => setPresNivel(n)} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: `1px solid ${presNivel === n ? VINO : 'var(--border)'}`, background: presNivel === n ? VINO : 'var(--surface)', color: presNivel === n ? '#fff' : 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabla de productos */}
+              <div style={{ marginBottom: '12px' }}>
+                <label style={LABEL_S}>Productos</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {presFilas.map((fila, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <select
+                        style={{ ...INPUT, flex: 3, cursor: 'pointer' }}
+                        value={fila.productoId}
+                        onChange={e => updateFila(i, 'productoId', e.target.value)}
+                      >
+                        <optgroup label="── VINOS ──">
+                          {PRODUCTOS_PRECIOS.slice(0, 6).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                        </optgroup>
+                        <optgroup label="── ACEITES ──">
+                          {PRODUCTOS_PRECIOS.slice(6).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                        </optgroup>
+                      </select>
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="Uds."
+                        value={fila.cantidad || ''}
+                        onChange={e => updateFila(i, 'cantidad', parseInt(e.target.value) || 0)}
+                        style={{ ...INPUT, flex: 1, textAlign: 'center' }}
+                      />
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', minWidth: '90px', textAlign: 'right', fontFamily: "'Space Mono', monospace" }}>
+                        {fila.cantidad > 0 ? fmtEur(precioProducto(fila.productoId, presNivel) * fila.cantidad) : '—'}
+                      </span>
+                      {presFilas.length > 1 && (
+                        <button onClick={() => removeFila(i)} style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'transparent', color: '#E74C3C', cursor: 'pointer', fontSize: '13px' }}>✕</button>
+                      )}
+                    </div>
+                  ))}
+                  <button onClick={addFilaPresupuesto} style={{ alignSelf: 'flex-start', padding: '6px 14px', borderRadius: '6px', border: `1px dashed ${VINO_BORDER}`, background: VINO_DIM, color: VINO, cursor: 'pointer', fontSize: '12px' }}>+ Añadir fila</button>
+                </div>
+              </div>
+
+              {/* Total preview */}
+              {presFilas.some(f => f.cantidad > 0) && (
+                <div style={{ padding: '10px 14px', borderRadius: '6px', background: VINO_DIM, border: `1px solid ${VINO_BORDER}`, marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', color: VINO, fontWeight: 600 }}>Total estimado</span>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '16px', fontWeight: 700, color: VINO, fontFamily: "'Space Mono', monospace" }}>
+                      {fmtEur(presFilas.reduce((acc, f) => acc + precioProducto(f.productoId, presNivel) * f.cantidad, 0))}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: "'Space Mono', monospace" }}>
+                      {fmtGs(presFilas.reduce((acc, f) => acc + precioProducto(f.productoId, presNivel) * f.cantidad, 0) * tipoCambio)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div>
+                  <label style={LABEL_S}>Validez</label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {(['30', '60', '90'] as const).map(v => (
+                      <button key={v} onClick={() => setPresValidez(v)} style={{ flex: 1, padding: '7px', borderRadius: '6px', border: `1px solid ${presValidez === v ? VINO : 'var(--border)'}`, background: presValidez === v ? VINO : 'var(--surface)', color: presValidez === v ? '#fff' : 'var(--text-muted)', cursor: 'pointer', fontSize: '12px' }}>
+                        {v} días
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label style={LABEL_S}>Notas adicionales</label>
+                  <input style={INPUT} value={presNotas} onChange={e => setPresNotas(e.target.value)} placeholder="Ej: Muestras enviadas el 01/07..." />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={LABEL_S}>Condiciones de pago y entrega</label>
+                <textarea style={{ ...INPUT, minHeight: '60px', resize: 'vertical', lineHeight: 1.6 }} value={presCondiciones} onChange={e => setPresCondiciones(e.target.value)} />
+              </div>
+
+              {presError && <div style={{ marginBottom: '10px', fontSize: '12px', color: '#E74C3C', padding: '8px 12px', borderRadius: '4px', background: 'rgba(231,76,60,0.08)' }}>{presError}</div>}
+
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <button onClick={generarPresupuesto} disabled={presLoading} style={{ padding: '10px 24px', borderRadius: '6px', background: presLoading ? 'var(--border)' : VINO, color: '#fff', border: 'none', cursor: presLoading ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700 }}>
+                  {presLoading ? 'Generando...' : '📄 Generar presupuesto'}
+                </button>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Genera PDF + guarda en historial · Claude redacta el contenido</span>
+              </div>
+            </div>
+
+            {/* ── SECCIÓN D: Historial ── */}
+            {presupuestos.length > 0 && (
+              <div style={{ ...CARD_S, padding: 0, overflow: 'hidden' }}>
+                <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
+                  D — Historial de Presupuestos ({presupuestos.length})
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      {['Nº', 'Cliente', 'Fecha', 'Importe', 'Estado', 'Acciones'].map(h => (
+                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {presupuestos.map(p => {
+                      const estadoColor: Record<EstadoPres, string> = { Enviado: '#F39C12', Visto: '#3498DB', Aceptado: '#27AE60', Rechazado: '#E74C3C', Expirado: '#7F8C8D' };
+                      return (
+                        <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td style={{ padding: '10px 14px', fontSize: '12px', fontFamily: "'Space Mono', monospace", color: VINO, fontWeight: 600 }}>{p.numero}</td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{p.cliente}</div>
+                            {p.empresa && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{p.empresa}</div>}
+                            <div style={{ fontSize: '11px', color: '#00C8FF' }}>{p.email}</div>
+                          </td>
+                          <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                            <div>{p.fecha}</div>
+                            <div style={{ fontSize: '10px' }}>válido hasta {p.fechaValidez}</div>
+                          </td>
+                          <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, fontFamily: "'Space Mono', monospace", color: 'var(--text)' }}>
+                            <div>{fmtEur(p.importeEur)}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400 }}>{fmtGs(p.importeGs)}</div>
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <select
+                              value={p.estado}
+                              onChange={e => setPresupuestos(prev => prev.map(x => x.id === p.id ? { ...x, estado: e.target.value as EstadoPres } : x))}
+                              style={{ fontSize: '11px', padding: '4px 6px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--card)', color: estadoColor[p.estado], cursor: 'pointer', outline: 'none' }}
+                            >
+                              {(['Enviado', 'Visto', 'Aceptado', 'Rechazado', 'Expirado'] as EstadoPres[]).map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              <button onClick={() => abrirPdf(p)} style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: `1px solid ${VINO_BORDER}`, background: VINO_DIM, color: VINO, cursor: 'pointer' }}>Ver PDF</button>
+                              <button onClick={() => enviarPorEmail(p)} disabled={emailSending === p.id} style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                                {emailSending === p.id ? '...' : '✉ Reenviar'}
+                              </button>
+                              <button onClick={() => {
+                                setPresCliente(p.cliente); setPresEmpresa(p.empresa || ''); setPresEmail(p.email);
+                                setPresPais(p.pais); setPresMoneda(p.moneda); setPresNivel(p.nivel);
+                                setPresValidez(p.validez); setPresFilas([...p.filas]);
+                                setPresCondiciones(p.condiciones); setPresNotas(p.notas);
+                              }} style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' }}>Duplicar</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ─────────────────── PESTAÑA 6: COMERCIALES ─────────────────────── */}
       {tab === 'Comerciales' && (
