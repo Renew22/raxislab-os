@@ -313,13 +313,81 @@ function BotStatusBar() {
   );
 }
 
+const PAIRS_TV: { label: string; symbol: string }[] = [
+  { label: "BTC",  symbol: "BINANCE:BTCUSDT.P" },
+  { label: "SOL",  symbol: "BINANCE:SOLUSDT.P" },
+  { label: "XRP",  symbol: "BINANCE:XRPUSDT.P" },
+  { label: "ADA",  symbol: "BINANCE:ADAUSDT.P" },
+  { label: "DOGE", symbol: "BINANCE:DOGEUSDT.P" },
+  { label: "XAUUSD", symbol: "OANDA:XAUUSD" },
+  { label: "EUR/USD", symbol: "OANDA:EURUSD" },
+];
+
+const INTERVALS = [
+  { label: "1m",  value: "1" },
+  { label: "5m",  value: "5" },
+  { label: "15m", value: "15" },
+  { label: "1H",  value: "60" },
+  { label: "4H",  value: "240" },
+  { label: "1D",  value: "D" },
+];
+
+function TradingViewChart({ symbol, interval }: { symbol: string; interval: string }) {
+  const id = `tv_${symbol.replace(/[^a-z0-9]/gi, "_")}_${interval}`;
+  return (
+    <div key={`${symbol}_${interval}`} style={{ width: "100%", height: 420, borderRadius: 8, overflow: "hidden" }}>
+      <iframe
+        key={`${symbol}_${interval}`}
+        src={`https://s.tradingview.com/widgetembed/?frameElementId=${id}&symbol=${encodeURIComponent(symbol)}&interval=${interval}&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=1e2026&studies=[]&theme=dark&style=1&timezone=Europe%2FMadrid&withdateranges=1&showpopupbutton=1&locale=es&utm_source=raxislab`}
+        style={{ width: "100%", height: "100%", border: "none" }}
+        allowFullScreen
+      />
+    </div>
+  );
+}
+
+function ChartPanel() {
+  const [sym, setSym]   = useState("BINANCE:BTCUSDT.P");
+  const [tf,  setTf]    = useState("15");
+
+  return (
+    <div style={{ ...CARD, padding: 0, overflow: "hidden", marginTop: 20 }}>
+      {/* Toolbar */}
+      <div style={{
+        display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
+        padding: "10px 14px", background: "var(--surface)", borderBottom: "1px solid var(--border)",
+      }}>
+        <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, marginRight: 4 }}>PAR</span>
+        {PAIRS_TV.map(p => (
+          <button key={p.symbol} onClick={() => setSym(p.symbol)} style={{
+            padding: "3px 10px", borderRadius: 5, fontSize: 11, fontWeight: sym === p.symbol ? 700 : 400,
+            border: `1px solid ${sym === p.symbol ? "var(--accent)" : "var(--border)"}`,
+            background: sym === p.symbol ? "var(--accent-dim)" : "transparent",
+            color: sym === p.symbol ? "var(--accent)" : "var(--text-muted)", cursor: "pointer",
+          }}>{p.label}</button>
+        ))}
+        <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, marginLeft: 8, marginRight: 4 }}>TF</span>
+        {INTERVALS.map(i => (
+          <button key={i.value} onClick={() => setTf(i.value)} style={{
+            padding: "3px 10px", borderRadius: 5, fontSize: 11, fontWeight: tf === i.value ? 700 : 400,
+            border: `1px solid ${tf === i.value ? "var(--green)" : "var(--border)"}`,
+            background: tf === i.value ? "rgba(0,230,118,0.1)" : "transparent",
+            color: tf === i.value ? "var(--green)" : "var(--text-muted)", cursor: "pointer",
+          }}>{i.label}</button>
+        ))}
+      </div>
+      <TradingViewChart symbol={sym} interval={tf} />
+    </div>
+  );
+}
+
 export default function BotsTab() {
   return (
     <div style={{ padding: 20 }}>
       <div style={{ marginBottom: 16 }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px" }}>Bots de Trading Cripto</h2>
         <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
-          CoinEx Futuros v3 — stops reales en exchange · circuit breaker · MTF 4H+1H+15min · auto cada 60s
+          CoinEx Futuros v3 · MTF 4H+1H+15min · circuit breaker · stops en exchange
         </p>
       </div>
 
@@ -339,6 +407,8 @@ export default function BotsTab() {
           scoreKey="signals_ciclo"
         />
       </div>
+
+      <ChartPanel />
     </div>
   );
 }
