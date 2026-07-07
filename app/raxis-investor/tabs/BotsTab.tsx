@@ -58,7 +58,15 @@ function BotCard({
   async function load() {
     try {
       const r = await fetch(apiUrl);
-      const j = await r.json();
+      const text = await r.text();
+      let j: BotData & { error?: string; detail?: string };
+      try {
+        j = JSON.parse(text);
+      } catch {
+        setErr(`Respuesta inválida (${r.status}): ${text.substring(0, 120)}`);
+        setLoading(false);
+        return;
+      }
       if (j.error || j.detail) throw new Error(j.error ?? j.detail);
       setData(j);
       setErr("");
