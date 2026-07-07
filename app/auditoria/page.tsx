@@ -9,7 +9,7 @@ interface AuditResult {
   url: string;
   global_score?: { score: number; label: string };
   pagespeed?: { mobile?: any; desktop?: any };
-  onpage?: { title: string; meta_description: string; h1s: string[]; issues: Issue[] };
+  onpage?: { title: string; meta_description: string; h1s: string[]; issues: Issue[]; error?: string };
   technical?: any;
   google_business?: any;
   summary?: { critical_issues: number; improvable_issues: number };
