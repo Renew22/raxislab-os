@@ -231,20 +231,104 @@ function BotCard({
   );
 }
 
+interface HeartbeatData {
+  ts?: number;
+  status?: string;
+  alive?: boolean;
+  seconds_since_last_run?: number;
+  circuit_open?: boolean;
+  daily_pnl_hoy?: number;
+  daily_loss_limit?: number;
+  open_positions?: number;
+  mode?: string;
+}
+
+function BotStatusBar() {
+  const [beat, setBeat] = useState<HeartbeatData | null>(null);
+
+  async function load() {
+    try {
+      const r = await fetch("/api/server/futures/heartbeat");
+      setBeat(await r.json());
+    } catch { setBeat(null); }
+  }
+
+  useEffect(() => { load(); const t = setInterval(load, 60_000); return () => clearInterval(t); }, []);
+
+  if (!beat) return null;
+
+  const alive       = beat.alive !== false;
+  const cb          = beat.circuit_open;
+  const dailyPnl    = beat.daily_pnl_hoy ?? 0;
+  const limit       = beat.daily_loss_limit ?? 30;
+  const pct         = Math.min(Math.abs(dailyPnl) / limit * 100, 100);
+  const secsAgo     = beat.seconds_since_last_run ?? 0;
+  const minsAgo     = Math.floor(secsAgo / 60);
+
+  return (
+    <div style={{
+      display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr",
+      gap: 1, background: "var(--border)", borderRadius: 8, overflow: "hidden",
+      marginBottom: 16, border: "1px solid var(--border)",
+    }}>
+      {/* Estado */}
+      <div style={{ background: "var(--card)", padding: "10px 14px" }}>
+        <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 3 }}>ESTADO BOT</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: alive ? "var(--green)" : "var(--red)", flexShrink: 0 }} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: alive ? "var(--green)" : "var(--red)" }}>
+            {cb ? "CIRCUIT OPEN" : alive ? "ACTIVO" : "INACTIVO"}
+          </span>
+        </div>
+      </div>
+      {/* Última ejecución */}
+      <div style={{ background: "var(--card)", padding: "10px 14px" }}>
+        <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 3 }}>ÚLTIMO CICLO</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: minsAgo < 20 ? "var(--text)" : "var(--amber)" }}>
+          {beat.ts ? `hace ${minsAgo}m` : "—"}
+        </div>
+      </div>
+      {/* PnL diario vs circuit breaker */}
+      <div style={{ background: "var(--card)", padding: "10px 14px" }}>
+        <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 3 }}>PNL HOY / LÍMITE</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: pnlColor(dailyPnl) }}>
+          {dailyPnl >= 0 ? "+" : ""}{dailyPnl.toFixed(2)}$ / -{limit}$
+        </div>
+        <div style={{ height: 3, background: "var(--border)", borderRadius: 2, marginTop: 4 }}>
+          <div style={{ height: 3, borderRadius: 2, width: `${pct}%`, background: cb ? "var(--red)" : pct > 60 ? "var(--amber)" : "var(--green)" }} />
+        </div>
+      </div>
+      {/* Modo */}
+      <div style={{ background: "var(--card)", padding: "10px 14px" }}>
+        <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 3 }}>MODO</div>
+        <span style={{
+          fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 12,
+          background: beat.mode === "LIVE" ? "rgba(34,197,94,0.2)" : "rgba(99,102,241,0.15)",
+          color: beat.mode === "LIVE" ? "var(--green)" : "#818cf8",
+        }}>
+          {beat.mode ?? "—"} · {beat.open_positions ?? 0} pos abiertas
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function BotsTab() {
   return (
     <div style={{ padding: 20 }}>
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 16 }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px" }}>Bots de Trading Cripto</h2>
         <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
-          CoinEx Futuros (LONG/SHORT x10) · Pionex Spot (paper) · Actualización automática cada 60s
+          CoinEx Futuros v3 — stops reales en exchange · circuit breaker · MTF 4H+1H+15min · auto cada 60s
         </p>
       </div>
+
+      <BotStatusBar />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         <BotCard
           title="Bot Futuros CoinEx"
-          subtitle="LONG/SHORT · x10 leverage · Score ≥ 5/9"
+          subtitle="LONG/SHORT · x10 leverage · Score ≥ 5/9 · Stops en exchange"
           apiUrl="/api/server/futures"
           scoreKey="cycle_signals"
         />

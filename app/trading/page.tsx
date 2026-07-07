@@ -2,37 +2,11 @@
 
 import { useState, useEffect } from "react";
 
-const carteraAcciones = [
-  { ticker:"ENGI", nombre:"Engie SA",            pnlEur:"+152€",  pnlPct:"+24.9%", pos:true,  alerta:""            },
-  { ticker:"AI",   nombre:"C3.ai Inc",            pnlEur:"+126€",  pnlPct:"+22.8%", pos:true,  alerta:""            },
-  { ticker:"REP",  nombre:"Repsol SA",             pnlEur:"+98.6€", pnlPct:"+25.2%", pos:true,  alerta:""            },
-  { ticker:"FLEX", nombre:"Flex Ltd",              pnlEur:"+68.8€", pnlPct:"+13.7%", pos:true,  alerta:""            },
-  { ticker:"ENI",  nombre:"ENI SpA",               pnlEur:"+56.5€", pnlPct:"+9.9%",  pos:true,  alerta:""            },
-  { ticker:"FGR",  nombre:"Ferroglobe PLC",        pnlEur:"+54.6€", pnlPct:"+35.9%", pos:true,  alerta:""            },
-  { ticker:"LOG",  nombre:"Logitech Intl",         pnlEur:"+53.7€", pnlPct:"+17.3%", pos:true,  alerta:""            },
-  { ticker:"PHM7", nombre:"PHM Corp",              pnlEur:"+48.9€", pnlPct:"+12.5%", pos:true,  alerta:""            },
-  { ticker:"TBK",  nombre:"Triumph Bancorp",       pnlEur:"+29.2€", pnlPct:"+19.3%", pos:true,  alerta:""            },
-  { ticker:"VEEV", nombre:"Veeva Systems",          pnlEur:"+15.3€", pnlPct:"+4.7%",  pos:true,  alerta:""            },
-  { ticker:"BBVA", nombre:"Banco BBVA",             pnlEur:"+6.88€", pnlPct:"+1.8%",  pos:true,  alerta:""            },
-  { ticker:"KTOS", nombre:"Kratos Defense",         pnlEur:"+4.76€", pnlPct:"+2.1%",  pos:true,  alerta:""            },
-  { ticker:"CLSK", nombre:"CleanSpark Inc",         pnlEur:"-6.29€", pnlPct:"-3.6%",  pos:false, alerta:"VIGILAR"     },
-  { ticker:"BRKR", nombre:"Bruker Corp",            pnlEur:"-20.3€", pnlPct:"-4.9%",  pos:false, alerta:"VIGILAR"     },
-  { ticker:"HPE",  nombre:"HP Enterprise",          pnlEur:"-33.7€", pnlPct:"-12.3%", pos:false, alerta:"REVISAR STOP"},
-  { ticker:"HIMS", nombre:"Hims & Hers Health",     pnlEur:"-35.1€", pnlPct:"-7.0%",  pos:false, alerta:"REVISAR STOP"},
-  { ticker:"BBAI", nombre:"BigBear.ai Holdings",    pnlEur:"-74.2€", pnlPct:"-18.2%", pos:false, alerta:"STOP ACTIVO" },
-  { ticker:"AVGO", nombre:"Broadcom Inc",            pnlEur:"-153€",  pnlPct:"-20.9%", pos:false, alerta:"VIGILAR"     },
-];
+type AccionItem = { ticker:string; nombre:string; pnlEur:string; pnlPct:string; pos:boolean; alerta:string };
+type CryptoItem = { coin:string; nombre:string; cantidad:number; valor:number; pnl:number; pnlPct:number; estado:string; target:string };
 
-const carteraCrypto = [
-  { coin:"SOL",  nombre:"Solana",    cantidad:10.22,   valor:644.99, pnl:-169.62, pnlPct:-20.8,  estado:"MANTENER",        target:"$500-800"      },
-  { coin:"XRP",  nombre:"Ripple",    cantidad:406.11,  valor:445.50, pnl:-174.11, pnlPct:-28.1,  estado:"MANTENER",        target:"$5-10"         },
-  { coin:"ETH",  nombre:"Ethereum",  cantidad:0.163,   valor:257.82, pnl:-64.07,  pnlPct:-19.9,  estado:"MANTENER",        target:"$8.000-12.000" },
-  { coin:"USDT", nombre:"Tether",    cantidad:178.72,  valor:178.58, pnl:0,       pnlPct:0,      estado:"LIQUIDEZ",        target:"—"             },
-  { coin:"DOGE", nombre:"Dogecoin",  cantidad:2079.12, valor:169.75, pnl:97.09,   pnlPct:134.2,  estado:"TOMAR PARCIALES", target:"—"             },
-  { coin:"DOT",  nombre:"Polkadot",  cantidad:112.81,  valor:106.42, pnl:-77.13,  pnlPct:-42.0,  estado:"REVISAR TESIS",   target:"—"             },
-  { coin:"LTC",  nombre:"Litecoin",  cantidad:1.71,    valor:73.48,  pnl:-25.85,  pnlPct:-26.0,  estado:"REVISAR TESIS",   target:"—"             },
-  { coin:"ADA",  nombre:"Cardano",   cantidad:238.44,  valor:37.70,  pnl:-31.11,  pnlPct:-45.2,  estado:"REVISAR TESIS",   target:"—"             },
-];
+const ACCIONES_KEY = "raxislab_cartera_snap_acciones";
+const CRYPTO_KEY   = "raxislab_cartera_snap_crypto";
 
 const dividendos = [
   { t:"TTE",  n:"TotalEnergies",            a:20, p:"55.00", y:"5.5%", ingreso:"60€"  },
@@ -255,8 +229,8 @@ TOTAL: $1.916 | PnL total: -$458 (-20.99%)
 Respuesta estructurada, decisiones claras, sin teoría general de crypto.` },
 ];
 
-type Tab = "Acciones"|"Análisis"|"Crypto"|"Dividendos"|"Diario"|"Setups"|"Prompts";
-const TABS: Tab[] = ["Acciones","Análisis","Crypto","Dividendos","Diario","Setups","Prompts"];
+type Tab = "Acciones"|"Análisis"|"Crypto"|"Dividendos"|"Diario"|"Setups"|"Técnico"|"Calendario"|"Prompts";
+const TABS: Tab[] = ["Acciones","Análisis","Crypto","Dividendos","Diario","Setups","Técnico","Calendario","Prompts"];
 
 type AnalysisRow = {
   id: string;
@@ -285,9 +259,67 @@ export default function TradingPage() {
   const [ops, setOps]     = useState(diarioOps);
   const [modal, setModal] = useState({ open:false, title:"", content:"" });
 
+  // Portfolio editable (snapshot MEXEM)
+  const [carteraAcciones, setCarteraAcciones] = useState<AccionItem[]>([]);
+  const [carteraCrypto, setCarteraCrypto]     = useState<CryptoItem[]>([]);
+  const [editingAcciones, setEditingAcciones] = useState(false);
+  const [newAccion, setNewAccion]             = useState({ ticker:"", nombre:"", pnlEur:"", pnlPct:"", alerta:"" });
+  const [editingCrypto, setEditingCrypto]     = useState(false);
+  const [newCrypto, setNewCrypto]             = useState({ coin:"", nombre:"", cantidad:"", valor:"", pnl:"", target:"", estado:"MANTENER" });
+
+  // Polygon técnico
+  const [polyTicker, setPolyTicker] = useState("");
+  const [polyData, setPolyData]     = useState<Record<string,unknown> | null>(null);
+  const [polyLoading, setPolyLoading] = useState(false);
+  const [polyError, setPolyError]   = useState("");
+
   // Análisis tab — reads positions from /mercado localStorage + fetches live quotes
   const [analysisRows, setAnalysisRows]       = useState<AnalysisRow[]>([]);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+
+  // Load portfolio from localStorage on mount
+  useEffect(() => {
+    const a = localStorage.getItem(ACCIONES_KEY);
+    if (a) setCarteraAcciones(JSON.parse(a));
+    const c = localStorage.getItem(CRYPTO_KEY);
+    if (c) setCarteraCrypto(JSON.parse(c));
+  }, []);
+
+  function saveAcciones(next: AccionItem[]) {
+    setCarteraAcciones(next);
+    localStorage.setItem(ACCIONES_KEY, JSON.stringify(next));
+  }
+  function saveCrypto(next: CryptoItem[]) {
+    setCarteraCrypto(next);
+    localStorage.setItem(CRYPTO_KEY, JSON.stringify(next));
+  }
+  function addAccion() {
+    if (!newAccion.ticker) return;
+    const pnlNum = parseFloat(newAccion.pnlEur.replace("€","").replace("+","").replace(",",".")) || 0;
+    const pos = pnlNum >= 0;
+    saveAcciones([...carteraAcciones, { ticker:newAccion.ticker.toUpperCase(), nombre:newAccion.nombre, pnlEur:newAccion.pnlEur||"0€", pnlPct:newAccion.pnlPct||"0%", pos, alerta:newAccion.alerta }]);
+    setNewAccion({ ticker:"", nombre:"", pnlEur:"", pnlPct:"", alerta:"" });
+  }
+  function removeAccion(idx: number) { saveAcciones(carteraAcciones.filter((_,i)=>i!==idx)); }
+  function addCrypto() {
+    if (!newCrypto.coin) return;
+    const pnlNum = parseFloat(newCrypto.pnl||"0");
+    saveCrypto([...carteraCrypto, { coin:newCrypto.coin.toUpperCase(), nombre:newCrypto.nombre, cantidad:parseFloat(newCrypto.cantidad||"0"), valor:parseFloat(newCrypto.valor||"0"), pnl:pnlNum, pnlPct: parseFloat(newCrypto.valor||"1") > 0 ? pnlNum/(parseFloat(newCrypto.valor||"1")-pnlNum)*100 : 0, estado:newCrypto.estado, target:newCrypto.target||"—" }]);
+    setNewCrypto({ coin:"", nombre:"", cantidad:"", valor:"", pnl:"", target:"", estado:"MANTENER" });
+  }
+  function removeCrypto(idx: number) { saveCrypto(carteraCrypto.filter((_,i)=>i!==idx)); }
+
+  async function fetchPolygon() {
+    if (!polyTicker.trim()) return;
+    setPolyLoading(true); setPolyError(""); setPolyData(null);
+    try {
+      const r = await fetch(`/api/polygon/technicals?ticker=${polyTicker.trim().toUpperCase()}`);
+      const j = await r.json();
+      if (j.error) setPolyError(j.error);
+      else setPolyData(j);
+    } catch { setPolyError("Error de conexión"); }
+    finally { setPolyLoading(false); }
+  }
 
   useEffect(() => {
     if (tab !== "Análisis") return;
@@ -346,78 +378,68 @@ export default function TradingPage() {
       {/* Acciones */}
       {tab === "Acciones" && (
         <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"12px" }}>
-            {statCards.map(({ label, value, color }) => (
-              <div key={label} style={{ ...CARD, padding:"18px 20px" }}>
-                <p style={{ ...LABEL, marginBottom:"8px" }}>{label}</p>
-                <p style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"22px", color }}>{value}</p>
-              </div>
-            ))}
-          </div>
-          <div style={{ display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap" }}>
-            <span style={LABEL}>Alertas activas:</span>
-            {carteraAcciones
-              .filter(a => a.alerta === "STOP ACTIVO" || a.alerta === "REVISAR STOP")
-              .map(a => (
-                <span key={a.ticker} style={{
-                  padding:"3px 10px", borderRadius:"3px", fontSize:"11px", fontWeight:700, letterSpacing:"0.04em",
-                  background: a.alerta === "STOP ACTIVO" ? "rgba(255,61,113,0.15)" : "rgba(255,184,0,0.15)",
-                  color:       a.alerta === "STOP ACTIVO" ? "var(--red)" : "var(--amber)",
-                  border:`1px solid ${a.alerta === "STOP ACTIVO" ? "rgba(255,61,113,0.3)" : "rgba(255,184,0,0.3)"}`,
-                }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap" }}>
+              {carteraAcciones.filter(a=>a.alerta==="STOP ACTIVO"||a.alerta==="REVISAR STOP").map(a=>(
+                <span key={a.ticker} style={{ padding:"3px 10px", borderRadius:"3px", fontSize:"11px", fontWeight:700, letterSpacing:"0.04em", background:a.alerta==="STOP ACTIVO"?"rgba(255,61,113,0.15)":"rgba(255,184,0,0.15)", color:a.alerta==="STOP ACTIVO"?"var(--red)":"var(--amber)", border:`1px solid ${a.alerta==="STOP ACTIVO"?"rgba(255,61,113,0.3)":"rgba(255,184,0,0.3)"}` }}>
                   {a.ticker} — {a.alerta}
                 </span>
-              ))
-            }
-          </div>
-          <div style={{ ...CARD, overflow:"hidden" }}>
-            <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)" }}>
-              <p style={LABEL}>Cartera Acciones — MEXEM · 6 Jun 2026</p>
+              ))}
             </div>
-            <table style={{ width:"100%", borderCollapse:"collapse" }}>
-              <thead><tr>{["Ticker","Empresa","PnL €","PnL %","Estado"].map(h=><th key={h} style={TH}>{h}</th>)}</tr></thead>
-              <tbody>
-                {carteraAcciones.flatMap((item, idx) => {
-                  const prevPos = idx > 0 ? carteraAcciones[idx - 1].pos : true;
-                  const showSep = !item.pos && prevPos;
-                  const rowBg = item.alerta === "STOP ACTIVO"  ? "rgba(255,61,113,0.05)"
-                              : item.alerta === "REVISAR STOP" ? "rgba(255,184,0,0.04)"
-                              : "transparent";
-                  const rows: React.ReactElement[] = [];
-                  if (showSep) rows.push(
-                    <tr key={`sep-${item.ticker}`}>
-                      <td colSpan={5} style={{ padding:"5px 14px", background:"var(--accent-dim)", borderTop:"1px solid var(--border)", borderBottom:"1px solid var(--border)" }}>
-                        <span style={{ fontSize:"10px", fontWeight:700, color:"var(--text-muted)", letterSpacing:"0.12em" }}>── EN PÉRDIDAS ─────────────────────────────────</span>
-                      </td>
-                    </tr>
-                  );
-                  rows.push(
-                    <tr key={item.ticker} style={{ background: rowBg }}>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--accent)" }}>{item.ticker}</td>
-                      <td style={{ ...TD, fontSize:"13px", color:"var(--text-muted)" }}>{item.nombre}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: item.pos ? "var(--green)" : "var(--red)" }}>{item.pnlEur}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: item.pos ? "var(--green)" : "var(--red)" }}>{item.pnlPct}</td>
-                      <td style={{ ...TD }}>
-                        {item.alerta && (
-                          <span style={{
-                            fontSize:"10px", fontWeight:700, padding:"2px 7px", borderRadius:"3px", letterSpacing:"0.04em",
-                            background: item.alerta === "STOP ACTIVO" ? "rgba(255,61,113,0.15)" : item.alerta === "REVISAR STOP" ? "rgba(255,184,0,0.15)" : "var(--accent-dim)",
-                            color:       item.alerta === "STOP ACTIVO" ? "var(--red)"              : item.alerta === "REVISAR STOP" ? "var(--amber)"              : "var(--text-muted)",
-                            border:`1px solid ${item.alerta === "STOP ACTIVO" ? "rgba(255,61,113,0.3)" : item.alerta === "REVISAR STOP" ? "rgba(255,184,0,0.3)" : "var(--border)"}`,
-                          }}>{item.alerta}</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                  return rows;
-                })}
-                <tr>
-                  <td colSpan={2} style={{ padding:"12px 14px", fontWeight:700, color:"var(--text)", fontSize:"13px", borderTop:"1px solid var(--border)" }}>TOTAL · 18 posiciones</td>
-                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--green)", borderTop:"1px solid var(--border)" }}>+357,90€</td>
-                  <td colSpan={2} style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--text-muted)", borderTop:"1px solid var(--border)" }}>Capital: 12.022,43€</td>
-                </tr>
-              </tbody>
-            </table>
+            <button onClick={()=>setEditingAcciones(e=>!e)} style={{ padding:"6px 14px", borderRadius:"4px", background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--border-accent)", fontSize:"12px", fontWeight:600, cursor:"pointer" }}>
+              {editingAcciones ? "Cerrar edición" : "Editar cartera"}
+            </button>
+          </div>
+
+          {editingAcciones && (
+            <div style={{ ...CARD, padding:"16px 20px", display:"flex", gap:"8px", flexWrap:"wrap", alignItems:"flex-end" }}>
+              {[["Ticker","ticker","NVDA","80px"],["Empresa","nombre","Nvidia Corp","150px"],["PnL €","pnlEur","+120€","90px"],["PnL %","pnlPct","+12.5%","90px"]].map(([l,k,ph,w])=>(
+                <div key={k}>
+                  <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"3px" }}>{l}</p>
+                  <input value={(newAccion as Record<string,string>)[k]} onChange={e=>setNewAccion(p=>({...p,[k]:e.target.value}))} placeholder={ph as string} style={{ width:w as string, padding:"6px 8px", borderRadius:"4px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text)", fontSize:"12px", outline:"none" }} />
+                </div>
+              ))}
+              <div>
+                <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"3px" }}>Alerta</p>
+                <select value={newAccion.alerta} onChange={e=>setNewAccion(p=>({...p,alerta:e.target.value}))} style={{ padding:"6px 8px", borderRadius:"4px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text)", fontSize:"12px", outline:"none" }}>
+                  <option value="">—</option><option>VIGILAR</option><option>REVISAR STOP</option><option>STOP ACTIVO</option>
+                </select>
+              </div>
+              <button onClick={addAccion} style={{ padding:"7px 14px", borderRadius:"4px", background:"var(--accent)", color:"#fff", fontSize:"12px", fontWeight:600, border:"none", cursor:"pointer" }}>+ Añadir</button>
+            </div>
+          )}
+
+          <div style={{ ...CARD, overflow:"hidden" }}>
+            <div style={{ padding:"14px 20px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <p style={LABEL}>Cartera Acciones — MEXEM · snapshot manual</p>
+              <span style={{ fontSize:"11px", color:"var(--text-muted)" }}>{carteraAcciones.length} posiciones</span>
+            </div>
+            {carteraAcciones.length === 0 ? (
+              <div style={{ padding:"40px", textAlign:"center", color:"var(--text-muted)", fontSize:"13px" }}>
+                Cartera vacía. Pulsa «Editar cartera» para añadir posiciones.
+              </div>
+            ) : (
+              <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <thead><tr>{["Ticker","Empresa","PnL €","PnL %","Alerta",editingAcciones?"":""].map((h,i)=><th key={i} style={TH}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {carteraAcciones.map((item,idx)=>{
+                    const rowBg = item.alerta==="STOP ACTIVO"?"rgba(255,61,113,0.05)":item.alerta==="REVISAR STOP"?"rgba(255,184,0,0.04)":"transparent";
+                    return (
+                      <tr key={idx} style={{ background:rowBg }}>
+                        <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--accent)" }}>{item.ticker}</td>
+                        <td style={{ ...TD, fontSize:"13px", color:"var(--text-muted)" }}>{item.nombre}</td>
+                        <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:item.pos?"var(--green)":"var(--red)" }}>{item.pnlEur}</td>
+                        <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:item.pos?"var(--green)":"var(--red)" }}>{item.pnlPct}</td>
+                        <td style={{ ...TD }}>
+                          {item.alerta&&<span style={{ fontSize:"10px", fontWeight:700, padding:"2px 7px", borderRadius:"3px", background:item.alerta==="STOP ACTIVO"?"rgba(255,61,113,0.15)":item.alerta==="REVISAR STOP"?"rgba(255,184,0,0.15)":"var(--accent-dim)", color:item.alerta==="STOP ACTIVO"?"var(--red)":item.alerta==="REVISAR STOP"?"var(--amber)":"var(--text-muted)", border:`1px solid ${item.alerta==="STOP ACTIVO"?"rgba(255,61,113,0.3)":item.alerta==="REVISAR STOP"?"rgba(255,184,0,0.3)":"var(--border)"}` }}>{item.alerta}</span>}
+                        </td>
+                        {editingAcciones&&<td style={TD}><button onClick={()=>removeAccion(idx)} style={{ fontSize:"11px", padding:"2px 8px", borderRadius:"3px", background:"rgba(255,61,113,0.12)", color:"var(--red)", border:"1px solid rgba(255,61,113,0.25)", cursor:"pointer" }}>✕</button></td>}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       )}
@@ -524,65 +546,66 @@ export default function TradingPage() {
       {/* Crypto */}
       {tab === "Crypto" && (
         <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
-          <div style={{ ...CARD, padding:"20px 24px", display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"16px" }}>
-            {[
-              { label:"Total",     value:"$1.916",     color:"var(--text)"  },
-              { label:"PnL Total", value:"-$458",      color:"var(--red)"  },
-              { label:"PnL hoy",   value:"-$166",      color:"var(--red)"  },
-              { label:"Exchange",  value:"CoinEx Spot",color:"var(--text-muted)"  },
-            ].map(({ label, value, color }) => (
-              <div key={label}>
-                <p style={{ ...LABEL, marginBottom:"8px" }}>{label}</p>
-                <p style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"18px", color }}>{value}</p>
-              </div>
-            ))}
+          <div style={{ display:"flex", justifyContent:"flex-end" }}>
+            <button onClick={()=>setEditingCrypto(e=>!e)} style={{ padding:"6px 14px", borderRadius:"4px", background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--border-accent)", fontSize:"12px", fontWeight:600, cursor:"pointer" }}>
+              {editingCrypto?"Cerrar edición":"Editar cartera crypto"}
+            </button>
           </div>
+          {editingCrypto && (
+            <div style={{ ...CARD, padding:"16px 20px", display:"flex", gap:"8px", flexWrap:"wrap", alignItems:"flex-end" }}>
+              {[["Coin","coin","SOL","70px"],["Nombre","nombre","Solana","120px"],["Cantidad","cantidad","10.5","90px"],["Valor $","valor","650","90px"],["PnL $","pnl","-100","90px"],["Target","target","$500","90px"]].map(([l,k,ph,w])=>(
+                <div key={k}>
+                  <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"3px" }}>{l}</p>
+                  <input value={(newCrypto as Record<string,string>)[k]} onChange={e=>setNewCrypto(p=>({...p,[k]:e.target.value}))} placeholder={ph as string} style={{ width:w as string, padding:"6px 8px", borderRadius:"4px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text)", fontSize:"12px", outline:"none" }} />
+                </div>
+              ))}
+              <div>
+                <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"3px" }}>Estado</p>
+                <select value={newCrypto.estado} onChange={e=>setNewCrypto(p=>({...p,estado:e.target.value}))} style={{ padding:"6px 8px", borderRadius:"4px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text)", fontSize:"12px", outline:"none" }}>
+                  <option>MANTENER</option><option>LIQUIDEZ</option><option>TOMAR PARCIALES</option><option>REVISAR TESIS</option>
+                </select>
+              </div>
+              <button onClick={addCrypto} style={{ padding:"7px 14px", borderRadius:"4px", background:"var(--accent)", color:"#fff", fontSize:"12px", fontWeight:600, border:"none", cursor:"pointer" }}>+ Añadir</button>
+            </div>
+          )}
           <div style={{ ...CARD, overflow:"hidden" }}>
-            <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)" }}>
-              <p style={LABEL}>Cartera Crypto — CoinEx Spot · 6 Jun 2026</p>
+            <div style={{ padding:"14px 20px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <p style={LABEL}>Cartera Crypto — snapshot manual</p>
+              <span style={{ fontSize:"11px", color:"var(--text-muted)" }}>{carteraCrypto.length} posiciones</span>
             </div>
-            <table style={{ width:"100%", borderCollapse:"collapse" }}>
-              <thead><tr>{["Coin","Nombre","Cantidad","Valor USD","PnL $","PnL %","Target","Estado"].map(h=><th key={h} style={TH}>{h}</th>)}</tr></thead>
-              <tbody>
-                {carteraCrypto.map(item => {
-                  const pnlColor = item.pnl > 0 ? "var(--green)" : item.pnl < 0 ? "var(--red)" : "var(--text-mid)";
-                  const pnlSign  = item.pnl > 0 ? "+" : "";
-                  const badgeStyle: React.CSSProperties =
-                    item.estado === "MANTENER"       ? { background:"var(--accent-dim)",  color:"var(--accent)", border:"1px solid var(--border-accent)"  } :
-                    item.estado === "LIQUIDEZ"        ? { background:"var(--accent-dim)", color:"var(--text-mid)", border:"1px solid var(--border)"   } :
-                    item.estado === "TOMAR PARCIALES" ? { background:"rgba(255,184,0,0.12)",  color:"var(--amber)", border:"1px solid rgba(255,184,0,0.25)"   } :
-                                                        { background:"rgba(255,61,113,0.12)", color:"var(--red)", border:"1px solid rgba(255,61,113,0.25)"  };
-                  return (
-                    <tr key={item.coin}>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--amber)" }}>{item.coin}</td>
-                      <td style={{ ...TD, fontSize:"13px", color:"var(--text-muted)" }}>{item.nombre}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--text-mid)" }}>{item.cantidad}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"13px", color:"var(--text)" }}>${item.valor.toFixed(2)}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pnlColor }}>{pnlSign}${Math.abs(item.pnl).toFixed(2)}</td>
-                      <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: pnlColor }}>{pnlSign}{item.pnlPct}%</td>
-                      <td style={{ ...TD, fontSize:"12px", color:"var(--accent)" }}>{item.target}</td>
-                      <td style={{ ...TD }}>
-                        <span style={{ fontSize:"10px", fontWeight:700, padding:"2px 7px", borderRadius:"3px", letterSpacing:"0.04em", ...badgeStyle }}>{item.estado}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-                <tr>
-                  <td colSpan={3} style={{ padding:"12px 14px", fontWeight:700, color:"var(--text)", fontSize:"13px", borderTop:"1px solid var(--border)" }}>TOTAL · 8 posiciones</td>
-                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--text)", borderTop:"1px solid var(--border)" }}>$1.916</td>
-                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--red)", borderTop:"1px solid var(--border)" }}>-$458</td>
-                  <td style={{ padding:"12px 14px", fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--red)", borderTop:"1px solid var(--border)" }}>-20.99%</td>
-                  <td colSpan={2} style={{ borderTop:"1px solid var(--border)" }}></td>
-                </tr>
-              </tbody>
-            </table>
-            <div style={{ padding:"12px 20px", borderTop:"1px solid var(--border)", background:"var(--accent-dim)" }}>
-              <p style={{ fontSize:"11px", color:"var(--text-muted)", lineHeight:1.6, margin:0 }}>
-                <span style={{ color:"var(--accent)", fontWeight:600 }}>Largo plazo</span>: SOL · XRP · ETH — targets definidos, tesis activa.{" "}
-                <span style={{ color:"var(--red)", fontWeight:600 }}>Revisar</span>: DOT · LTC · ADA — sin tesis clara, evaluar salida.{" "}
-                DOGE en profit +134%, considerar toma parcial.
-              </p>
-            </div>
+            {carteraCrypto.length === 0 ? (
+              <div style={{ padding:"40px", textAlign:"center", color:"var(--text-muted)", fontSize:"13px" }}>
+                Cartera vacía. Pulsa «Editar cartera crypto» para añadir posiciones.
+              </div>
+            ) : (
+              <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <thead><tr>{["Coin","Nombre","Cantidad","Valor $","PnL $","PnL %","Target","Estado",editingCrypto?"":""].map((h,i)=><th key={i} style={TH}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {carteraCrypto.map((item,idx)=>{
+                    const pnlColor = item.pnl>0?"var(--green)":item.pnl<0?"var(--red)":"var(--text-mid)";
+                    const pnlSign  = item.pnl>0?"+":"";
+                    const badgeStyle: React.CSSProperties =
+                      item.estado==="MANTENER"       ?{background:"var(--accent-dim)",color:"var(--accent)",border:"1px solid var(--border-accent)"}:
+                      item.estado==="LIQUIDEZ"        ?{background:"var(--accent-dim)",color:"var(--text-mid)",border:"1px solid var(--border)"}:
+                      item.estado==="TOMAR PARCIALES" ?{background:"rgba(255,184,0,0.12)",color:"var(--amber)",border:"1px solid rgba(255,184,0,0.25)"}:
+                                                       {background:"rgba(255,61,113,0.12)",color:"var(--red)",border:"1px solid rgba(255,61,113,0.25)"};
+                    return (
+                      <tr key={idx}>
+                        <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--amber)" }}>{item.coin}</td>
+                        <td style={{ ...TD, fontSize:"13px", color:"var(--text-muted)" }}>{item.nombre}</td>
+                        <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"12px", color:"var(--text-mid)" }}>{item.cantidad}</td>
+                        <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"13px", color:"var(--text)" }}>${item.valor.toFixed(2)}</td>
+                        <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:pnlColor }}>{pnlSign}${Math.abs(item.pnl).toFixed(2)}</td>
+                        <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:pnlColor }}>{pnlSign}{Math.abs(item.pnlPct).toFixed(1)}%</td>
+                        <td style={{ ...TD, fontSize:"12px", color:"var(--accent)" }}>{item.target}</td>
+                        <td style={TD}><span style={{ fontSize:"10px", fontWeight:700, padding:"2px 7px", borderRadius:"3px", ...badgeStyle }}>{item.estado}</span></td>
+                        {editingCrypto&&<td style={TD}><button onClick={()=>removeCrypto(idx)} style={{ fontSize:"11px", padding:"2px 8px", borderRadius:"3px", background:"rgba(255,61,113,0.12)", color:"var(--red)", border:"1px solid rgba(255,61,113,0.25)", cursor:"pointer" }}>✕</button></td>}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       )}
@@ -717,6 +740,185 @@ export default function TradingPage() {
                 <span style={{ fontSize:"11px", color:"var(--text-muted)" }}>Ver prompt completo →</span>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Técnico — Polygon */}
+      {tab === "Técnico" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
+          <div style={{ ...CARD, padding:"20px 24px" }}>
+            <p style={{ ...LABEL, marginBottom:"14px" }}>Análisis Técnico — Polygon.io</p>
+            <div style={{ display:"flex", gap:"10px", alignItems:"center" }}>
+              <input
+                value={polyTicker}
+                onChange={e=>setPolyTicker(e.target.value.toUpperCase())}
+                onKeyDown={e=>e.key==="Enter"&&fetchPolygon()}
+                placeholder="AAPL, NVDA, SOL-USD…"
+                style={{ padding:"8px 12px", borderRadius:"4px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text)", fontSize:"14px", width:"200px", outline:"none", fontFamily:"'Space Mono', monospace" }}
+              />
+              <button onClick={fetchPolygon} disabled={polyLoading} style={{ padding:"8px 20px", borderRadius:"4px", background:"var(--accent)", color:"#fff", fontSize:"13px", fontWeight:600, border:"none", cursor:"pointer" }}>
+                {polyLoading ? "Cargando…" : "Analizar"}
+              </button>
+              {polyError && <span style={{ fontSize:"12px", color:"var(--red)" }}>{polyError}</span>}
+            </div>
+          </div>
+
+          {polyData && (() => {
+            const d = polyData as Record<string,unknown>;
+            const n = (v: unknown) => v !== null && v !== undefined ? Number(v).toFixed(2) : "—";
+            const pct = (v: unknown) => v !== null && v !== undefined ? `${Number(v)>0?"+":""}${Number(v).toFixed(2)}%` : "—";
+            const pctColor = (v: unknown) => v === null || v === undefined ? "var(--text-muted)" : Number(v) >= 0 ? "var(--green)" : "var(--red)";
+            const rsiColor = (v: unknown) => {
+              if (v === null || v === undefined) return "var(--text-muted)";
+              const r = Number(v);
+              if (r >= 70) return "var(--red)";
+              if (r <= 30) return "var(--green)";
+              return "var(--text)";
+            };
+            const trendColor = (t: string) =>
+              t==="ALCISTA FUERTE"?"var(--green)":t==="ALCISTA"?"var(--green)":t==="BAJISTA"?"var(--red)":"var(--red)";
+
+            return (
+              <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
+                {/* Resumen */}
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"12px" }}>
+                  {[
+                    { l:"Precio cierre", v:`$${n(d.price)}`, c:"var(--text)" },
+                    { l:"Tendencia",     v:String(d.trend||"—"), c:trendColor(String(d.trend||"")) },
+                    { l:"RSI(14)",       v:n(d.rsi14), c:rsiColor(d.rsi14) },
+                    { l:"RSI señal",     v:String(d.rsiSignal||"—"), c:rsiColor(d.rsi14) },
+                  ].map(({l,v,c})=>(
+                    <div key={l} style={{ ...CARD, padding:"16px 18px" }}>
+                      <p style={{ ...LABEL, marginBottom:"6px" }}>{l}</p>
+                      <p style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"18px", color:c }}>{v}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Medias móviles */}
+                <div style={{ ...CARD, overflow:"hidden" }}>
+                  <div style={{ padding:"12px 20px", borderBottom:"1px solid var(--border)" }}>
+                    <p style={LABEL}>Medias Móviles vs Precio</p>
+                  </div>
+                  <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                    <thead><tr>{["Indicador","Valor","Precio vs MA","Señal"].map(h=><th key={h} style={TH}>{h}</th>)}</tr></thead>
+                    <tbody>
+                      {[
+                        { l:"SMA 20",  v:d.sma20,  diff:d.priceVsSma20 },
+                        { l:"SMA 50",  v:d.sma50,  diff:d.priceVsSma50 },
+                        { l:"SMA 200", v:d.sma200, diff:d.priceVsSma200 },
+                        { l:"EMA 20",  v:d.ema20,  diff:null },
+                        { l:"EMA 50",  v:d.ema50,  diff:null },
+                      ].map(({l,v,diff})=>{
+                        const price = Number(d.price||0);
+                        const ma = Number(v||0);
+                        const above = v && price > ma;
+                        return (
+                          <tr key={l}>
+                            <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:600, color:"var(--text)" }}>{l}</td>
+                            <td style={{ ...TD, fontFamily:"'Space Mono', monospace", color:"var(--text-mid)" }}>${n(v)}</td>
+                            <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:pctColor(diff) }}>{diff!==null?pct(diff):"—"}</td>
+                            <td style={TD}>
+                              {v ? <span style={{ fontSize:"11px", fontWeight:700, padding:"2px 8px", borderRadius:"3px", background:above?"rgba(0,230,118,0.12)":"rgba(255,61,113,0.12)", color:above?"var(--green)":"var(--red)", border:`1px solid ${above?"rgba(0,230,118,0.25)":"rgba(255,61,113,0.25)"}` }}>
+                                {above?"POR ENCIMA":"POR DEBAJO"}
+                              </span> : <span style={{ color:"var(--text-muted)", fontSize:"12px" }}>Sin datos</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Calendario */}
+      {tab === "Calendario" && (
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"20px" }}>
+          {/* Horarios */}
+          <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
+            <p style={{ ...LABEL, marginBottom:"2px" }}>Horarios de mercado (hora España)</p>
+            {[
+              { mercado:"NYSE / NASDAQ", premarket:"10:00 — 15:29", sesion:"15:30 — 22:00", afterhours:"22:00 — 00:00", color:"var(--accent)" },
+              { mercado:"BME (España)",  premarket:"08:30 — 09:00", sesion:"09:00 — 17:30", afterhours:"—",              color:"var(--amber)" },
+              { mercado:"DAX / Xetra",  premarket:"08:00 — 09:00", sesion:"09:00 — 17:30", afterhours:"—",              color:"var(--green)" },
+            ].map(({mercado,premarket,sesion,afterhours,color})=>(
+              <div key={mercado} style={{ ...CARD, padding:"16px 18px" }}>
+                <p style={{ fontSize:"13px", fontWeight:600, color, marginBottom:"10px" }}>{mercado}</p>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"8px" }}>
+                  {[["Pre-market",premarket,"var(--text-muted)"],["Sesión",sesion,"var(--text)"],["After-hours",afterhours,"var(--text-muted)"]].map(([l,v,c])=>(
+                    <div key={l}>
+                      <p style={{ fontSize:"10px", color:"var(--text-muted)", fontWeight:600, letterSpacing:"0.06em", marginBottom:"3px" }}>{l}</p>
+                      <p style={{ fontFamily:"'Space Mono', monospace", fontSize:"12px", color:c as string, fontWeight:600 }}>{v}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <div style={{ ...CARD, padding:"16px 18px" }}>
+              <p style={{ ...LABEL, marginBottom:"12px" }}>Eventos macro recurrentes</p>
+              {[
+                { dia:"Lunes",    evento:"Apertura NYSE — revisar setups semanales" },
+                { dia:"Miércoles",evento:"FOMC minutes / datos empleo ADP" },
+                { dia:"Jueves",   evento:"Peticiones desempleo semanales 14:30 ET" },
+                { dia:"Viernes",  evento:"Non-Farm Payroll (1er viernes de mes)" },
+                { dia:"Domingo",  evento:"Briefing semanal — M9 candidatos 16:00" },
+              ].map(({dia,evento})=>(
+                <div key={dia} style={{ display:"flex", gap:"12px", padding:"8px 0", borderBottom:"1px solid var(--border)" }}>
+                  <span style={{ fontFamily:"'Space Mono', monospace", fontSize:"11px", color:"var(--accent)", fontWeight:600, width:"80px", flexShrink:0 }}>{dia}</span>
+                  <span style={{ fontSize:"12px", color:"var(--text-muted)" }}>{evento}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Reglas de disciplina */}
+          <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
+            <p style={{ ...LABEL, marginBottom:"2px" }}>Reglas de disciplina de trading</p>
+            <div style={{ ...CARD, padding:"18px 20px", display:"flex", flexDirection:"column", gap:"10px" }}>
+              {[
+                { num:"01", regla:"NUNCA operar sin stop loss definido antes de entrar" },
+                { num:"02", regla:"Risk máximo por operación: 1-2% del capital total" },
+                { num:"03", regla:"R:R mínimo 2:1 — si el objetivo no dobla el riesgo, no entras" },
+                { num:"04", regla:"No operar los primeros 15 min de sesión (15:30-15:45 ET)" },
+                { num:"05", regla:"No añadir a perdedoras — promediar a la baja = trampa" },
+                { num:"06", regla:"Máximo 3 posiciones abiertas simultáneamente al inicio" },
+                { num:"07", regla:"Después de 2 stops seguidos: parar el día, revisar setup" },
+                { num:"08", regla:"No operar en days con datos macro importantes sin confirmación" },
+                { num:"09", regla:"Cerrar posiciones antes de earnings salvo tesis muy clara" },
+                { num:"10", regla:"Tomar parciales en +10-15%, dejar correr con stop en breakeven" },
+              ].map(({num,regla})=>(
+                <div key={num} style={{ display:"flex", gap:"14px", alignItems:"flex-start" }}>
+                  <span style={{ fontFamily:"'Space Mono', monospace", fontSize:"13px", fontWeight:700, color:"var(--accent)", flexShrink:0 }}>{num}</span>
+                  <span style={{ fontSize:"13px", color:"var(--text-mid)", lineHeight:1.5 }}>{regla}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ ...CARD, padding:"16px 18px" }}>
+              <p style={{ ...LABEL, marginBottom:"12px" }}>Rutina diaria óptima</p>
+              {[
+                { hora:"07:00",  accion:"Leer noticias macro — Briefing M9 (si lunes)" },
+                { hora:"10:00",  accion:"Pre-market US — revisar futuros ES/NQ" },
+                { hora:"15:15",  accion:"Setup pre-apertura — listar candidatas del día" },
+                { hora:"15:30",  accion:"Apertura NYSE — esperar 15 min antes de operar" },
+                { hora:"15:45",  accion:"Primera ventana operativa (momentum inicial)" },
+                { hora:"18:00",  accion:"Check posiciones abiertas — ajustar stops si aplica" },
+                { hora:"21:30",  accion:"Power hour — segunda ventana operativa" },
+                { hora:"22:00",  accion:"Cierre NYSE — cerrar o dejar overnight con análisis" },
+                { hora:"22:30",  accion:"Diario: anotar operaciones + aprendizajes del día" },
+              ].map(({hora,accion})=>(
+                <div key={hora} style={{ display:"flex", gap:"12px", padding:"7px 0", borderBottom:"1px solid var(--border)" }}>
+                  <span style={{ fontFamily:"'Space Mono', monospace", fontSize:"11px", color:"var(--amber)", fontWeight:600, width:"50px", flexShrink:0 }}>{hora}</span>
+                  <span style={{ fontSize:"12px", color:"var(--text-muted)" }}>{accion}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

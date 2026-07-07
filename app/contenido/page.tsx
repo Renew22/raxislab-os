@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
 
-type ClienteTab = "Identity" | "Desancho" | "Otro cliente";
+type ClienteTab = "Identity" | "Desancho" | "Malvarrosa CF" | "Matías Tattoo" | "Otro cliente";
 type TipoContenido = "Stories" | "Reel" | "Carrusel" | "Post feed";
 type Tono = "Profesional" | "Cercano" | "Urgencia" | "Inspiracional";
+type SeccionPrincipal = "Social" | "Blog";
 
 type HistorialItem = {
   id: string;
@@ -21,15 +22,17 @@ type ParsedResult = {
   hora_publicacion: string;
 };
 
-const CLIENTES_INFO: Record<ClienteTab, { nombre: string; sector: string }> = {
+const CLIENTES_INFO: Record<ClienteTab, { nombre: string; sector: string; web?: string }> = {
   "Identity":      { nombre: "Identity Peluqueros", sector: "Peluquería y estética" },
-  "Desancho":      { nombre: "Desancho Estilistas",  sector: "Peluquería canina y felina" },
+  "Desancho":      { nombre: "Desancho Estilistas",  sector: "Peluquería y estética canina" },
+  "Malvarrosa CF": { nombre: "Malvarrosa CF",         sector: "Club de fútbol / Deporte" },
+  "Matías Tattoo": { nombre: "Matías Benegas Tattoo", sector: "Estudio de tatuaje" },
   "Otro cliente":  { nombre: "", sector: "" },
 };
 
 const TIPOS: TipoContenido[] = ["Stories", "Reel", "Carrusel", "Post feed"];
 const TONOS: Tono[]          = ["Profesional", "Cercano", "Urgencia", "Inspiracional"];
-const TABS: ClienteTab[]     = ["Identity", "Desancho", "Otro cliente"];
+const TABS: ClienteTab[]     = ["Identity", "Desancho", "Malvarrosa CF", "Matías Tattoo", "Otro cliente"];
 const HISTORIAL_KEY = "raxislab_contenido_historial_v1";
 
 function loadHistorial(): HistorialItem[] {
@@ -50,6 +53,7 @@ function tryParseResult(text: string): ParsedResult | null {
 }
 
 export default function ContenidoPage() {
+  const [seccion, setSeccion]       = useState<SeccionPrincipal>("Social");
   const [tab, setTab]               = useState<ClienteTab>("Identity");
   const [tipo, setTipo]             = useState<TipoContenido>("Stories");
   const [tema, setTema]             = useState("");
@@ -60,6 +64,14 @@ export default function ContenidoPage() {
   const [result, setResult]         = useState<string | null>(null);
   const [historial, setHistorial]   = useState<HistorialItem[]>([]);
   const [hydrated, setHydrated]     = useState(false);
+
+  // Blog section state
+  const [blogCliente, setBlogCliente] = useState<ClienteTab>("Identity");
+  const [blogTopic, setBlogTopic]     = useState("");
+  const [blogKeyword, setBlogKeyword] = useState("");
+  const [blogIdioma, setBlogIdioma]   = useState<"ES" | "EN">("ES");
+  const [blogLoading, setBlogLoading] = useState(false);
+  const [blogResult, setBlogResult]   = useState("");
 
   useEffect(() => {
     setHistorial(loadHistorial());
@@ -138,18 +150,74 @@ Devuelve EXACTAMENTE este JSON (sin markdown, sin texto fuera del JSON):
     return parsed ? `${parsed.caption}\n\n${parsed.hashtags}` : text;
   }
 
+  async function generarBlog() {
+    if (!blogTopic.trim()) return;
+    const clienteInfo = CLIENTES_INFO[blogCliente];
+    const nombre  = blogCliente === "Otro cliente" ? otroNombre || "el negocio" : clienteInfo.nombre;
+    const sector  = blogCliente === "Otro cliente" ? otroSector || "negocio local" : clienteInfo.sector;
+    setBlogLoading(true); setBlogResult("");
+    try {
+      const prompt = blogIdioma === "ES"
+        ? `Eres un experto en marketing de contenidos para negocios locales españoles.
+
+Escribe un artículo de blog profesional en español para ${nombre} (${sector}).
+Tema: "${blogTopic.trim()}"
+${blogKeyword ? `Keyword objetivo: "${blogKeyword}"` : ""}
+
+Estructura:
+- Título atractivo (H1) con la keyword
+- Introducción (2-3 frases, engancha al lector)
+- 3 secciones con subtítulo H2 y 2-3 párrafos cada una
+- Conclusión con CTA sutil (reservar cita / contactar / visitar)
+
+Tono: experto pero cercano, español de España. Máximo 700 palabras. Sin relleno, información útil y accionable.
+
+Escribe el artículo completo directamente:`
+        : `Write a professional blog article in English for ${nombre} (${sector}).
+Topic: "${blogTopic.trim()}"
+${blogKeyword ? `Target keyword: "${blogKeyword}"` : ""}
+
+Structure:
+- Engaging H1 title with keyword
+- Intro (2-3 sentences)
+- 3 sections with H2 headers and 2-3 paragraphs each
+- Conclusion with subtle CTA
+
+Tone: expert but approachable. Max 700 words. No fluff.
+
+Write the full article directly:`;
+
+      const res = await fetch("/api/claude/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "social_caption_custom", data: { prompt } }),
+      });
+      const j = await res.json();
+      setBlogResult(j.content || j.error || "Error generando");
+    } catch { setBlogResult("Error de conexión"); }
+    finally { setBlogLoading(false); }
+  }
+
   return (
     <div style={{ padding: "32px 40px" }}>
       <h1 style={{ fontSize: "24px", fontWeight: 600, color: "var(--text)", marginBottom: "24px" }}>Contenido</h1>
 
-      {/* Tab bar */}
-      <div style={{ display: "inline-flex", gap: "4px", padding: "4px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", marginBottom: "28px" }}>
+      {/* Sección principal: Social / Blog */}
+      <div style={{ display: "inline-flex", gap: "4px", padding: "4px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", marginBottom: "20px" }}>
+        {(["Social", "Blog"] as SeccionPrincipal[]).map(s => (
+          <button key={s} onClick={() => setSeccion(s)} style={{ padding: "7px 24px", borderRadius: "5px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: seccion === s ? 600 : 400, background: seccion === s ? "var(--accent-dim)" : "transparent", color: seccion === s ? "var(--accent)" : "var(--text-muted)", outline: seccion === s ? "1px solid var(--border-accent)" : "none" }}>{s === "Social" ? "Redes Sociales" : "Blog / Artículos"}</button>
+        ))}
+      </div>
+
+      {/* Tab bar clientes — solo en Social */}
+      {seccion === "Social" && (
+      <div style={{ display: "inline-flex", gap: "4px", padding: "4px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", marginBottom: "28px", marginLeft: "12px" }}>
         {TABS.map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             style={{
-              padding: "7px 20px", borderRadius: "5px", border: "none", cursor: "pointer",
+              padding: "7px 16px", borderRadius: "5px", border: "none", cursor: "pointer",
               fontSize: "13px", fontWeight: tab === t ? 600 : 400,
               background: tab === t ? "var(--accent-dim)" : "transparent",
               color:      tab === t ? "var(--accent)"     : "var(--text-muted)",
@@ -160,8 +228,104 @@ Devuelve EXACTAMENTE este JSON (sin markdown, sin texto fuera del JSON):
           </button>
         ))}
       </div>
+      )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "20px", alignItems: "start" }}>
+      {/* ═══════════ SECCIÓN BLOG ═══════════ */}
+      {seccion === "Blog" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+          {/* Panel izquierdo — configuración */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div style={CARD}>
+              <p style={{ ...LABEL, marginBottom: "14px" }}>Cliente</p>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "18px" }}>
+                {TABS.map(t => (
+                  <button key={t} onClick={() => setBlogCliente(t)} style={{ padding: "6px 14px", borderRadius: "5px", border: `1px solid ${blogCliente===t?"var(--border-accent)":"var(--border)"}`, background: blogCliente===t?"var(--accent-dim)":"transparent", color: blogCliente===t?"var(--accent)":"var(--text-muted)", fontSize: "12px", fontWeight: blogCliente===t?600:400, cursor: "pointer" }}>{t}</button>
+                ))}
+              </div>
+              {blogCliente === "Otro cliente" && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px" }}>
+                  <div>
+                    <p style={{ ...LABEL, marginBottom: "6px" }}>Nombre</p>
+                    <input value={otroNombre} onChange={e => setOtroNombre(e.target.value)} placeholder="Taller García" style={INPUT} />
+                  </div>
+                  <div>
+                    <p style={{ ...LABEL, marginBottom: "6px" }}>Sector</p>
+                    <input value={otroSector} onChange={e => setOtroSector(e.target.value)} placeholder="Taller mecánico" style={INPUT} />
+                  </div>
+                </div>
+              )}
+
+              <p style={{ ...LABEL, marginBottom: "8px" }}>Tema / Título tentativo</p>
+              <input value={blogTopic} onChange={e => setBlogTopic(e.target.value)} placeholder="Ej: Cómo elegir el corte de pelo perfecto para tu tipo de cara" style={{ ...INPUT, marginBottom: "14px" }} />
+
+              <p style={{ ...LABEL, marginBottom: "8px" }}>Keyword SEO (opcional)</p>
+              <input value={blogKeyword} onChange={e => setBlogKeyword(e.target.value)} placeholder="Ej: peluquería Valencia, corte de pelo hombre" style={{ ...INPUT, marginBottom: "16px" }} />
+
+              <p style={{ ...LABEL, marginBottom: "10px" }}>Idioma</p>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
+                {(["ES", "EN"] as const).map(l => (
+                  <button key={l} onClick={() => setBlogIdioma(l)} style={{ padding: "7px 20px", borderRadius: "5px", border: `1px solid ${blogIdioma===l?"var(--border-accent)":"var(--border)"}`, background: blogIdioma===l?"var(--accent-dim)":"transparent", color: blogIdioma===l?"var(--accent)":"var(--text-muted)", fontSize: "13px", fontWeight: blogIdioma===l?600:400, cursor: "pointer" }}>
+                    {l === "ES" ? "Español" : "English"}
+                  </button>
+                ))}
+              </div>
+
+              <button onClick={generarBlog} disabled={!blogTopic.trim()||blogLoading} style={{ width: "100%", padding: "13px", borderRadius: "8px", border: "none", background: blogLoading||!blogTopic.trim()?"var(--surface)":"var(--accent)", color: blogLoading||!blogTopic.trim()?"var(--text-muted)":"#fff", fontSize: "14px", fontWeight: 600, cursor: blogLoading||!blogTopic.trim()?"not-allowed":"pointer" }}>
+                {blogLoading ? "Generando artículo…" : "Generar artículo →"}
+              </button>
+            </div>
+
+            <div style={{ ...CARD, padding: "14px 16px", background: "var(--accent-dim)", borderColor: "var(--border-accent)" }}>
+              <p style={{ ...LABEL, marginBottom: "8px" }}>Dónde publicar</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {[
+                  { label: "WordPress (cliente)", hint: "Copiar artículo → Entradas → Nueva entrada → pegar" },
+                  { label: "Blog raxislab.com", hint: "Copiar → pegar en blog/ → rebuild wrangler" },
+                  { label: "Google Business Post", hint: "Google Business → Publicaciones → Crear → Novedades" },
+                  { label: "LinkedIn Article", hint: "LinkedIn → Escribir artículo → pegar" },
+                ].map(({label,hint}) => (
+                  <div key={label} style={{ padding: "8px 10px", borderRadius: "5px", background: "var(--card)", border: "1px solid var(--border)" }}>
+                    <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text)", marginBottom: "2px" }}>{label}</p>
+                    <p style={{ fontSize: "11px", color: "var(--text-muted)" }}>{hint}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Panel derecho — preview artículo */}
+          <div style={{ ...CARD, padding: "20px 24px", display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <p style={LABEL}>Artículo generado</p>
+              {blogResult && (
+                <button onClick={() => navigator.clipboard.writeText(blogResult).then(() => alert("Artículo copiado ✅"))} style={{ fontSize: "11px", padding: "4px 12px", borderRadius: "4px", background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--border-accent)", cursor: "pointer", fontWeight: 600 }}>
+                  Copiar todo
+                </button>
+              )}
+            </div>
+            {blogLoading && (
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: "13px", minHeight: "400px" }}>
+                Redactando artículo con Claude…
+              </div>
+            )}
+            {!blogLoading && !blogResult && (
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: "13px", minHeight: "400px" }}>
+                Configura el tema y genera el artículo.
+              </div>
+            )}
+            {!blogLoading && blogResult && (
+              <div style={{ overflowY: "auto", maxHeight: "70vh" }}>
+                <pre style={{ fontFamily: "inherit", fontSize: "13px", color: "var(--text-mid)", lineHeight: 1.8, whiteSpace: "pre-wrap", margin: 0 }}>
+                  {blogResult}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════ SECCIÓN SOCIAL ═══════════ */}
+      {seccion === "Social" && <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "20px", alignItems: "start" }}>
 
         {/* ── Left: Generar ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -333,7 +497,7 @@ Devuelve EXACTAMENTE este JSON (sin markdown, sin texto fuera del JSON):
             </div>
           )}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
