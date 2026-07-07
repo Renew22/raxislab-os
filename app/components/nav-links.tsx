@@ -12,6 +12,7 @@ const links = [
   { href: "/trading",          label: "Trading" },
   { href: "/stokers",          label: "Stokers Market" },
   { href: "/raxis-investor",   label: "Raxis Investor" },
+  { href: "/auditoria",         label: "Auditoría Web" },
   { href: "/leads",            label: "Leads" },
   { href: "/proyectos",        label: "Proyectos" },
   { href: "/automatizaciones", label: "Automatizaciones" },

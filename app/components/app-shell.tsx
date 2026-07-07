@@ -1,14 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { ThemeProvider } from "./theme-provider";
 import Sidebar from "./sidebar";
 import Topbar from "./topbar";
 
+const NO_SHELL_ROUTES = ["/comercial"];
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const noShell = NO_SHELL_ROUTES.some(r => pathname.startsWith(r));
 
   const close = () => setMobileOpen(false);
+
+  if (noShell) {
+    return <ThemeProvider><div style={{ flex: 1, overflowY: "auto" }}>{children}</div></ThemeProvider>;
+  }
 
   return (
     <ThemeProvider>
