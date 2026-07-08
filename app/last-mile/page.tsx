@@ -7,7 +7,10 @@ import { useState, useEffect, useCallback } from "react";
 type LeadStatus = 'nuevo' | 'contactado' | 'interesado' | 'propuesta' | 'cerrado';
 type TrackerStatus = 'sin_contactar' | 'primer_contacto' | 'en_conversacion' | 'muestra_enviada' | 'propuesta_enviada' | 'activo' | 'descartado';
 type StockStatus = 'disponible' | 'bajo_pedido' | 'no_disponible';
-type TabType = 'Resumen' | 'Pipeline' | 'Emails' | 'Tracker' | 'Catálogo' | 'Comerciales' | 'Precios' | 'Dossieres';
+type TabType = 'Resumen' | 'Pipeline' | 'Emails' | 'Tracker' | 'Catálogo' | 'Comerciales' | 'Precios' | 'Dossieres' | 'Financiero';
+
+interface PagoItem { id: string; fecha: string; concepto: string; importe: number; metodo: 'Transferencia' | 'Efectivo' | 'PayPal' | 'Otro'; nota?: string; }
+interface TrabajoItem { id: string; concepto: string; valorMercado: number; valorAplicado: number; descripcion?: string; fecha?: string; }
 type UserRole = 'admin' | 'comercial' | 'dueno';
 
 interface LMUser {
@@ -26,7 +29,7 @@ const LM_USERS: LMUser[] = [
 ];
 
 function getTabs(role: UserRole): TabType[] {
-  if (role === 'admin')    return ['Resumen', 'Pipeline', 'Dossieres', 'Emails', 'Tracker', 'Catálogo', 'Comerciales', 'Precios'];
+  if (role === 'admin')    return ['Resumen', 'Pipeline', 'Dossieres', 'Emails', 'Tracker', 'Catálogo', 'Comerciales', 'Precios', 'Financiero'];
   if (role === 'comercial') return ['Pipeline', 'Dossieres', 'Emails', 'Catálogo'];
   return ['Resumen', 'Pipeline', 'Precios'];
 }
@@ -146,6 +149,45 @@ const INITIAL_CATALOG: CatalogItem[] = [
 const INITIAL_COMERCIALES: Comercial[] = [
   { id: 'com1', nombre: 'Por contratar', zona: 'Asunción', leadsAsignados: 5, contactosMes: 0, cierresMes: 0, proximaAccion: 'Contratar comercial zona Gran Asunción' },
   { id: 'com2', nombre: 'Por contratar', zona: 'Interior PY', leadsAsignados: 2, contactosMes: 0, cierresMes: 0, proximaAccion: 'Evaluar Gricelda Boggino + Julio Lois' },
+];
+
+const GASTOS_TECNICOS = [
+  { concepto: "Genspark AI (suscripción)", importe: 28 },
+  { concepto: "Dominio web y plataforma (anual)", importe: 110 },
+  { concepto: "Seguridad web (anual)", importe: 40 },
+  { concepto: "Dominio corporativo", importe: 70 },
+  { concepto: "Configuración correo corporativo", importe: 50 },
+  { concepto: "Google Workspace", importe: 70 },
+  { concepto: "Configuración DNS y correo corporativo", importe: 100 },
+];
+
+const PAGOS_INICIALES: PagoItem[] = [
+  { id: 'p1', fecha: '2026-02-01', concepto: 'Pago inicial desarrollo web', importe: 1200, metodo: 'Transferencia' },
+  { id: 'p2', fecha: '2026-03-15', concepto: 'Adelanto mecánico', importe: 560, metodo: 'Transferencia' },
+  { id: 'p3', fecha: '2026-07-08', concepto: 'Pago en efectivo', importe: 400, metodo: 'Efectivo' },
+];
+
+const TRABAJOS_INICIALES: TrabajoItem[] = [
+  { id: 'tr1',  concepto: 'Desarrollo web completo',                        valorMercado: 1600, valorAplicado: 1600 },
+  { id: 'tr2',  concepto: 'Catálogo digital vinos y aceites',               valorMercado: 600,  valorAplicado: 250  },
+  { id: 'tr3',  concepto: 'Configuración Meta Business Manager',            valorMercado: 250,  valorAplicado: 200  },
+  { id: 'tr4',  concepto: 'Configuración Google Ads',                       valorMercado: 250,  valorAplicado: 150  },
+  { id: 'tr5',  concepto: 'Configuración seguimiento y analítica',          valorMercado: 200,  valorAplicado: 80   },
+  { id: 'tr6',  concepto: 'Preparación comercial y organización productos', valorMercado: 150,  valorAplicado: 60   },
+  { id: 'tr7',  concepto: 'Gestión y coordinación del proyecto',            valorMercado: 300,  valorAplicado: 250  },
+  { id: 'tr8',  concepto: 'Email marketing Brevo',                          valorMercado: 120,  valorAplicado: 50   },
+  { id: 'tr9',  concepto: 'Consultoría estratégica (incluido)',             valorMercado: 400,  valorAplicado: 0    },
+  { id: 'tr10', concepto: 'Branding inicial y adaptación visual (incluido)', valorMercado: 400, valorAplicado: 0    },
+  { id: 'tr11', concepto: 'Edición y adaptación de imágenes (incluido)',    valorMercado: 300,  valorAplicado: 0    },
+  { id: 'tr12', concepto: 'Config. cuenta publicitaria Meta (incluido)',    valorMercado: 150,  valorAplicado: 0    },
+  { id: 'tr13', concepto: 'Soporte, cambios y revisiones jun-jul (incluido)', valorMercado: 400, valorAplicado: 0   },
+  { id: 'tr14', concepto: 'Video coche y diseños publicidad (incluido)',    valorMercado: 300,  valorAplicado: 0    },
+];
+
+const PLANES_MENSUAL = [
+  { id: 'mantenimiento', nombre: 'Plan Mantenimiento', precio: 450, recomendado: false, items: ['Infraestructura digital', 'Mantenimiento web + backups', 'Google Analytics + Search Console', 'Google Business Profile', 'Soporte técnico básico', 'Actualización contenidos puntual'] },
+  { id: 'crecimiento',   nombre: 'Plan Crecimiento',   precio: 850, recomendado: true,  items: ['Todo lo del Plan Mantenimiento', 'Gestión Meta Ads + Google Ads', 'SEO técnico y local', 'Google Business optimización completa', 'Analítica y seguimiento mensual', 'Reunión de seguimiento mensual', 'Soporte prioritario'] },
+  { id: 'escala',        nombre: 'Plan Escala y Automatización', precio: 1350, recomendado: false, items: ['Todo lo del Plan Crecimiento', 'Automatizaciones avanzadas', 'Embudos de captación', 'Integraciones CRM', 'Dashboards personalizados', 'Automatización seguimiento leads', 'Consultoría estratégica mensual'] },
 ];
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -318,6 +360,16 @@ export default function LastMilePage() {
   const dossiereLoading = useState(false);
   const dossiereResult  = useState('');
   const dossiereHistory = useLocalStorage<{ id: string; cliente: string; tipo: string; fecha: string; estado: string; contenido: string }[]>('lm_dossieres', []);
+
+  // ── Financiero state ──
+  const [pagos, setPagos] = useLocalStorage<PagoItem[]>('lm_pagos', PAGOS_INICIALES);
+  const [trabajos, setTrabajos] = useLocalStorage<TrabajoItem[]>('lm_trabajos', TRABAJOS_INICIALES);
+  const [planActivo, setPlanActivo] = useLocalStorage<{ plan: string; fechaInicio: string }>('lm_plan_activo', { plan: '', fechaInicio: '' });
+  const [grupoEstado, setGrupoEstado] = useLocalStorage<string>('lm_grupo_estado', 'Pendiente presupuestar');
+  const [showPagoModal, setShowPagoModal] = useState(false);
+  const [showTrabajoModal, setShowTrabajoModal] = useState(false);
+  const [newPago, setNewPago] = useState<Partial<PagoItem>>({ fecha: new Date().toISOString().split('T')[0], metodo: 'Transferencia' });
+  const [newTrabajo, setNewTrabajo] = useState<Partial<TrabajoItem>>({ fecha: new Date().toISOString().split('T')[0] });
 
   // ── Precios & Presupuestos state ──
   const [tipoCambio, setTipoCambio] = useLocalStorage<number>('lm_tipo_cambio', 7800);
@@ -1594,6 +1646,274 @@ ${listaProductos}`;
                 </table>
               </div>
             )}
+
+          </div>
+        );
+      })()}
+
+      {/* ─────────────────── PESTAÑA FINANCIERO ─────────────────────── */}
+      {tab === 'Financiero' && (() => {
+        const totalAplicado = trabajos.reduce((s, t) => s + t.valorAplicado, 0);
+        const totalMercado  = trabajos.reduce((s, t) => s + t.valorMercado, 0);
+        const totalGastos   = GASTOS_TECNICOS.reduce((s, g) => s + g.importe, 0);
+        const totalPagado   = pagos.reduce((s, p) => s + p.importe, 0);
+        const totalLiquidar = totalAplicado + totalGastos;
+        const saldo         = totalLiquidar - totalPagado;
+        const ahorro        = totalMercado - totalAplicado;
+        const pctAhorro     = totalMercado > 0 ? Math.round((ahorro / totalMercado) * 100) : 0;
+
+        function fmtEur2(n: number) { return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n); }
+
+        function savePago() {
+          if (!newPago.concepto || !newPago.importe || !newPago.fecha) return;
+          const p: PagoItem = { id: `p${Date.now()}`, fecha: newPago.fecha!, concepto: newPago.concepto!, importe: Number(newPago.importe), metodo: newPago.metodo as PagoItem['metodo'] || 'Transferencia', nota: newPago.nota };
+          setPagos(prev => [...prev, p]);
+          setNewPago({ fecha: new Date().toISOString().split('T')[0], metodo: 'Transferencia' });
+          setShowPagoModal(false);
+        }
+
+        function saveTrabajo() {
+          if (!newTrabajo.concepto || newTrabajo.valorMercado === undefined || newTrabajo.valorAplicado === undefined) return;
+          const t: TrabajoItem = { id: `tr${Date.now()}`, concepto: newTrabajo.concepto!, valorMercado: Number(newTrabajo.valorMercado), valorAplicado: Number(newTrabajo.valorAplicado), descripcion: newTrabajo.descripcion, fecha: newTrabajo.fecha };
+          setTrabajos(prev => [...prev, t]);
+          setNewTrabajo({ fecha: new Date().toISOString().split('T')[0] });
+          setShowTrabajoModal(false);
+        }
+
+        function generarPdfEstadoCuenta() {
+          let acumulado = 0;
+          const pagoRows = pagos.map(p => { acumulado += p.importe; return `<tr><td>${p.fecha}</td><td>${p.concepto}</td><td style="text-align:right;color:#1a7a4a;font-weight:600">${fmtEur2(p.importe)}</td><td style="text-align:center">${p.metodo}</td><td style="text-align:right;font-weight:600">${fmtEur2(acumulado)}</td></tr>`; }).join('');
+          const trabajoRows = trabajos.map(t => `<tr><td>${t.concepto}</td><td style="text-align:right">${fmtEur2(t.valorMercado)}</td><td style="text-align:right;color:${t.valorAplicado === 0 ? '#27AE60' : '#722F37'};font-weight:600">${t.valorAplicado === 0 ? 'INCLUIDO' : fmtEur2(t.valorAplicado)}</td></tr>`).join('');
+          const gastoRows = GASTOS_TECNICOS.map(g => `<tr><td>${g.concepto}</td><td style="text-align:right">${fmtEur2(g.importe)}</td></tr>`).join('');
+          const planSel = PLANES_MENSUAL.find(p => p.id === planActivo.plan);
+          const docNum = `RC-${new Date().getFullYear()}-${String(pagos.length).padStart(3,'0')}`;
+          const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Estado de Cuenta LMD</title><style>
+            *{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,serif;color:#222;font-size:12px;line-height:1.6;padding:40px 48px}
+            .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px}
+            h1{color:#722F37;font-size:20px;letter-spacing:.04em}.sub{font-size:12px;color:#666;margin-top:4px}
+            .divider{border:none;border-top:2px solid #722F37;margin:20px 0}
+            h2{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:#888;margin:20px 0 10px}
+            table{width:100%;border-collapse:collapse;margin-bottom:16px}
+            th{background:#722F37;color:#fff;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+            td{padding:8px 12px;border-bottom:1px solid #eee;font-size:12px;vertical-align:middle}
+            tr:nth-child(even) td{background:#faf8f6}
+            .kpi-row{display:flex;gap:12px;margin-bottom:16px}
+            .kpi{flex:1;padding:14px;border:1px solid #ddd;border-radius:6px;text-align:center}
+            .kpi .label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:6px}
+            .kpi .val{font-size:20px;font-weight:700}
+            .saldo-box{padding:20px;border:2px solid #722F37;border-radius:8px;text-align:center;margin:16px 0}
+            .saldo-box .label{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#888}
+            .saldo-box .val{font-size:32px;font-weight:700;color:${saldo > 0 ? '#E74C3C' : '#27AE60'}}
+            .footer{border-top:1px solid #ddd;padding-top:14px;display:flex;justify-content:space-between;margin-top:20px}
+            .footer .info{font-size:11px;color:#888;line-height:1.8}
+            @media print{body{padding:24px 32px}}
+          </style></head><body>
+          <div class="header"><div><h1>ESTADO DE CUENTA</h1><div class="sub">LAST MILE DISTRIBUTION · ${docNum}</div><div class="sub">Generado: ${new Date().toLocaleDateString('es-ES')} · Válido 30 días</div></div><div style="text-align:right"><div style="font-size:18px;font-weight:700;color:#722F37">Last Mile</div><div class="sub">ventas@lastmiledist.com</div></div></div>
+          <hr class="divider"/>
+          <div class="kpi-row"><div class="kpi"><div class="label">Total aplicado</div><div class="val" style="color:#722F37">${fmtEur2(totalAplicado)}</div></div><div class="kpi"><div class="label">Gastos asumidos</div><div class="val" style="color:#E67E22">${fmtEur2(totalGastos)}</div></div><div class="kpi"><div class="label">Total pagado</div><div class="val" style="color:#27AE60">${fmtEur2(totalPagado)}</div><div class="kpi"><div class="label">Ahorro aplicado</div><div class="val" style="color:#8E44AD">${fmtEur2(ahorro)} (${pctAhorro}%)</div></div></div></div>
+          <h2>Trabajos realizados</h2>
+          <table><thead><tr><th>Concepto</th><th style="text-align:right">Valor mercado</th><th style="text-align:right">Valor aplicado</th></tr></thead><tbody>${trabajoRows}</tbody><tfoot><tr style="font-weight:700;background:#faf0f0"><td>TOTALES</td><td style="text-align:right">${fmtEur2(totalMercado)}</td><td style="text-align:right;color:#722F37">${fmtEur2(totalAplicado)}</td></tr></tfoot></table>
+          <p style="font-size:11px;color:#888;margin-bottom:16px">Ahorro total aplicado al cliente: <strong>${fmtEur2(ahorro)} (${pctAhorro}% de descuento)</strong></p>
+          <h2>Gastos técnicos asumidos por Raxislab</h2>
+          <table><thead><tr><th>Concepto</th><th style="text-align:right">Importe</th></tr></thead><tbody>${gastoRows}</tbody><tfoot><tr style="font-weight:700;background:#faf0f0"><td>TOTAL GASTOS</td><td style="text-align:right">${fmtEur2(totalGastos)}</td></tr></tfoot></table>
+          <h2>Total a liquidar</h2>
+          <div style="padding:12px 16px;background:#faf0f0;border-radius:6px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center"><span>Trabajos (${fmtEur2(totalAplicado)}) + Gastos técnicos (${fmtEur2(totalGastos)})</span><strong style="font-size:16px;color:#722F37">${fmtEur2(totalLiquidar)}</strong></div>
+          <h2>Historial de pagos</h2>
+          <table><thead><tr><th>Fecha</th><th>Concepto</th><th style="text-align:right">Importe</th><th style="text-align:center">Método</th><th style="text-align:right">Acumulado</th></tr></thead><tbody>${pagoRows}</tbody><tfoot><tr style="font-weight:700;background:#f0faf4"><td colspan="2">TOTAL PAGADO</td><td style="text-align:right;color:#27AE60">${fmtEur2(totalPagado)}</td><td colspan="2"></td></tr></tfoot></table>
+          <div class="saldo-box"><div class="label">Saldo pendiente</div><div class="val">${fmtEur2(saldo)}</div></div>
+          ${planSel ? `<h2>Plan mensual propuesto</h2><div style="padding:14px 16px;border:1px solid #ddd;border-radius:6px"><strong style="color:#722F37">${planSel.nombre} — ${fmtEur2(planSel.precio)}/mes</strong><ul style="margin-top:8px;padding-left:20px;color:#555">${planSel.items.map(i => `<li style="margin-bottom:4px">${i}</li>`).join('')}</ul></div>` : ''}
+          <div class="footer"><div class="info">Raxislab · raxislab.com · renebenegas.rb@gmail.com</div><div class="info">Documento generado el ${new Date().toLocaleDateString('es-ES')}</div></div>
+          <button onclick="window.print()" style="margin-top:24px;padding:10px 24px;background:#722F37;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨 Imprimir / Guardar PDF</button>
+          </body></html>`;
+          const w = window.open('', '_blank');
+          if (w) { w.document.write(html); w.document.close(); }
+        }
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+            {/* ── Resumen económico ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+              {[
+                { label: 'Valor aplicado', val: fmtEur2(totalAplicado), sub: `Mercado: ${fmtEur2(totalMercado)}`, color: VINO },
+                { label: 'Total pagado',   val: fmtEur2(totalPagado),   sub: `${pagos.length} pagos registrados`, color: '#27AE60' },
+                { label: 'Gastos asumidos', val: fmtEur2(totalGastos),  sub: `${GASTOS_TECNICOS.length} conceptos`, color: '#E67E22' },
+                { label: 'Saldo pendiente', val: fmtEur2(saldo), sub: saldo === 0 ? '¡Liquidado!' : 'Por cobrar', color: saldo > 0 ? '#E74C3C' : '#27AE60' },
+              ].map(k => (
+                <div key={k.label} style={{ ...CARD_S, textAlign: 'center', borderTop: `3px solid ${k.color}` }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>{k.label}</div>
+                  <div style={{ fontSize: '26px', fontWeight: 700, color: k.color, fontFamily: "'Space Mono', monospace" }}>{k.val}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>{k.sub}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Historial de pagos ── */}
+            <div style={CARD_S}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: VINO }}>Historial de pagos</div>
+                <button onClick={() => setShowPagoModal(true)} style={{ padding: '6px 14px', borderRadius: '6px', background: VINO, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>+ Registrar pago</button>
+              </div>
+
+              {showPagoModal && (
+                <div style={{ padding: '16px', borderRadius: '6px', background: 'var(--surface)', border: `1px solid ${VINO_BORDER}`, marginBottom: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                    <div><label style={LABEL_S}>Fecha *</label><input type="date" style={INPUT} value={newPago.fecha || ''} onChange={e => setNewPago(p => ({ ...p, fecha: e.target.value }))} /></div>
+                    <div><label style={LABEL_S}>Importe (€) *</label><input type="number" style={INPUT} placeholder="400" value={newPago.importe || ''} onChange={e => setNewPago(p => ({ ...p, importe: Number(e.target.value) }))} /></div>
+                    <div><label style={LABEL_S}>Método</label>
+                      <select style={{ ...INPUT, cursor: 'pointer' }} value={newPago.metodo || 'Transferencia'} onChange={e => setNewPago(p => ({ ...p, metodo: e.target.value as PagoItem['metodo'] }))}>
+                        {['Transferencia', 'Efectivo', 'PayPal', 'Otro'].map(m => <option key={m}>{m}</option>)}
+                      </select>
+                    </div>
+                    <div><label style={LABEL_S}>Concepto *</label><input style={INPUT} placeholder="Descripción" value={newPago.concepto || ''} onChange={e => setNewPago(p => ({ ...p, concepto: e.target.value }))} /></div>
+                  </div>
+                  <div style={{ marginBottom: '10px' }}><label style={LABEL_S}>Nota adicional</label><input style={INPUT} placeholder="Opcional" value={newPago.nota || ''} onChange={e => setNewPago(p => ({ ...p, nota: e.target.value }))} /></div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={savePago} style={{ padding: '7px 18px', borderRadius: '6px', background: '#27AE60', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>Guardar pago</button>
+                    <button onClick={() => setShowPagoModal(false)} style={{ padding: '7px 14px', borderRadius: '6px', background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '13px' }}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      {['Fecha', 'Concepto', 'Importe', 'Método', 'Acumulado'].map(h => (
+                        <th key={h} style={{ padding: '10px 14px', textAlign: h === 'Importe' || h === 'Acumulado' ? 'right' : 'left', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => { let ac = 0; return pagos.map(p => { ac += p.importe; return (
+                      <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>{p.fecha}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text)' }}>{p.concepto}{p.nota && <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px' }}>— {p.nota}</span>}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: '#27AE60', textAlign: 'right', fontFamily: "'Space Mono', monospace" }}>{fmtEur2(p.importe)}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--text-muted)', textAlign: 'left' }}>{p.metodo}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '12px', fontWeight: 600, color: 'var(--text)', textAlign: 'right', fontFamily: "'Space Mono', monospace" }}>{fmtEur2(ac)}</td>
+                      </tr>
+                    ); }); })()}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ borderTop: '2px solid var(--border)' }}>
+                      <td colSpan={2} style={{ padding: '12px 14px', fontSize: '12px', fontWeight: 700, color: 'var(--text)' }}>TOTAL PAGADO</td>
+                      <td style={{ padding: '12px 14px', fontSize: '16px', fontWeight: 700, color: '#27AE60', textAlign: 'right', fontFamily: "'Space Mono', monospace" }}>{fmtEur2(totalPagado)}</td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            {/* ── Trabajos realizados ── */}
+            <div style={CARD_S}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: VINO }}>Trabajos realizados</div>
+                <button onClick={() => setShowTrabajoModal(true)} style={{ padding: '6px 14px', borderRadius: '6px', background: VINO, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>+ Añadir trabajo</button>
+              </div>
+
+              {showTrabajoModal && (
+                <div style={{ padding: '16px', borderRadius: '6px', background: 'var(--surface)', border: `1px solid ${VINO_BORDER}`, marginBottom: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                    <div><label style={LABEL_S}>Concepto *</label><input style={INPUT} placeholder="Descripción del trabajo" value={newTrabajo.concepto || ''} onChange={e => setNewTrabajo(p => ({ ...p, concepto: e.target.value }))} /></div>
+                    <div><label style={LABEL_S}>Valor mercado (€) *</label><input type="number" style={INPUT} placeholder="300" value={newTrabajo.valorMercado ?? ''} onChange={e => setNewTrabajo(p => ({ ...p, valorMercado: Number(e.target.value) }))} /></div>
+                    <div><label style={LABEL_S}>Valor aplicado (€) *</label><input type="number" style={INPUT} placeholder="0 = incluido" value={newTrabajo.valorAplicado ?? ''} onChange={e => setNewTrabajo(p => ({ ...p, valorAplicado: Number(e.target.value) }))} /></div>
+                    <div><label style={LABEL_S}>Fecha</label><input type="date" style={INPUT} value={newTrabajo.fecha || ''} onChange={e => setNewTrabajo(p => ({ ...p, fecha: e.target.value }))} /></div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={saveTrabajo} style={{ padding: '7px 18px', borderRadius: '6px', background: VINO, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>Guardar trabajo</button>
+                    <button onClick={() => setShowTrabajoModal(false)} style={{ padding: '7px 14px', borderRadius: '6px', background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '13px' }}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      {['Concepto', 'Valor mercado', 'Valor aplicado', 'Estado'].map(h => (
+                        <th key={h} style={{ padding: '10px 14px', textAlign: h !== 'Concepto' ? 'right' : 'left', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trabajos.map(t => (
+                      <tr key={t.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text)' }}>{t.concepto}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'right', fontFamily: "'Space Mono', monospace" }}>{fmtEur2(t.valorMercado)}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: t.valorAplicado === 0 ? '#27AE60' : VINO, textAlign: 'right', fontFamily: "'Space Mono', monospace" }}>{t.valorAplicado === 0 ? '—' : fmtEur2(t.valorAplicado)}</td>
+                        <td style={{ padding: '10px 14px', textAlign: 'right' }}><span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px', background: t.valorAplicado === 0 ? 'rgba(39,174,96,0.1)' : VINO_DIM, color: t.valorAplicado === 0 ? '#27AE60' : VINO }}>{t.valorAplicado === 0 ? 'Incluido gratis' : 'Facturado'}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ borderTop: '2px solid var(--border)' }}>
+                      <td style={{ padding: '12px 14px', fontSize: '12px', fontWeight: 700, color: 'var(--text)' }}>TOTALES</td>
+                      <td style={{ padding: '12px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'right', fontFamily: "'Space Mono', monospace" }}>{fmtEur2(totalMercado)}</td>
+                      <td style={{ padding: '12px 14px', fontSize: '16px', fontWeight: 700, color: VINO, textAlign: 'right', fontFamily: "'Space Mono', monospace" }}>{fmtEur2(totalAplicado)}</td>
+                      <td style={{ padding: '12px 14px', fontSize: '11px', color: '#8E44AD', textAlign: 'right' }}>Ahorro: {fmtEur2(ahorro)} ({pctAhorro}%)</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            {/* ── Planes mensuales ── */}
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '16px' }}>Plan de continuidad mensual</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' }}>
+                {PLANES_MENSUAL.map(plan => (
+                  <div key={plan.id} onClick={() => setPlanActivo(p => ({ ...p, plan: plan.id }))} style={{ ...CARD_S, cursor: 'pointer', border: `2px solid ${planActivo.plan === plan.id ? VINO : plan.recomendado ? VINO_BORDER : 'var(--border)'}`, background: planActivo.plan === plan.id ? VINO_DIM : plan.recomendado ? 'rgba(114,47,55,0.04)' : 'var(--card)', position: 'relative', transition: 'all 0.15s' }}>
+                    {plan.recomendado && <div style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', fontSize: '10px', fontWeight: 700, padding: '2px 12px', borderRadius: '10px', background: VINO, color: '#fff', whiteSpace: 'nowrap' }}>RECOMENDADO</div>}
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>{plan.nombre}</div>
+                    <div style={{ fontSize: '22px', fontWeight: 700, color: VINO, fontFamily: "'Space Mono', monospace", marginBottom: '14px' }}>{fmtEur2(plan.precio)}<span style={{ fontSize: '12px', fontWeight: 400, color: 'var(--text-muted)' }}>/mes</span></div>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      {plan.items.map((item, i) => <li key={i} style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', gap: '6px', alignItems: 'flex-start' }}><span style={{ color: '#27AE60', fontWeight: 700, flexShrink: 0 }}>✓</span>{item}</li>)}
+                    </ul>
+                    {planActivo.plan === plan.id && <div style={{ marginTop: '14px', fontSize: '11px', color: VINO, fontWeight: 600 }}>✓ Plan seleccionado</div>}
+                  </div>
+                ))}
+              </div>
+              {planActivo.plan && (
+                <div style={{ ...CARD_S, display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--text)' }}>Fecha de inicio del plan mensual:</span>
+                  <input type="date" style={{ ...INPUT, width: '180px' }} value={planActivo.fechaInicio} onChange={e => setPlanActivo(p => ({ ...p, fechaInicio: e.target.value }))} />
+                </div>
+              )}
+            </div>
+
+            {/* ── Proyecto web Grupo Last Mile ── */}
+            <div style={{ ...CARD_S, borderLeft: `3px solid #E67E22` }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#E67E22', marginBottom: '14px' }}>Proyecto web Grupo Last Mile (separado)</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                {[['Desarrollo WordPress', 950], ['Dominio + seguridad', 108]].map(([c, v]) => (
+                  <div key={c as string} style={{ padding: '10px 14px', borderRadius: '6px', background: 'var(--surface)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--text)' }}>{c}</span>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: VINO, fontFamily: "'Space Mono', monospace" }}>{fmtEur2(v as number)}</span>
+                  </div>
+                ))}
+                <div style={{ padding: '10px 14px', borderRadius: '6px', background: VINO_DIM, border: `1px solid ${VINO_BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: VINO }}>TOTAL</span>
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: VINO, fontFamily: "'Space Mono', monospace" }}>1.058€</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Estado:</span>
+                <select value={grupoEstado} onChange={e => setGrupoEstado(e.target.value)} style={{ ...INPUT, width: 'auto', cursor: 'pointer' }}>
+                  {['Pendiente presupuestar', 'Aprobado', 'En desarrollo', 'Completado'].map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* ── Generador PDF ── */}
+            <div style={{ ...CARD_S, textAlign: 'center', padding: '32px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>Estado de cuenta completo</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '20px' }}>Incluye trabajos, gastos, historial de pagos, saldo y plan mensual propuesto</div>
+              <button onClick={generarPdfEstadoCuenta} style={{ padding: '12px 28px', borderRadius: '8px', background: VINO, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 700, letterSpacing: '0.02em' }}>
+                📄 Generar estado de cuenta PDF
+              </button>
+            </div>
 
           </div>
         );
