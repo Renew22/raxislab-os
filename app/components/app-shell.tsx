@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { ThemeProvider } from "./theme-provider";
-import Sidebar from "./Sidebar";
+import Sidebar from "./sidebar";
 import Topbar from "./topbar";
 
 const NO_SHELL_ROUTES = ["/comercial"];
