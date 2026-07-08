@@ -1708,7 +1708,19 @@ ${listaProductos}`;
             .footer .info{font-size:11px;color:#888;line-height:1.8}
             @media print{body{padding:24px 32px}}
           </style></head><body>
-          <div class="header"><div><h1>ESTADO DE CUENTA</h1><div class="sub">LAST MILE DISTRIBUTION · ${docNum}</div><div class="sub">Generado: ${new Date().toLocaleDateString('es-ES')} · Válido 30 días</div></div><div style="text-align:right"><div style="font-size:18px;font-weight:700;color:#722F37">Last Mile</div><div class="sub">ventas@lastmiledist.com</div></div></div>
+          <div class="header">
+            <div style="display:flex;align-items:center;gap:14px">
+              <img src="${window.location.origin}/logo.png" alt="Raxislab" style="width:52px;height:52px;border-radius:10px;object-fit:contain" onerror="this.style.display='none'" />
+              <div><h1>ESTADO DE CUENTA</h1><div class="sub">LAST MILE DISTRIBUTION · ${docNum}</div><div class="sub">Generado: ${new Date().toLocaleDateString('es-ES')} · Válido 30 días</div></div>
+            </div>
+            <div style="text-align:right;line-height:1.7">
+              <div style="font-size:15px;font-weight:700;color:#722F37">René Benegas</div>
+              <div class="sub">Director Comercial & Marketing Digital</div>
+              <div class="sub">Raxislab Agency</div>
+              <div class="sub">raxislab.com</div>
+              <div class="sub">renebenegas.rb@gmail.com</div>
+            </div>
+          </div>
           <hr class="divider"/>
           <div class="kpi-row"><div class="kpi"><div class="label">Total aplicado</div><div class="val" style="color:#722F37">${fmtEur2(totalAplicado)}</div></div><div class="kpi"><div class="label">Gastos asumidos</div><div class="val" style="color:#E67E22">${fmtEur2(totalGastos)}</div></div><div class="kpi"><div class="label">Total pagado</div><div class="val" style="color:#27AE60">${fmtEur2(totalPagado)}</div><div class="kpi"><div class="label">Ahorro aplicado</div><div class="val" style="color:#8E44AD">${fmtEur2(ahorro)} (${pctAhorro}%)</div></div></div></div>
           <h2>Trabajos realizados</h2>
