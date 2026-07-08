@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback } from "react";
 type LeadStatus = 'nuevo' | 'contactado' | 'interesado' | 'propuesta' | 'cerrado';
 type TrackerStatus = 'sin_contactar' | 'primer_contacto' | 'en_conversacion' | 'muestra_enviada' | 'propuesta_enviada' | 'activo' | 'descartado';
 type StockStatus = 'disponible' | 'bajo_pedido' | 'no_disponible';
-type TabType = 'Resumen' | 'Pipeline' | 'Emails' | 'Tracker' | 'Catálogo' | 'Comerciales' | 'Precios';
+type TabType = 'Resumen' | 'Pipeline' | 'Emails' | 'Tracker' | 'Catálogo' | 'Comerciales' | 'Precios' | 'Dossieres';
 type UserRole = 'admin' | 'comercial' | 'dueno';
 
 interface LMUser {
@@ -26,8 +26,8 @@ const LM_USERS: LMUser[] = [
 ];
 
 function getTabs(role: UserRole): TabType[] {
-  if (role === 'admin')    return ['Resumen', 'Pipeline', 'Emails', 'Tracker', 'Catálogo', 'Comerciales', 'Precios'];
-  if (role === 'comercial') return ['Pipeline', 'Emails', 'Catálogo'];
+  if (role === 'admin')    return ['Resumen', 'Pipeline', 'Dossieres', 'Emails', 'Tracker', 'Catálogo', 'Comerciales', 'Precios'];
+  if (role === 'comercial') return ['Pipeline', 'Dossieres', 'Emails', 'Catálogo'];
   return ['Resumen', 'Pipeline', 'Precios'];
 }
 type NivelPrecio = 'A' | 'B' | 'C';
@@ -312,6 +312,12 @@ export default function LastMilePage() {
   const [catalog, setCatalog] = useLocalStorage<CatalogItem[]>('lm_catalogo', INITIAL_CATALOG);
   const [comerciales, setComerciales] = useLocalStorage<Comercial[]>('lm_comerciales', INITIAL_COMERCIALES);
   const [notaMes, setNotaMes] = useLocalStorage<string>('lm_nota', '');
+
+  // ── Dossieres state ──
+  const dossiereForm  = useState<Record<string, string>>({ cliente: '', pais: '', tipo: '', email: '', web: '', productos: 'Todos los productos', notas: '' });
+  const dossiereLoading = useState(false);
+  const dossiereResult  = useState('');
+  const dossiereHistory = useLocalStorage<{ id: string; cliente: string; tipo: string; fecha: string; estado: string; contenido: string }[]>('lm_dossieres', []);
 
   // ── Precios & Presupuestos state ──
   const [tipoCambio, setTipoCambio] = useLocalStorage<number>('lm_tipo_cambio', 7800);
@@ -1404,6 +1410,191 @@ ${listaProductos}`;
                 </table>
               </div>
             )}
+          </div>
+        );
+      })()}
+
+      {/* ─────────────────── PESTAÑA: DOSSIERES ─────────────────────────── */}
+      {tab === 'Dossieres' && (() => {
+        const TIPOS = ['Distribuidor nacional', 'Distribuidor regional', 'Restaurante / Hotel (HORECA)', 'Supermercado / Retail', 'Empresa / Corporativo', 'Exportación internacional'];
+        const PRODUCTOS_OPTS = ['Todos los productos', 'Solo vinos', 'Solo aceites', 'Vinos D.O. Rioja', 'Vinos D.O. Ribera del Duero', 'AOVE Urzante'];
+        const TEMPLATES: Record<string, { tipo: string; productos: string; notas: string }> = {
+          distribuidor: { tipo: 'Distribuidor nacional', productos: 'Todos los productos', notas: 'Enfocado en márgenes, exclusividad territorial y volumen. Incluir análisis de rentabilidad.' },
+          horeca: { tipo: 'Restaurante / Hotel (HORECA)', productos: 'Solo vinos', notas: 'Enfocado en carta de vinos, maridaje con cocina local paraguaya y precio por copa.' },
+          exportacion: { tipo: 'Exportación internacional', productos: 'Todos los productos', notas: 'Enfocado en Colombia/EEUU, logística internacional, certificaciones y volumen de contenedor.' },
+        };
+
+        const [form, setForm] = dossiereForm;
+        const [loading, setLoading] = dossiereLoading;
+        const [result, setResult] = dossiereResult;
+        const [history, setHistory] = dossiereHistory;
+
+        const setF = (k: string, v: string) => setForm((f: Record<string, string>) => ({ ...f, [k]: v }));
+
+        async function generar() {
+          if (!form.cliente || !form.pais || !form.tipo) return;
+          setLoading(true); setResult('');
+          try {
+            const r = await fetch('/api/claude/dossier', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+            const j = await r.json();
+            const txt = j.content || j.error || 'Error';
+            setResult(txt);
+            const entry = { id: Date.now().toString(), cliente: form.cliente, tipo: form.tipo, fecha: new Date().toLocaleDateString('es-ES'), estado: 'Generado', contenido: txt };
+            const newH = [entry, ...history.slice(0, 19)];
+            setHistory(newH);
+            localStorage.setItem('lm_dossieres', JSON.stringify(newH));
+          } catch { setResult('Error de conexión'); }
+          finally { setLoading(false); }
+        }
+
+        function descargarPDF() {
+          const w = window.open('', '_blank');
+          if (!w) return;
+          w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+            body{font-family:Georgia,serif;max-width:800px;margin:40px auto;color:#1a1a1a;line-height:1.7}
+            h1{color:#722F37;border-bottom:2px solid #C8A97E;padding-bottom:8px}
+            h2{color:#722F37;margin-top:28px;font-size:16px}
+            table{width:100%;border-collapse:collapse;margin:12px 0}
+            th{background:#722F37;color:#fff;padding:8px 10px;text-align:left;font-size:12px}
+            td{padding:7px 10px;border-bottom:1px solid #e8d5b0;font-size:12px}
+            tr:nth-child(even) td{background:#f5f0e8}
+            hr{border:none;border-top:1px solid #C8A97E;margin:20px 0}
+            .footer{font-size:11px;color:#888;text-align:center;margin-top:30px}
+            @media print{body{margin:0}}
+          </style><title>Dossier ${form.cliente}</title></head><body>
+            <div style="text-align:center;margin-bottom:30px">
+              <div style="font-size:22px;font-weight:700;color:#722F37;letter-spacing:2px">LAST MILE DISTRIBUTION</div>
+              <div style="font-size:11px;color:#888;letter-spacing:4px;text-transform:uppercase">Dossier Comercial · ${new Date().toLocaleDateString('es-ES')}</div>
+            </div>
+            ${result.replace(/^# (.+)$/gm, '<h1>$1</h1>').replace(/^## (.+)$/gm, '<h2>$1</h2>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n\n/g, '</p><p>').replace(/^\|(.+)\|$/gm, '').replace(/^- (.+)$/gm, '<li>$1</li>').replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>').replace(/<p><\/p>/g, '')}
+            <div class="footer">Last Mile Distribution · ventas@lastmiledist.com · +34 654835593 · lastmiledist.com<br>Documento confidencial — válido 30 días</div>
+          </body></html>`);
+          w.document.close();
+          setTimeout(() => { w.print(); }, 500);
+        }
+
+        async function enviarEmail() {
+          if (!form.email || !result) { alert('Indica el email del cliente primero'); return; }
+          try {
+            const r = await fetch('/api/brevo/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+              to: form.email,
+              subject: `Dossier Comercial Last Mile Distribution — ${form.cliente}`,
+              html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+                <div style="background:#722F37;padding:24px;text-align:center">
+                  <div style="color:#C8A97E;font-size:22px;font-weight:700;letter-spacing:2px">LAST MILE DISTRIBUTION</div>
+                  <div style="color:rgba(255,255,255,0.7);font-size:11px;letter-spacing:3px;margin-top:4px">Vinos y Aceites Españoles D.O. · Paraguay</div>
+                </div>
+                <div style="padding:32px;background:#f5f0e8">
+                  <p style="color:#1a1a1a;font-size:15px">Estimado/a equipo de <strong>${form.cliente}</strong>,</p>
+                  <p style="color:#555">Adjunto encontrará nuestro dossier comercial personalizado para su empresa.</p>
+                  <p style="color:#555">Estamos a su disposición para cualquier consulta o para organizar una degustación sin compromiso.</p>
+                  <a href="https://lastmiledist.com" style="display:inline-block;margin-top:16px;padding:12px 28px;background:#722F37;color:#fff;text-decoration:none;border-radius:4px;font-weight:600">Ver catálogo completo</a>
+                </div>
+                <div style="background:#1a1a1a;padding:16px;text-align:center">
+                  <div style="color:#C8A97E;font-size:11px;letter-spacing:1px">ventas@lastmiledist.com · +34 654835593 · lastmiledist.com</div>
+                </div>
+              </div>`,
+            })});
+            const j = await r.json();
+            alert(j.ok ? '✅ Email enviado' : `Error: ${j.error}`);
+          } catch { alert('Error de conexión'); }
+        }
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+            {/* Quick templates */}
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {[
+                { key: 'distribuidor', label: '📦 Dossier Distribuidor' },
+                { key: 'horeca',       label: '🍽️ Dossier HORECA' },
+                { key: 'exportacion', label: '🌍 Dossier Exportación' },
+              ].map(t => (
+                <button key={t.key} onClick={() => setForm((f: Record<string, string>) => ({ ...f, ...TEMPLATES[t.key] }))} style={{ padding: '8px 16px', borderRadius: '6px', border: `1px solid ${VINO_BORDER}`, background: VINO_DIM, color: VINO, fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>{t.label}</button>
+              ))}
+            </div>
+
+            {/* Form */}
+            <div style={{ ...CARD_S }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: VINO, marginBottom: '16px' }}>Datos del Cliente</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                {([
+                  ['cliente', 'Nombre cliente / empresa *', 'Restaurante El Jardín'],
+                  ['pais',    'País / Ciudad *',             'Asunción, Paraguay'],
+                  ['email',   'Email del cliente',           'contacto@empresa.com'],
+                  ['web',     'Web del cliente (opcional)',   'https://empresa.com'],
+                ] as [string, string, string][]).map(([k, label, ph]) => (
+                  <div key={k}>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>{label}</div>
+                    <input value={form[k] || ''} onChange={e => setF(k, e.target.value)} placeholder={ph} style={{ width: '100%', padding: '8px 10px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: '13px', outline: 'none', boxSizing: 'border-box' as const }} />
+                  </div>
+                ))}
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Tipo de cliente *</div>
+                  <select value={form.tipo || ''} onChange={e => setF('tipo', e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: '13px', outline: 'none' }}>
+                    <option value="">Seleccionar…</option>
+                    {TIPOS.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Productos de interés</div>
+                  <select value={form.productos || ''} onChange={e => setF('productos', e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: '13px', outline: 'none' }}>
+                    {PRODUCTOS_OPTS.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Notas adicionales</div>
+                  <textarea value={form.notas || ''} onChange={e => setF('notas', e.target.value)} rows={2} placeholder="Contexto adicional para personalizar el dossier…" style={{ width: '100%', padding: '8px 10px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box' as const }} />
+                </div>
+              </div>
+              <button onClick={generar} disabled={loading || !form.cliente || !form.pais || !form.tipo} style={{ marginTop: '16px', padding: '10px 28px', background: VINO, color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', opacity: (loading || !form.cliente || !form.pais || !form.tipo) ? 0.5 : 1 }}>
+                {loading ? '⏳ Generando dossier…' : '🚀 Generar Dossier'}
+              </button>
+            </div>
+
+            {/* Result */}
+            {result && (
+              <div style={{ ...CARD_S }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: VINO }}>Dossier Generado — {form.cliente}</div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={descargarPDF} style={{ padding: '6px 14px', borderRadius: '5px', border: `1px solid ${VINO_BORDER}`, background: VINO_DIM, color: VINO, fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>⬇ PDF</button>
+                    <button onClick={() => navigator.clipboard.writeText(result).then(() => alert('✅ Copiado'))} style={{ padding: '6px 14px', borderRadius: '5px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}>📋 Copiar</button>
+                    <button onClick={enviarEmail} style={{ padding: '6px 14px', borderRadius: '5px', background: VINO, color: '#fff', border: 'none', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>✉ Email</button>
+                  </div>
+                </div>
+                <div style={{ background: 'var(--surface)', borderRadius: '6px', padding: '20px 24px', borderLeft: `3px solid ${VINO}` }}>
+                  <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '13px', color: 'var(--text)', lineHeight: 1.8, margin: 0 }}>{result}</pre>
+                </div>
+              </div>
+            )}
+
+            {/* History */}
+            {history.length > 0 && (
+              <div style={{ ...CARD_S, overflow: 'hidden', padding: 0 }}>
+                <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: VINO }}>Historial de Dossieres</span>
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>{['Cliente', 'Tipo', 'Fecha', 'Estado', 'Acciones'].map(h => <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {history.map((d: { id: string; cliente: string; tipo: string; fecha: string; estado: string; contenido: string }) => (
+                      <tr key={d.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{d.cliente}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>{d.tipo}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>{d.fecha}</td>
+                        <td style={{ padding: '10px 14px' }}><span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px', background: VINO_DIM, color: VINO }}>{d.estado}</span></td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <button onClick={() => setResult(d.contenido)} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: `1px solid ${VINO_BORDER}`, background: VINO_DIM, color: VINO, cursor: 'pointer', marginRight: '6px' }}>Ver</button>
+                          <button onClick={() => setForm((f: Record<string, string>) => ({ ...f, cliente: d.cliente, tipo: d.tipo }))} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' }}>Duplicar</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
           </div>
         );
       })()}
