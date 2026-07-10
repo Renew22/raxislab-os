@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 
-const ACCOUNTS: { clientId: string; clientName: string; envKey: string }[] = [
-  { clientId: 'identity-peluqueros', clientName: 'Identity Peluqueros', envKey: 'META_ACCOUNT_IDENTITY_PELUQUEROS' },
-  { clientId: 'desancho-estilistas', clientName: 'Desancho Estilistas',  envKey: 'META_ACCOUNT_DESANCHO'           },
-  { clientId: 'malvarrosa-cf',       clientName: 'Malvarrosa CF',        envKey: 'META_ACCOUNT_CFMALVARROSA'       },
-  { clientId: 'last-mile',           clientName: 'Last Mile',            envKey: 'META_ACCOUNT_LAST_MILE'          },
-  { clientId: 'matias-benegas-tattoo', clientName: 'Matías Benegas Tattoo', envKey: 'META_ACCOUNT_BENEGASTATTOOS' },
-  { clientId: 'marta-sarmiento',       clientName: 'Marta Sarmiento',       envKey: 'META_ACCOUNT_MARTA_SARMIENTO' },
+const ACCOUNTS: { clientId: string; clientName: string; envKey: string; tokenKey?: string }[] = [
+  { clientId: 'identity-peluqueros',   clientName: 'Identity Peluqueros',    envKey: 'META_ACCOUNT_IDENTITY_PELUQUEROS', tokenKey: 'META_TOKEN_IDENTITY'   },
+  { clientId: 'desancho-estilistas',   clientName: 'Desancho Estilistas',    envKey: 'META_ACCOUNT_DESANCHO',           tokenKey: 'META_TOKEN_DESANCHO'   },
+  { clientId: 'malvarrosa-cf',         clientName: 'Malvarrosa CF',          envKey: 'META_ACCOUNT_CFMALVARROSA'                                          },
+  { clientId: 'last-mile',             clientName: 'Last Mile',              envKey: 'META_ACCOUNT_LAST_MILE'                                             },
+  { clientId: 'matias-benegas-tattoo', clientName: 'Matías Benegas Tattoo',  envKey: 'META_ACCOUNT_BENEGASTATTOOS',     tokenKey: 'META_TOKEN_MATIAS'     },
+  { clientId: 'marta-sarmiento',       clientName: 'Marta Sarmiento',        envKey: 'META_ACCOUNT_MARTA_SARMIENTO'                                      },
 ];
 
 const BASE = 'https://graph.facebook.com/v21.0';
@@ -56,13 +56,14 @@ async function fetchCampaigns(accountId: string, token: string, datePreset: stri
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const datePreset = searchParams.get('datePreset') ?? 'last_7d';
-  const token = process.env.META_ACCESS_TOKEN;
-  if (!token) return NextResponse.json({ error: 'META_ACCESS_TOKEN no configurado.' }, { status: 500 });
+  const defaultToken = process.env.META_ACCESS_TOKEN;
 
   const results = await Promise.allSettled(
     ACCOUNTS.map(async acc => {
       const accountId = process.env[acc.envKey];
       if (!accountId) return { ...acc, campaigns: [], error: 'Sin cuenta configurada' };
+      const token = (acc.tokenKey && process.env[acc.tokenKey]) || defaultToken;
+      if (!token) return { ...acc, campaigns: [], error: 'Sin token Meta configurado' };
       try {
         const campaigns = await fetchCampaigns(accountId, token, datePreset);
         return { ...acc, accountId, campaigns, error: null };

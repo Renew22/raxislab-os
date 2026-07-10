@@ -1,14 +1,22 @@
 import { NextResponse } from 'next/server';
 
+const CLIENT_TOKENS: Record<string, string> = {
+  'identity-peluqueros':   'META_TOKEN_IDENTITY',
+  'desancho-estilistas':   'META_TOKEN_DESANCHO',
+  'matias-benegas-tattoo': 'META_TOKEN_MATIAS',
+};
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const accountId = searchParams.get('accountId');
+  const clientId  = searchParams.get('clientId') ?? '';
 
   if (!accountId) {
     return NextResponse.json({ error: 'accountId requerido.' }, { status: 400 });
   }
 
-  const token = process.env.META_ACCESS_TOKEN;
+  const tokenEnvKey = CLIENT_TOKENS[clientId];
+  const token = (tokenEnvKey && process.env[tokenEnvKey]) || process.env.META_ACCESS_TOKEN;
   if (!token) {
     return NextResponse.json({ error: 'Token de Meta no configurado.' }, { status: 500 });
   }

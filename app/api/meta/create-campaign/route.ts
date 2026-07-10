@@ -8,6 +8,12 @@ const CLIENT_ACCOUNTS: Record<string, string> = {
   'matias-benegas-tattoo':  'META_ACCOUNT_BENEGASTATTOOS',
 };
 
+const CLIENT_TOKENS: Record<string, string> = {
+  'identity-peluqueros':   'META_TOKEN_IDENTITY',
+  'desancho-estilistas':   'META_TOKEN_DESANCHO',
+  'matias-benegas-tattoo': 'META_TOKEN_MATIAS',
+};
+
 const OBJECTIVE_MAP: Record<string, string> = {
   leads:       'OUTCOME_LEADS',
   conversions: 'OUTCOME_SALES',
@@ -33,7 +39,8 @@ export async function POST(req: Request) {
     publishStatus = 'PAUSED',
   } = await req.json();
 
-  const token = process.env.META_ACCESS_TOKEN;
+  const tokenEnvKey = clientId ? CLIENT_TOKENS[clientId] : undefined;
+  const token = (tokenEnvKey && process.env[tokenEnvKey]) || process.env.META_ACCESS_TOKEN;
   if (!token) {
     return NextResponse.json({ error: 'Token de Meta no configurado.' }, { status: 500 });
   }
