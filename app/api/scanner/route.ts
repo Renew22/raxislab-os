@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const action = searchParams.get("action");
 
-  const path = action === "demo" ? "/api/generate-demo" : "/api/audit-scan";
+  const path = action === "demo" ? "/api/demo-simple" : "/api/audit-scan";
   const body = await req.text();
 
   try {

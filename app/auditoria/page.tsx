@@ -67,7 +67,10 @@ export default function AuditoriaPage() {
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
 
   // Demo
-  const [demoBusiness, setDemoBusiness] = useState("");
+  const [demoName, setDemoName] = useState("");
+  const [demoTipo, setDemoTipo] = useState("");
+  const [demoCiudad, setDemoCiudad] = useState("");
+  const [demoTel, setDemoTel] = useState("");
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoResult, setDemoResult] = useState<DemoResult | null>(null);
 
@@ -94,14 +97,14 @@ export default function AuditoriaPage() {
   }
 
   async function runDemo() {
-    if (!demoBusiness.trim()) return;
+    if (!demoName.trim() || !demoTipo.trim() || !demoCiudad.trim()) return;
     setDemoLoading(true);
     setDemoResult(null);
     try {
       const res = await fetch("/api/scanner?action=demo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ business: demoBusiness }),
+        body: JSON.stringify({ name: demoName, tipo: demoTipo, ciudad: demoCiudad, telefono: demoTel }),
       });
       setDemoResult(await res.json());
     } catch (e: any) {
@@ -283,16 +286,33 @@ export default function AuditoriaPage() {
           <div style={s.card}>
             <h2 style={s.h2}>Generar web demo automática</h2>
             <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
-              Para negocios que NO tienen web. Escribe el nombre y ciudad — busca en Google Business, genera la web con IA y la publica en demo.raxislab.com.
+              Para negocios sin web. Claude genera una web completa en ~30s y la publica en demo.raxislab.com.
             </p>
-            <div style={{ marginBottom: 16 }}>
-              <div style={s.label}>Nombre del negocio + ciudad</div>
-              <input style={s.input} placeholder="Peluquería El Rincón Asunción Paraguay"
-                value={demoBusiness} onChange={e => setDemoBusiness(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && runDemo()} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+              <div>
+                <div style={s.label}>Nombre del negocio *</div>
+                <input style={s.input} placeholder="Peluquería El Rincón"
+                  value={demoName} onChange={e => setDemoName(e.target.value)} />
+              </div>
+              <div>
+                <div style={s.label}>Tipo de negocio *</div>
+                <input style={s.input} placeholder="peluquería / restaurante / clínica..."
+                  value={demoTipo} onChange={e => setDemoTipo(e.target.value)} />
+              </div>
+              <div>
+                <div style={s.label}>Ciudad *</div>
+                <input style={s.input} placeholder="Asunción, Paraguay"
+                  value={demoCiudad} onChange={e => setDemoCiudad(e.target.value)} />
+              </div>
+              <div>
+                <div style={s.label}>Teléfono (opcional)</div>
+                <input style={s.input} placeholder="+595 21 000000"
+                  value={demoTel} onChange={e => setDemoTel(e.target.value)} />
+              </div>
             </div>
-            <button style={s.btn} onClick={runDemo} disabled={demoLoading}>
-              {demoLoading ? "Generando demo... (puede tardar 1 min)" : "Generar Demo"}
+            <button style={s.btn} onClick={runDemo}
+              disabled={demoLoading || !demoName.trim() || !demoTipo.trim() || !demoCiudad.trim()}>
+              {demoLoading ? "Generando demo... (30-60s)" : "Generar Demo"}
             </button>
           </div>
 
