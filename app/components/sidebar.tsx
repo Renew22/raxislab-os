@@ -84,7 +84,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose = () => {} }
         flexShrink: 0,
       }}>
         <Image
-          src="/logo.png"
+          src="/apple-icon.png"
           alt="Raxislab"
           width={32}
           height={32}

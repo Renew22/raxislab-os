@@ -12,9 +12,12 @@ export const metadata: Metadata = {
     title: "Raxislab",
   },
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
-    shortcut: "/logo.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/icon-192.png", sizes: "192x192" },
+    ],
+    apple: { url: "/apple-icon.png", sizes: "180x180" },
+    shortcut: "/favicon.ico",
   },
 };
 

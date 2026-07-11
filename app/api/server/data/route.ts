@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export const revalidate = 60; // cache 60s en Vercel
 
 export async function GET() {
-  const base = process.env.HETZNER_URL ?? 'http://167.233.72.200';
+  const base = (process.env.HETZNER_URL ?? 'http://167.233.72.200').trim();
   const key  = process.env.HETZNER_DATA_KEY ?? '';
 
   if (!key) {
