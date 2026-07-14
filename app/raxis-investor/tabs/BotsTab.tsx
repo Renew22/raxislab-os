@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  ComposedChart, Line, ReferenceLine,
+  YAxis, ResponsiveContainer, Tooltip as RTooltip,
+} from "recharts";
 
 function fmt(n: number, dec = 2) { return (n ?? 0).toFixed(dec); }
 function fmtTs(unix: number) {
@@ -381,6 +385,152 @@ function ChartPanel() {
   );
 }
 
+// ── Position live charts ──────────────────────────────────────────────────────
+
+interface Candle { t: number; o: number; c: number; h: number; l: number; }
+
+type PositionRow = NonNullable<BotData["posiciones_abiertas"]>[number];
+type TradeRow    = NonNullable<BotData["ultimos_trades"]>[number];
+
+function PositionChart({ pos, trades }: { pos: PositionRow; trades: TradeRow[] }) {
+  const [candles, setCandles] = useState<Candle[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const market = (pos.market ?? pos.symbol ?? "BTCUSDT").toUpperCase();
+  const entry  = pos.entry  ?? 0;
+  const stop   = pos.stop   ?? 0;
+  const tp     = pos.tp     ?? 0;
+  const isLong = pos.side   === "long";
+  const dec    = entry > 1000 ? 1 : entry > 10 ? 3 : 5;
+  const fmtP   = (n: number) => n.toFixed(dec);
+
+  useEffect(() => {
+    fetch(`/api/server/futures/klines?market=${market}&period=min15&limit=150`)
+      .then(r => r.json())
+      .then(d => setCandles(d.candles ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [market]);
+
+  // Closed trades for this market (to annotate later)
+  const mktTrades = trades.filter(t => (t.market ?? t.symbol) === market);
+
+  const prices   = candles.map(c => c.c);
+  const allLevels = prices.length ? [entry, stop, tp, ...prices] : [entry, stop, tp];
+  const yMin = Math.min(...allLevels) * 0.9985;
+  const yMax = Math.max(...allLevels) * 1.0015;
+
+  return (
+    <div style={{ ...CARD, padding: 0, overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{
+        padding: "8px 14px", background: "var(--surface)",
+        borderBottom: "1px solid var(--border)",
+        display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap",
+      }}>
+        <span style={{ fontWeight: 700, fontSize: 13 }}>{market.replace("USDT", "")}</span>
+        <span style={{
+          fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4,
+          background: isLong ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
+          color: isLong ? "var(--green)" : "var(--red)",
+        }}>{pos.side?.toUpperCase()} x{pos.lev ?? pos.leverage ?? "?"}</span>
+        <span style={{ fontSize: 11 }}>Entry: <b style={{ color: "#f59e0b" }}>${fmtP(entry)}</b></span>
+        <span style={{ fontSize: 11, color: "var(--red)" }}>SL: ${fmtP(stop)}</span>
+        <span style={{ fontSize: 11, color: "var(--green)" }}>TP: ${fmtP(tp)}</span>
+        <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: "auto" }}>
+          Score {pos.score}/9 · 15min · {mktTrades.length} trades pasados
+        </span>
+      </div>
+
+      {loading ? (
+        <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 12 }}>
+          cargando velas…
+        </div>
+      ) : candles.length === 0 ? (
+        <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 12 }}>
+          sin datos de velas
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={220}>
+          <ComposedChart data={candles} margin={{ top: 8, right: 70, bottom: 4, left: 0 }}>
+            <YAxis
+              domain={[yMin, yMax]}
+              tick={{ fontSize: 9, fill: "var(--text-muted)" }}
+              width={58}
+              tickFormatter={v => v.toFixed(dec)}
+            />
+            <RTooltip
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const d = payload[0].payload as Candle;
+                return (
+                  <div style={{
+                    background: "var(--surface)", border: "1px solid var(--border)",
+                    borderRadius: 6, padding: "6px 10px", fontSize: 11,
+                  }}>
+                    {new Date(d.t * 1000).toLocaleString("es-ES", {
+                      timeZone: "Europe/Madrid", day: "2-digit", month: "2-digit",
+                      hour: "2-digit", minute: "2-digit",
+                    })}<br/>
+                    O: ${d.o.toFixed(dec)} C: <b>${d.c.toFixed(dec)}</b><br/>
+                    H: ${d.h.toFixed(dec)} L: ${d.l.toFixed(dec)}
+                  </div>
+                );
+              }}
+            />
+            <Line
+              type="monotone" dataKey="c"
+              stroke="#818cf8" dot={false} strokeWidth={1.5}
+            />
+            <ReferenceLine y={entry} stroke="#f59e0b" strokeDasharray="5 3"
+              label={{ value: `Entry ${fmtP(entry)}`, position: "insideTopRight", fill: "#f59e0b", fontSize: 9 }} />
+            <ReferenceLine y={stop}  stroke="#ef4444" strokeDasharray="5 3"
+              label={{ value: `SL ${fmtP(stop)}`, position: "insideBottomRight", fill: "#ef4444", fontSize: 9 }} />
+            <ReferenceLine y={tp}    stroke="#22c55e" strokeDasharray="5 3"
+              label={{ value: `TP ${fmtP(tp)}`, position: "insideTopRight", fill: "#22c55e", fontSize: 9 }} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  );
+}
+
+function FuturesPositionCharts() {
+  const [positions, setPositions] = useState<PositionRow[]>([]);
+  const [trades,    setTrades]    = useState<TradeRow[]>([]);
+  const [loaded,    setLoaded]    = useState(false);
+
+  useEffect(() => {
+    fetch("/api/server/futures")
+      .then(r => r.json())
+      .then(d => {
+        setPositions(d.posiciones_abiertas ?? []);
+        setTrades(d.ultimos_trades ?? []);
+      })
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+  }, []);
+
+  if (!loaded || !positions.length) return null;
+
+  const cols = positions.length === 1 ? "1fr" : "1fr 1fr";
+
+  return (
+    <div style={{ marginTop: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10, letterSpacing: 1 }}>
+        POSICIONES ABIERTAS — GRÁFICO EN VIVO (15min)
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: cols, gap: 12 }}>
+        {positions.map((p, i) => (
+          <PositionChart key={i} pos={p} trades={trades} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function BotsTab() {
   return (
     <div style={{ padding: 20 }}>
@@ -407,6 +557,8 @@ export default function BotsTab() {
           scoreKey="signals_ciclo"
         />
       </div>
+
+      <FuturesPositionCharts />
 
       <ChartPanel />
     </div>
