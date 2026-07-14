@@ -15,16 +15,12 @@ export async function POST(req: Request) {
     );
   }
 
-  // Google Ads API requires a Developer Token with Standard Access (not Test Account).
-  // René must request Standard Access in: Google Ads → Centro de la API → Solicita acceso estándar
-  // Until approved, all production accounts return PERMISSION_DENIED even with valid credentials.
   const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
   if (!developerToken) {
-    return NextResponse.json({
-      inversion: '—', cpl: '—', roas: '—', clics: '—', impresiones: '—', leads: '—', ctr: '—',
-      _pending: true,
-      _info: 'Developer Token pendiente. Solicítalo en Google Ads → Centro de API.',
-    });
+    return NextResponse.json(
+      { error: 'GOOGLE_ADS_DEVELOPER_TOKEN no configurada en Vercel.' },
+      { status: 500 }
+    );
   }
 
   try {
@@ -48,6 +44,8 @@ export async function POST(req: Request) {
         AND campaign.status = 'ENABLED'
     `;
 
+    // MCC login-customer-id = 717-986-5639 (sin guiones)
+    const MCC_ID = '7179865639';
     const res = await fetch(
       `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`,
       {
@@ -55,6 +53,7 @@ export async function POST(req: Request) {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'developer-token': developerToken,
+          'login-customer-id': MCC_ID,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ query }),
@@ -64,18 +63,7 @@ export async function POST(req: Request) {
 
     if (!res.ok) {
       const err = await res.json();
-      const errMsg: string = err?.error?.message ?? err?.error?.status ?? '';
-      const isTestAccount = errMsg.includes('DEVELOPER_TOKEN_NOT_APPROVED') ||
-                            errMsg.includes('test account') ||
-                            errMsg.includes('Test account') ||
-                            res.status === 403;
-      if (isTestAccount) {
-        return NextResponse.json({
-          inversion: '—', cpl: '—', roas: '—', clics: '—', impresiones: '—', leads: '—', ctr: '—',
-          _testAccount: true,
-          _info: 'Google Ads API en modo cuenta de prueba. Falta aprobación de acceso estándar (Google Ads → Centro de la API → Solicita acceso estándar). Google puede tardar varios días en aprobar.',
-        });
-      }
+      const errMsg: string = err?.error?.message ?? err?.error?.status ?? JSON.stringify(err);
       return NextResponse.json({ error: errMsg || 'Error Google Ads API' }, { status: res.status });
     }
 
