@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Target, Calculator, BookOpen, TrendingUp, Plus, Trash2, Info, Shield } from "lucide-react";
+import { Calculator, BookOpen, TrendingUp, Plus, Trash2, Info, Shield, Activity, BarChart2, RefreshCw } from "lucide-react";
 
 type Firma = "FTMO" | "Apex" | "TopStep" | "E8" | "Custom";
 type Direccion = "LONG" | "SHORT";
@@ -30,6 +30,19 @@ interface Trade {
   notas: string;
 }
 
+interface XAUSignalData {
+  ts: string;
+  price: number;
+  signal: "LONG" | "SHORT" | "AGUARDAR";
+  sr_levels: Array<{ level: number; type: "support" | "resistance" }>;
+  rsi14: number | null;
+  ema50: number | null;
+  ema200: number | null;
+  trend: "BULL" | "BEAR";
+  session: string;
+  error?: string;
+}
+
 const PRESETS: Record<Firma, Omit<FondeoConfig, "firma" | "fase" | "inicio">> = {
   FTMO:    { balance: 10000, target_pct: 10, daily_loss_pct: 5,   drawdown_pct: 10, min_dias: 4, instrumento_rec: "EUR/USD, XAU/USD, DAX" },
   Apex:    { balance: 25000, target_pct: 6,  daily_loss_pct: 2,   drawdown_pct: 4,  min_dias: 0, instrumento_rec: "MES (mini S&P500), MNQ" },
@@ -47,11 +60,8 @@ const FIRMA_INFO: Record<Firma, { region: string; fases: string; ventaja: string
 };
 
 const FUTURES_PV: Record<string, number> = { ES: 50, MES: 5, NQ: 20, MNQ: 2, CL: 1000, GC: 100, YM: 5, RTY: 50 };
-
 const STORAGE_KEY = "raxislab_fondeo_v1";
-
 const DEFAULT_CONFIG: FondeoConfig = { firma: "FTMO", fase: 1, inicio: new Date().toISOString().slice(0, 10), ...PRESETS.FTMO };
-
 const CARD: React.CSSProperties = { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px" };
 const LBL: React.CSSProperties  = { fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", marginBottom: "5px", display: "block" };
 const INP: React.CSSProperties  = { width: "100%", padding: "8px 11px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)", fontSize: "13px", outline: "none", boxSizing: "border-box" as const };
@@ -59,24 +69,49 @@ const INP: React.CSSProperties  = { width: "100%", padding: "8px 11px", borderRa
 function today() { return new Date().toISOString().slice(0, 10); }
 function fmtUSD(n: number) { return (n >= 0 ? "+" : "-") + "$" + Math.abs(n).toFixed(0); }
 
-export default function FondeoTab() {
-  const [tab, setTab]   = useState<"cuenta" | "calc" | "diario" | "progreso">("cuenta");
-  const [cfg, setCfg]   = useState<FondeoConfig>(DEFAULT_CONFIG);
-  const [trades, setTrades] = useState<Trade[]>([]);
-  const [saved, setSaved]   = useState(false);
+function getSession(d: Date): { name: string; active: boolean; color: string } {
+  const mins = d.getUTCHours() * 60 + d.getUTCMinutes();
+  if (mins >= 420 && mins < 720)  return { name: "LONDON",     active: true,  color: "var(--accent)" };
+  if (mins >= 300 && mins < 420)  return { name: "PRE-LONDON", active: false, color: "var(--amber)"  };
+  if (mins >= 780 && mins < 1260) return { name: "NEW YORK",   active: true,  color: "var(--green)"  };
+  return { name: "CERRADO", active: false, color: "var(--text-muted)" };
+}
 
-  // Calculator
+function getLondonCountdown(d: Date): string {
+  const totalSecs = d.getUTCHours() * 3600 + d.getUTCMinutes() * 60 + d.getUTCSeconds();
+  const open = 7 * 3600, close = 12 * 3600;
+  let left: number, label: string;
+  if (totalSecs >= open && totalSecs < close) {
+    left = close - totalSecs; label = "Cierra en";
+  } else {
+    left = open - totalSecs;
+    if (left < 0) left += 86400;
+    label = "Abre en";
+  }
+  const h = Math.floor(left / 3600), m = Math.floor((left % 3600) / 60), s = left % 60;
+  return `${label} ${h}h ${String(m).padStart(2,"0")}m ${String(s).padStart(2,"0")}s`;
+}
+
+export default function FondeoTab() {
+  const [tab, setTab] = useState<"cuenta" | "signal" | "calc" | "diario" | "progreso" | "comparativa">("cuenta");
+  const [cfg, setCfg] = useState<FondeoConfig>(DEFAULT_CONFIG);
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [saved, setSaved] = useState(false);
+
   const [cTipo,    setCTipo]    = useState<"Forex" | "Futuros">("Forex");
-  const [cInstr,   setCInstr]   = useState("EUR/USD");
+  const [cInstr,   setCInstr]   = useState("XAU/USD");
   const [cBalance, setCBalance] = useState(10000);
   const [cRisk,    setCRisk]    = useState(1);
   const [cEntry,   setCEntry]   = useState(0);
   const [cStop,    setCStop]    = useState(0);
   const [cTarget,  setCTarget]  = useState(0);
 
-  // New trade form
-  const [form, setForm]           = useState<Partial<Trade>>({ fecha: today(), direccion: "LONG", instrumento: "EUR/USD" });
-  const [showForm, setShowForm]   = useState(false);
+  const [form, setForm]         = useState<Partial<Trade>>({ fecha: today(), direccion: "LONG", instrumento: "XAU/USD" });
+  const [showForm, setShowForm] = useState(false);
+
+  const [xauSignal,  setXauSignal]  = useState<XAUSignalData | null>(null);
+  const [xauLoading, setXauLoading] = useState(false);
+  const [now, setNow] = useState(new Date());
 
   useEffect(() => {
     try {
@@ -85,49 +120,71 @@ export default function FondeoTab() {
     } catch {}
   }, []);
 
+  useEffect(() => {
+    const tick = setInterval(() => setNow(new Date()), 1000);
+    fetchXAUSignal();
+    const refresh = setInterval(fetchXAUSignal, 30000);
+    return () => { clearInterval(tick); clearInterval(refresh); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function fetchXAUSignal() {
+    setXauLoading(true);
+    try {
+      const sigRes = await fetch("/api/server/fondeo/signal").catch(() => null);
+      const sigData = sigRes?.ok ? await sigRes.json().catch(() => null) : null;
+      if (sigData && !sigData.error && sigData.price) { setXauSignal(sigData); return; }
+
+      const polyRes = await fetch("/api/polygon/technicals?ticker=C:XAUUSD");
+      if (polyRes.ok) {
+        const p = await polyRes.json();
+        setXauSignal({
+          ts: new Date().toISOString(),
+          price: p.price ?? 0,
+          signal: "AGUARDAR",
+          sr_levels: [],
+          rsi14: p.rsi14 ?? null,
+          ema50: p.ema50 ?? null,
+          ema200: p.ema200 ?? null,
+          trend: (p.trend ?? "").includes("ALCISTA") ? "BULL" : "BEAR",
+          session: getSession(new Date()).name,
+          error: "signal_monitor no activo — deploy pendiente en Hetzner",
+        });
+      }
+    } catch {}
+    finally { setXauLoading(false); }
+  }
+
   function persist(c: FondeoConfig, t: Trade[]) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ c, t }));
     setSaved(true); setTimeout(() => setSaved(false), 1800);
   }
-
-  function updateCfg(patch: Partial<FondeoConfig>) {
-    const next = { ...cfg, ...patch }; setCfg(next); persist(next, trades);
-  }
-
-  function applyFirma(firma: Firma) {
-    const p = PRESETS[firma]; const next = { ...cfg, firma, ...p };
-    setCfg(next); setCBalance(p.balance); persist(next, trades);
-  }
-
+  function updateCfg(patch: Partial<FondeoConfig>) { const next = { ...cfg, ...patch }; setCfg(next); persist(next, trades); }
+  function applyFirma(firma: Firma) { const p = PRESETS[firma]; const next = { ...cfg, firma, ...p }; setCfg(next); setCBalance(p.balance); persist(next, trades); }
   function addTrade() {
     if (!form.pnl || !form.entrada) return;
-    const t: Trade = { id: Date.now().toString(), fecha: form.fecha ?? today(), instrumento: form.instrumento ?? "EUR/USD", direccion: form.direccion as Direccion ?? "LONG", entrada: Number(form.entrada), salida: Number(form.salida ?? 0), stop: Number(form.stop ?? 0), pnl: Number(form.pnl), notas: form.notas ?? "" };
+    const t: Trade = { id: Date.now().toString(), fecha: form.fecha ?? today(), instrumento: form.instrumento ?? "XAU/USD", direccion: form.direccion as Direccion ?? "LONG", entrada: Number(form.entrada), salida: Number(form.salida ?? 0), stop: Number(form.stop ?? 0), pnl: Number(form.pnl), notas: form.notas ?? "" };
     const next = [t, ...trades]; setTrades(next); persist(cfg, next);
-    setForm({ fecha: today(), direccion: "LONG", instrumento: "EUR/USD" }); setShowForm(false);
+    setForm({ fecha: today(), direccion: "LONG", instrumento: "XAU/USD" }); setShowForm(false);
   }
-
   function delTrade(id: string) { const next = trades.filter(t => t.id !== id); setTrades(next); persist(cfg, next); }
 
-  // ── Stats ────────────────────────────────────────────────────────
-  const pnlTotal    = trades.reduce((s, t) => s + t.pnl, 0);
-  const targetAmt   = cfg.balance * cfg.target_pct / 100;
-  const dailyLim    = cfg.balance * cfg.daily_loss_pct / 100;
-  const pnlToday    = trades.filter(t => t.fecha === today()).reduce((s, t) => s + t.pnl, 0);
-  const days        = new Set(trades.map(t => t.fecha)).size;
-  const winners     = trades.filter(t => t.pnl > 0);
-  const losers      = trades.filter(t => t.pnl < 0);
-  const winRate     = trades.length ? Math.round(winners.length / trades.length * 100) : 0;
+  const pnlTotal     = trades.reduce((s, t) => s + t.pnl, 0);
+  const targetAmt    = cfg.balance * cfg.target_pct / 100;
+  const dailyLim     = cfg.balance * cfg.daily_loss_pct / 100;
+  const pnlToday     = trades.filter(t => t.fecha === today()).reduce((s, t) => s + t.pnl, 0);
+  const days         = new Set(trades.map(t => t.fecha)).size;
+  const winners      = trades.filter(t => t.pnl > 0);
+  const losers       = trades.filter(t => t.pnl < 0);
+  const winRate      = trades.length ? Math.round(winners.length / trades.length * 100) : 0;
   const dailyUsedPct = Math.min(100, Math.abs(Math.min(0, pnlToday)) / dailyLim * 100);
-  const progressPct = Math.min(100, Math.max(0, (pnlTotal / targetAmt) * 100));
-
-  // Trailing drawdown
+  const progressPct  = Math.min(100, Math.max(0, (pnlTotal / targetAmt) * 100));
   let runPnl = 0, peak = 0, maxDD = 0;
   [...trades].reverse().forEach(t => { runPnl += t.pnl; if (runPnl > peak) peak = runPnl; const dd = peak - runPnl; if (dd > maxDD) maxDD = dd; });
-  const ddPct    = (maxDD / cfg.balance) * 100;
-  const estado   = ddPct >= cfg.drawdown_pct * 0.8 || dailyUsedPct >= 80 ? "PELIGRO" : ddPct >= cfg.drawdown_pct * 0.5 || dailyUsedPct >= 50 ? "PRECAUCIÓN" : "OK";
-  const stColor  = estado === "OK" ? "var(--green)" : estado === "PRECAUCIÓN" ? "var(--amber)" : "var(--red)";
+  const ddPct   = (maxDD / cfg.balance) * 100;
+  const estado  = ddPct >= cfg.drawdown_pct * 0.8 || dailyUsedPct >= 80 ? "PELIGRO" : ddPct >= cfg.drawdown_pct * 0.5 || dailyUsedPct >= 50 ? "PRECAUCIÓN" : "OK";
+  const stColor = estado === "OK" ? "var(--green)" : estado === "PRECAUCIÓN" ? "var(--amber)" : "var(--red)";
 
-  // ── Calculator ────────────────────────────────────────────────────
   let calcResult: { size: string; riskUSD: number; rrRatio?: number } | null = null;
   if (cEntry > 0 && cStop > 0 && cEntry !== cStop) {
     const riskUSD = cBalance * cRisk / 100;
@@ -145,11 +202,18 @@ export default function FondeoTab() {
     }
   }
 
+  const session   = getSession(now);
+  const countdown = getLondonCountdown(now);
+  const sigColor  = xauSignal?.signal === "LONG" ? "var(--green)" : xauSignal?.signal === "SHORT" ? "var(--red)" : "var(--text-muted)";
+  const sigEmoji  = xauSignal?.signal === "LONG" ? "🟢" : xauSignal?.signal === "SHORT" ? "🔴" : "⚪";
+
   const TABS = [
-    { id: "cuenta",   label: "Cuenta",      Icon: Shield     },
-    { id: "calc",     label: "Calculadora", Icon: Calculator },
-    { id: "diario",   label: "Diario",      Icon: BookOpen   },
-    { id: "progreso", label: "Progreso",    Icon: TrendingUp },
+    { id: "cuenta",      label: "Cuenta",      Icon: Shield     },
+    { id: "signal",      label: "Señal XAU",   Icon: Activity   },
+    { id: "calc",        label: "Calculadora", Icon: Calculator },
+    { id: "diario",      label: "Diario",      Icon: BookOpen   },
+    { id: "progreso",    label: "Progreso",    Icon: TrendingUp },
+    { id: "comparativa", label: "Comparativa", Icon: BarChart2  },
   ] as const;
 
   return (
@@ -171,18 +235,18 @@ export default function FondeoTab() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: "4px", marginBottom: "24px", borderBottom: "1px solid var(--border)" }}>
+      <div style={{ display: "flex", gap: "2px", marginBottom: "24px", borderBottom: "1px solid var(--border)", flexWrap: "wrap" }}>
         {TABS.map(({ id, label, Icon }) => (
           <button key={id} onClick={() => setTab(id)} style={{
-            display: "flex", alignItems: "center", gap: "7px", padding: "9px 18px",
+            display: "flex", alignItems: "center", gap: "7px", padding: "9px 16px",
             borderRadius: "6px 6px 0 0", border: "1px solid transparent",
             borderBottom: tab === id ? "1px solid var(--card)" : "1px solid transparent",
             background: tab === id ? "var(--card)" : "transparent",
             color: tab === id ? "var(--accent)" : "var(--text-muted)",
-            fontSize: "13px", fontWeight: tab === id ? 600 : 400, cursor: "pointer",
+            fontSize: "12px", fontWeight: tab === id ? 600 : 400, cursor: "pointer",
             fontFamily: "'Space Grotesk', sans-serif", marginBottom: tab === id ? "-1px" : "0",
           }}>
-            <Icon size={14} /> {label}
+            <Icon size={13} /> {label}
           </button>
         ))}
       </div>
@@ -253,7 +317,6 @@ export default function FondeoTab() {
             </div>
           </div>
 
-          {/* Plan de aprendizaje */}
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             <div style={CARD}>
               <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", margin: "0 0 14px" }}>Plan de Aprendizaje — {cfg.firma}</h3>
@@ -264,14 +327,14 @@ export default function FondeoTab() {
                   { n: "2", t: "Sesiones de mercado", c: "var(--accent)",
                     d: cfg.firma === "TopStep" || cfg.firma === "Apex"
                       ? "ES/NQ: apertura NY 09:30–11:30 ET (15:30–17:30 Madrid) + cierre 15:00–16:00 ET. Evitar mediodía (12–14h ET)."
-                      : "EUR/USD: London open 09:00–11:00 CET + NY open 15:30–17:00 CET. Evitar Asia y horas muertas." },
+                      : "XAUUSD: London open 07:00–12:00 UTC (09:00–14:00 Madrid). Evitar Asia y horas muertas." },
                   { n: "3", t: "Gestión de noticias macro", c: "var(--amber)",
                     d: "Cerrar posiciones 30 min ANTES de NFP (1er viernes mes), CPI (2ª semana), FOMC (cada 6-7 sem), discursos Fed. Sin excepciones." },
                   { n: "4", t: "Consistencia > performance", c: "var(--green)",
                     d: `Una pérdida grande borra muchos días. Target: +${(cfg.balance * cfg.target_pct / 100 / 20).toFixed(0)}/día consistente > intentar +$${(cfg.balance * cfg.target_pct / 100 / 5).toFixed(0)} en un día.` },
-                  { n: "5", t: cfg.firma === "FTMO" || cfg.firma === "E8" ? "Conceptos Forex" : "Conceptos Futuros", c: "var(--text-muted)",
+                  { n: "5", t: cfg.firma === "FTMO" || cfg.firma === "E8" ? "Conceptos Forex/Metales" : "Conceptos Futuros", c: "var(--text-muted)",
                     d: cfg.firma === "FTMO" || cfg.firma === "E8"
-                      ? "Pips, lots, spreads. Order Blocks (ICT), liquidity sweeps, Fair Value Gaps. EMA 20/50/200. Correlaciones EUR↔GBP."
+                      ? "XAUUSD: S/R structure, Order Blocks, sesión London. EMA 50/200 para tendencia. RSI divergencias. Spread ~0.25 pip."
                       : "Puntos vs ticks, point value. MES = $5/pt, ES = $50/pt. Margin intraday. Rollover trimestral de contratos." },
                   { n: "6", t: "Journaling diario", c: "var(--accent)",
                     d: "Registra CADA operación en el Diario: entrada, stop, target, P&L, qué funcionó. Revisión semanal cada viernes." },
@@ -292,9 +355,151 @@ export default function FondeoTab() {
                 <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.6 }}>
                   <strong style={{ color: "var(--green)" }}>Regla de oro:</strong> El objetivo no es ganar rápido — es demostrar disciplina sistémica.
                   Un trader que hace <strong style={{ color: "var(--text)" }}>+0.5% consistente con bajo drawdown</strong> pasa el desafío.
-                  Uno que busca +5% en un día casi siempre viola el daily loss.
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════ TAB: SEÑAL XAU ══════ */}
+      {tab === "signal" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {/* Top row: Sesión · Precio · Señal */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
+            {/* Sesión */}
+            <div style={{ ...CARD, borderColor: session.active ? `${session.color}55` : "var(--border)" }}>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Sesión Actual</div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                <span style={{ fontSize: "22px", fontWeight: 700, color: session.color, fontFamily: "monospace" }}>{session.name}</span>
+                {session.active && <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: session.color, display: "inline-block", boxShadow: `0 0 6px ${session.color}` }}/>}
+              </div>
+              <div style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "monospace", marginBottom: "4px" }}>{countdown}</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", opacity: 0.7 }}>
+                {String(now.getUTCHours()).padStart(2,"0")}:{String(now.getUTCMinutes()).padStart(2,"0")}:{String(now.getUTCSeconds()).padStart(2,"0")} UTC
+              </div>
+              <div style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-muted)", padding: "6px 8px", background: "var(--bg)", borderRadius: "5px", border: "1px solid var(--border)" }}>
+                London 07:00–12:00 UTC · Solo operar en esta ventana
+              </div>
+            </div>
+
+            {/* Precio */}
+            <div style={CARD}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>XAU/USD (Gold)</div>
+                <button onClick={fetchXAUSignal} title="Actualizar" style={{ background: "none", border: "none", cursor: "pointer", color: xauLoading ? "var(--accent)" : "var(--text-muted)", padding: "2px" }}>
+                  <RefreshCw size={12}/>
+                </button>
+              </div>
+              <div style={{ fontSize: "30px", fontWeight: 700, color: "var(--accent)", fontFamily: "'Space Mono', monospace", marginBottom: "4px" }}>
+                {xauSignal?.price ? `$${xauSignal.price.toFixed(2)}` : "—"}
+              </div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "10px" }}>
+                {xauSignal?.ts ? `Cierre previo · ${new Date(xauSignal.ts).toLocaleDateString("es")}` : xauLoading ? "Cargando..." : "Sin datos"}
+              </div>
+              <div style={{ display: "inline-block", padding: "3px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,
+                background: xauSignal?.trend === "BULL" ? "rgba(0,200,100,0.12)" : xauSignal?.trend === "BEAR" ? "rgba(255,50,50,0.12)" : "rgba(100,100,100,0.08)",
+                color: xauSignal?.trend === "BULL" ? "var(--green)" : xauSignal?.trend === "BEAR" ? "var(--red)" : "var(--text-muted)",
+              }}>
+                {xauSignal?.trend === "BULL" ? "↑ ALCISTA" : xauSignal?.trend === "BEAR" ? "↓ BAJISTA" : "— TENDENCIA"}
+              </div>
+            </div>
+
+            {/* Señal */}
+            <div style={{ ...CARD, border: `1px solid ${sigColor === "var(--text-muted)" ? "var(--border)" : `${sigColor}44`}`, background: sigColor === "var(--text-muted)" ? "var(--card)" : `${sigColor}06` }}>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Señal sr_structure London</div>
+              <div style={{ fontSize: "26px", fontWeight: 800, color: sigColor, fontFamily: "monospace", marginBottom: "6px", letterSpacing: "0.05em" }}>
+                {sigEmoji} {xauSignal?.signal ?? "—"}
+              </div>
+              {xauSignal?.error ? (
+                <div style={{ fontSize: "11px", color: "var(--amber)", padding: "5px 8px", background: "rgba(255,170,0,0.08)", borderRadius: "4px", lineHeight: 1.5 }}>
+                  ⚠ {xauSignal.error}
+                </div>
+              ) : xauSignal?.signal === "AGUARDAR" ? (
+                <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                  {session.name === "LONDON" ? "Sin setup confirmado — esperar ruptura S/R limpia" : "Señales activas solo en London (07:00–12:00 UTC)"}
+                </div>
+              ) : (
+                <div style={{ fontSize: "12px", color: sigColor, fontWeight: 600 }}>
+                  Setup detectado · Confirmar manualmente antes de entrar
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom row: Indicadores + SR Levels */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            {/* Indicadores */}
+            <div style={CARD}>
+              <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", margin: "0 0 14px" }}>Indicadores técnicos</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {[
+                  {
+                    label: "RSI 14",
+                    value: xauSignal?.rsi14 != null ? xauSignal.rsi14.toFixed(1) : "—",
+                    color: xauSignal?.rsi14 != null ? (xauSignal.rsi14 >= 70 ? "var(--red)" : xauSignal.rsi14 <= 30 ? "var(--green)" : "var(--text)") : "var(--text-muted)",
+                    note: xauSignal?.rsi14 != null ? (xauSignal.rsi14 >= 70 ? "Sobrecomprado — cuidado LONG" : xauSignal.rsi14 <= 30 ? "Sobrevendido — buscar LONG" : xauSignal.rsi14 > 50 ? "Momentum alcista" : "Momentum bajista") : "Sin datos",
+                  },
+                  {
+                    label: "EMA 50",
+                    value: xauSignal?.ema50 != null ? `$${xauSignal.ema50.toFixed(2)}` : "—",
+                    color: (xauSignal?.price && xauSignal?.ema50) ? (xauSignal.price > xauSignal.ema50 ? "var(--green)" : "var(--red)") : "var(--text)",
+                    note: (xauSignal?.price && xauSignal?.ema50) ? (xauSignal.price > xauSignal.ema50 ? `+${((xauSignal.price - xauSignal.ema50)/xauSignal.ema50*100).toFixed(2)}% sobre EMA50` : `${((xauSignal.price - xauSignal.ema50)/xauSignal.ema50*100).toFixed(2)}% bajo EMA50`) : "Sin datos",
+                  },
+                  {
+                    label: "EMA 200",
+                    value: xauSignal?.ema200 != null ? `$${xauSignal.ema200.toFixed(2)}` : "—",
+                    color: (xauSignal?.price && xauSignal?.ema200) ? (xauSignal.price > xauSignal.ema200 ? "var(--green)" : "var(--red)") : "var(--text)",
+                    note: (xauSignal?.price && xauSignal?.ema200) ? (xauSignal.price > xauSignal.ema200 ? "Tendencia macro alcista ↑" : "Tendencia macro bajista ↓") : "Sin datos",
+                  },
+                ].map(({ label, value, color, note }) => (
+                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "var(--bg)", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                    <div>
+                      <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>{label}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{note}</div>
+                    </div>
+                    <div style={{ fontSize: "17px", fontWeight: 700, color, fontFamily: "'Space Mono', monospace" }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: "10px", padding: "8px 10px", background: "rgba(200,245,66,0.04)", borderRadius: "6px", border: "1px solid rgba(200,245,66,0.15)", fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5 }}>
+                Datos del cierre diario anterior (Polygon). Para precio live en tiempo real, despliega <strong style={{ color: "var(--accent)" }}>signal_monitor.py</strong> en Hetzner.
+              </div>
+            </div>
+
+            {/* SR Levels */}
+            <div style={CARD}>
+              <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", margin: "0 0 14px" }}>Niveles Soporte / Resistencia</h3>
+              {xauSignal?.sr_levels && xauSignal.sr_levels.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {[...xauSignal.sr_levels].sort((a, b) => b.level - a.level).map((lv, i) => {
+                    const isNear = xauSignal.price > 0 && Math.abs(xauSignal.price - lv.level) / xauSignal.price < 0.003;
+                    return (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: "6px", border: `1px solid ${isNear ? "var(--accent)" : "var(--border)"}`, background: isNear ? "rgba(200,245,66,0.05)" : "var(--bg)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 7px", borderRadius: "3px",
+                            background: lv.type === "resistance" ? "rgba(255,50,50,0.12)" : "rgba(0,200,100,0.12)",
+                            color: lv.type === "resistance" ? "var(--red)" : "var(--green)",
+                          }}>{lv.type === "resistance" ? "RES" : "SUP"}</span>
+                          {isNear && <span style={{ fontSize: "10px", color: "var(--accent)", fontWeight: 700 }}>← ZONA CLAVE</span>}
+                        </div>
+                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: "15px", fontWeight: 600 }}>${lv.level.toFixed(2)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 20px", textAlign: "center", gap: "10px" }}>
+                  <div style={{ fontSize: "32px" }}>📡</div>
+                  <div style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 600 }}>signal_monitor.py no activo</div>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.6, maxWidth: "240px" }}>
+                    Los niveles S/R se calculan en tiempo real cuando el script está corriendo en Hetzner.
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", opacity: 0.6, fontFamily: "monospace", background: "var(--bg)", padding: "4px 10px", borderRadius: "4px", border: "1px solid var(--border)" }}>
+                    /opt/raxislab/fondeo/signal_monitor.py
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -310,7 +515,7 @@ export default function FondeoTab() {
                 <span style={LBL}>Tipo de instrumento</span>
                 <div style={{ display: "flex", gap: "8px" }}>
                   {(["Forex", "Futuros"] as const).map(tipo => (
-                    <button key={tipo} onClick={() => { setCTipo(tipo); setCInstr(tipo === "Forex" ? "EUR/USD" : "ES"); }}
+                    <button key={tipo} onClick={() => { setCTipo(tipo); setCInstr(tipo === "Forex" ? "XAU/USD" : "ES"); }}
                       style={{ flex: 1, padding: "9px", borderRadius: "6px", cursor: "pointer", border: cTipo === tipo ? "1px solid var(--accent)" : "1px solid var(--border)", background: cTipo === tipo ? "var(--accent-dim)" : "var(--bg)", color: cTipo === tipo ? "var(--accent)" : "var(--text-muted)", fontSize: "13px", fontWeight: 600, fontFamily: "'Space Grotesk', sans-serif" }}>
                       {tipo}
                     </button>
@@ -321,7 +526,7 @@ export default function FondeoTab() {
                 <div><span style={LBL}>Instrumento</span>
                   <select value={cInstr} onChange={e => setCInstr(e.target.value)} style={INP}>
                     {cTipo === "Forex"
-                      ? ["EUR/USD","GBP/USD","USD/JPY","AUD/USD","USD/CAD","XAU/USD"].map(s => <option key={s}>{s}</option>)
+                      ? ["XAU/USD","EUR/USD","GBP/USD","USD/JPY","AUD/USD","USD/CAD"].map(s => <option key={s}>{s}</option>)
                       : ["ES","MES","NQ","MNQ","CL","GC","YM","RTY"].map(s => <option key={s}>{s}</option>)
                     }
                   </select>
@@ -342,14 +547,14 @@ export default function FondeoTab() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <div><span style={LBL}>Precio entrada</span>
-                  <input type="number" step={cTipo === "Forex" ? 0.00001 : 0.25} value={cEntry || ""} onChange={e => setCEntry(Number(e.target.value))} style={INP} placeholder="0.00000"/>
+                  <input type="number" step={cTipo === "Forex" ? 0.01 : 0.25} value={cEntry || ""} onChange={e => setCEntry(Number(e.target.value))} style={INP} placeholder="2350.00"/>
                 </div>
                 <div><span style={LBL}>Stop Loss</span>
-                  <input type="number" step={cTipo === "Forex" ? 0.00001 : 0.25} value={cStop || ""} onChange={e => setCStop(Number(e.target.value))} style={INP} placeholder="0.00000"/>
+                  <input type="number" step={cTipo === "Forex" ? 0.01 : 0.25} value={cStop || ""} onChange={e => setCStop(Number(e.target.value))} style={INP} placeholder="2340.00"/>
                 </div>
               </div>
               <div><span style={LBL}>Target (opcional — para R:R)</span>
-                <input type="number" step={cTipo === "Forex" ? 0.00001 : 0.25} value={cTarget || ""} onChange={e => setCTarget(Number(e.target.value))} style={INP} placeholder="Precio objetivo"/>
+                <input type="number" step={cTipo === "Forex" ? 0.01 : 0.25} value={cTarget || ""} onChange={e => setCTarget(Number(e.target.value))} style={INP} placeholder="Precio objetivo"/>
               </div>
             </div>
           </div>
@@ -419,7 +624,7 @@ export default function FondeoTab() {
               <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", margin: "0 0 14px" }}>Registrar operación</h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "10px" }}>
                 <div><span style={LBL}>Fecha</span><input type="date" value={form.fecha} onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))} style={INP}/></div>
-                <div><span style={LBL}>Instrumento</span><input value={form.instrumento ?? ""} onChange={e => setForm(p => ({ ...p, instrumento: e.target.value }))} style={INP} placeholder="EUR/USD"/></div>
+                <div><span style={LBL}>Instrumento</span><input value={form.instrumento ?? ""} onChange={e => setForm(p => ({ ...p, instrumento: e.target.value }))} style={INP} placeholder="XAU/USD"/></div>
                 <div><span style={LBL}>Dirección</span>
                   <select value={form.direccion} onChange={e => setForm(p => ({ ...p, direccion: e.target.value as Direccion }))} style={INP}>
                     <option value="LONG">LONG</option><option value="SHORT">SHORT</option>
@@ -430,11 +635,11 @@ export default function FondeoTab() {
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "10px" }}>
-                <div><span style={LBL}>Entrada</span><input type="number" step={0.00001} value={form.entrada ?? ""} onChange={e => setForm(p => ({ ...p, entrada: Number(e.target.value) }))} style={INP} placeholder="0.00000"/></div>
-                <div><span style={LBL}>Salida</span><input type="number" step={0.00001} value={form.salida ?? ""} onChange={e => setForm(p => ({ ...p, salida: Number(e.target.value) }))} style={INP} placeholder="0.00000"/></div>
-                <div><span style={LBL}>Stop inicial</span><input type="number" step={0.00001} value={form.stop ?? ""} onChange={e => setForm(p => ({ ...p, stop: Number(e.target.value) }))} style={INP} placeholder="0.00000"/></div>
+                <div><span style={LBL}>Entrada</span><input type="number" step={0.01} value={form.entrada ?? ""} onChange={e => setForm(p => ({ ...p, entrada: Number(e.target.value) }))} style={INP} placeholder="2350.00"/></div>
+                <div><span style={LBL}>Salida</span><input type="number" step={0.01} value={form.salida ?? ""} onChange={e => setForm(p => ({ ...p, salida: Number(e.target.value) }))} style={INP} placeholder="2360.00"/></div>
+                <div><span style={LBL}>Stop inicial</span><input type="number" step={0.01} value={form.stop ?? ""} onChange={e => setForm(p => ({ ...p, stop: Number(e.target.value) }))} style={INP} placeholder="2340.00"/></div>
               </div>
-              <div style={{ marginBottom: "12px" }}><span style={LBL}>Notas</span><input value={form.notas ?? ""} onChange={e => setForm(p => ({ ...p, notas: e.target.value }))} style={INP} placeholder="Setup, contexto..."/></div>
+              <div style={{ marginBottom: "12px" }}><span style={LBL}>Notas</span><input value={form.notas ?? ""} onChange={e => setForm(p => ({ ...p, notas: e.target.value }))} style={INP} placeholder="Setup, contexto, qué funcionó..."/></div>
               <div style={{ display: "flex", gap: "8px" }}>
                 <button onClick={addTrade} style={{ padding: "8px 20px", borderRadius: "6px", background: "var(--accent)", color: "#000", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}>Guardar</button>
                 <button onClick={() => setShowForm(false)} style={{ padding: "8px 14px", borderRadius: "6px", background: "var(--bg)", color: "var(--text-muted)", border: "1px solid var(--border)", cursor: "pointer", fontSize: "13px" }}>Cancelar</button>
@@ -470,8 +675,8 @@ export default function FondeoTab() {
                         <td style={{ padding: "8px 12px" }}>
                           <span style={{ padding: "2px 8px", borderRadius: "4px", fontSize: "10px", fontWeight: 700, background: t.direccion === "LONG" ? "rgba(0,200,100,0.12)" : "rgba(255,50,50,0.12)", color: t.direccion === "LONG" ? "var(--green)" : "var(--red)" }}>{t.direccion}</span>
                         </td>
-                        <td style={{ padding: "8px 12px", fontFamily: "monospace" }}>{t.entrada.toFixed(5)}</td>
-                        <td style={{ padding: "8px 12px", fontFamily: "monospace" }}>{t.salida > 0 ? t.salida.toFixed(5) : "—"}</td>
+                        <td style={{ padding: "8px 12px", fontFamily: "monospace" }}>{t.entrada.toFixed(2)}</td>
+                        <td style={{ padding: "8px 12px", fontFamily: "monospace" }}>{t.salida > 0 ? t.salida.toFixed(2) : "—"}</td>
                         <td style={{ padding: "8px 12px", fontWeight: 700, fontFamily: "monospace", color: t.pnl > 0 ? "var(--green)" : t.pnl < 0 ? "var(--red)" : "var(--text-muted)" }}>{fmtUSD(t.pnl)}</td>
                         <td style={{ padding: "8px 12px", fontFamily: "monospace", color: Number(rr) >= 1.5 ? "var(--green)" : "var(--text-muted)" }}>{rr}</td>
                         <td style={{ padding: "8px 12px", color: "var(--text-muted)", maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.notas || "—"}</td>
@@ -547,12 +752,12 @@ export default function FondeoTab() {
               <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "10px" }}>Cierra posiciones 30 min <strong>ANTES</strong>. No-trade durante publicación.</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
                 {[
-                  { d: "Lun",    h: "09:00 CET",  e: "PMI Manufacturero y Servicios",                  i: "medio" },
-                  { d: "Mar",    h: "14:30 CET",  e: "CPI (2ª semana del mes)",                        i: "muy_alto" },
-                  { d: "Mié",    h: "20:00 CET",  e: "ADP Nonfarm / FOMC (cada 6-7 semanas)",          i: "alto" },
-                  { d: "Jue",    h: "14:30 CET",  e: "Jobless Claims semanales",                       i: "medio" },
-                  { d: "Vie",    h: "14:30 CET",  e: "NFP (1er viernes) / PPI (2º viernes)",           i: "muy_alto" },
-                  { d: "Trim.",  h: "14:30 CET",  e: "GDP Flash Estimate",                             i: "alto" },
+                  { d: "Lun",    h: "09:00 CET",  e: "PMI Manufacturero y Servicios",        i: "medio"    },
+                  { d: "Mar",    h: "14:30 CET",  e: "CPI (2ª semana del mes)",               i: "muy_alto" },
+                  { d: "Mié",    h: "20:00 CET",  e: "ADP Nonfarm / FOMC (cada 6-7 sem)",     i: "alto"     },
+                  { d: "Jue",    h: "14:30 CET",  e: "Jobless Claims semanales",              i: "medio"    },
+                  { d: "Vie",    h: "14:30 CET",  e: "NFP (1er viernes) / PPI (2º viernes)", i: "muy_alto" },
+                  { d: "Trim.",  h: "14:30 CET",  e: "GDP Flash Estimate",                    i: "alto"     },
                 ].map(({ d, h, e, i }) => (
                   <div key={e} style={{ display: "flex", gap: "8px", alignItems: "center", padding: "7px 10px", background: "var(--bg)", borderRadius: "5px", border: "1px solid var(--border)", fontSize: "11px" }}>
                     <span style={{ color: "var(--text-muted)", fontWeight: 700, minWidth: "30px" }}>{d}</span>
@@ -568,7 +773,94 @@ export default function FondeoTab() {
           </div>
         </div>
       )}
+
+      {/* ══════ TAB: COMPARATIVA FTMO vs APEX ══════ */}
+      {tab === "comparativa" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {/* Recomendación */}
+          <div style={{ ...CARD, border: "1px solid var(--accent)", background: "rgba(200,245,66,0.04)" }}>
+            <div style={{ display: "flex", gap: "14px", alignItems: "flex-start" }}>
+              <div style={{ fontSize: "28px", flexShrink: 0 }}>🏆</div>
+              <div>
+                <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--accent)", marginBottom: "6px" }}>Recomendación para sr_structure XAUUSD London</div>
+                <div style={{ fontSize: "13px", color: "var(--text)", lineHeight: 1.7 }}>
+                  <strong>FTMO $25k — cuenta Swing</strong>. El backtest fue sobre XAUUSD CFD (MT4/MT5), no futuros CME. Apex solo ofrece oro como futuros GC/MGC con specs distintos. FTMO Swing elimina el daily loss limit, que es el mayor riesgo para XAUUSD en London (spikes de 20–30 pips en noticias). Al 90% de pass rate en backtest y 23R en 49 trades, el challenge de $25k ($2.500 target) es alcanzable con 2–3 meses de operativa disciplinada.
+                </div>
+                <div style={{ marginTop: "10px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {["✅ XAUUSD CFD = instrumento exacto del backtest","✅ Sin daily loss limit (cuenta Swing)","✅ 80%→90% profit split","✅ Fee se devuelve en 1ª retirada"].map(t => (
+                    <span key={t} style={{ fontSize: "11px", color: "var(--green)", padding: "3px 10px", background: "rgba(0,200,100,0.08)", borderRadius: "4px", border: "1px solid rgba(0,200,100,0.2)" }}>{t}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabla comparativa */}
+          <div style={{ display: "grid", gridTemplateColumns: "200px 1fr 1fr", gap: "0", border: "1px solid var(--border)", borderRadius: "12px", overflow: "hidden" }}>
+            {/* Header */}
+            {["Criterio", "🇨🇿 FTMO", "🇺🇸 Apex Trader Funding"].map((h, i) => (
+              <div key={h} style={{ padding: "14px 16px", background: i === 1 ? "rgba(200,245,66,0.08)" : "var(--card)", borderBottom: "1px solid var(--border)", borderRight: i < 2 ? "1px solid var(--border)" : "none", fontSize: "13px", fontWeight: 700, color: i === 1 ? "var(--accent)" : "var(--text)" }}>
+                {h}{i === 1 && <span style={{ marginLeft: "8px", fontSize: "10px", padding: "2px 6px", background: "var(--accent)", color: "#000", borderRadius: "4px", fontWeight: 700 }}>✓ REC</span>}
+              </div>
+            ))}
+
+            {[
+              { label: "Instrumento",      ftmo: "XAUUSD CFD (MT4/MT5) ✅",           apex: "GC/MGC futuros CME ⚠️" },
+              { label: "Fases",            ftmo: "Fase 1 (10%) + Fase 2 (5%)",         apex: "1 sola fase (6%) ✅" },
+              { label: "Precio $25k",      ftmo: "~€250 (fee devuelto en 1ª retirada)", apex: "$147 one-time o suscripción" },
+              { label: "Precio $50k",      ftmo: "~€345",                               apex: "$167/mes suscripción" },
+              { label: "Precio $100k",     ftmo: "~€540",                               apex: "$207/mes suscripción" },
+              { label: "Daily loss",       ftmo: "5% / día (Swing: sin límite ✅)",     apex: "Sin límite diario (trailing EOD)" },
+              { label: "Max drawdown",     ftmo: "10% trailing desde pico",             apex: "Trailing EOD desde equity máximo ⚠️" },
+              { label: "Días mínimos",     ftmo: "4 días mínimo",                       apex: "Sin mínimo ✅" },
+              { label: "Tiempo límite",    ftmo: "30 días F1 + 60 días F2",             apex: "Sin límite de tiempo ✅" },
+              { label: "Profit split",     ftmo: "80% (→90% con scaling)",              apex: "90% (100% primer $10k) ✅" },
+              { label: "Retiro",           ftmo: "Mensual (quincenal si se pide)",      apex: "Semanal ✅" },
+              { label: "Noticias",         ftmo: "Permitido (mismo size 2min antes/dps)", apex: "Permitido ✅" },
+              { label: "Weekend hold",     ftmo: "Permitido",                           apex: "No en algunas cuentas ⚠️" },
+              { label: "XAUUSD London",    ftmo: "✅ Ideal — spread 0.25, alta liquidez", apex: "GC futures — diferente spread/lote" },
+              { label: "Plataforma",       ftmo: "MT4 / MT5",                           apex: "NinjaTrader / Tradovate" },
+              { label: "Scaling",          ftmo: "25% cada 4 meses constantes",         apex: "Múltiples cuentas simultáneas" },
+              { label: "Copy/auto",        ftmo: "Permitido en misma cuenta",           apex: "Según términos" },
+            ].map(({ label, ftmo, apex }, idx) => (
+              <>
+                <div key={`l${idx}`} style={{ padding: "11px 16px", background: idx % 2 === 0 ? "var(--bg)" : "var(--card)", borderBottom: "1px solid var(--border)", borderRight: "1px solid var(--border)", fontSize: "12px", fontWeight: 600, color: "var(--text-muted)" }}>{label}</div>
+                <div key={`f${idx}`} style={{ padding: "11px 16px", background: idx % 2 === 0 ? "rgba(200,245,66,0.03)" : "rgba(200,245,66,0.06)", borderBottom: "1px solid var(--border)", borderRight: "1px solid var(--border)", fontSize: "12px", color: "var(--text)" }}>{ftmo}</div>
+                <div key={`a${idx}`} style={{ padding: "11px 16px", background: idx % 2 === 0 ? "var(--bg)" : "var(--card)", borderBottom: "1px solid var(--border)", fontSize: "12px", color: "var(--text-muted)" }}>{apex}</div>
+              </>
+            ))}
+          </div>
+
+          {/* Riesgo clave Apex */}
+          <div style={{ ...CARD, border: "1px solid rgba(255,170,0,0.3)", background: "rgba(255,170,0,0.04)" }}>
+            <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--amber)", marginBottom: "8px" }}>⚠ Riesgo clave de Apex para esta estrategia</div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7 }}>
+              Apex usa <strong style={{ color: "var(--text)" }}>trailing drawdown EOD</strong>: si haces +$500, el floor sube. Si luego el oro te da un spike de noticias en London y pierdes esos $500, estás en drawdown sin haber netted nada. Con XAUUSD esta dinámica es muy peligrosa. Además, el instrumento exacto del backtest (XAUUSD CFD) no está disponible en Apex — habría que re-validar la estrategia sobre GC/MGC antes de pagar el challenge.
+            </div>
+          </div>
+
+          {/* Próximos pasos */}
+          <div style={CARD}>
+            <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", margin: "0 0 14px" }}>Próximos pasos para arrancar</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {[
+                { n: "1", t: "Verificar condiciones FTMO actuales", d: "Confirmar precios y reglas en ftmo.com — cambian con frecuencia. Foco en cuenta Swing $25k.", c: "var(--accent)" },
+                { n: "2", t: "Deploy signal_monitor.py en Hetzner", d: "Script listo para /opt/raxislab/fondeo/signal_monitor.py — cron cada 5min en London. Ver tab Señal XAU.", c: "var(--accent)" },
+                { n: "3", t: "Pagar el challenge FTMO $25k Swing", d: "€345 aprox. No el Aggressive. La cuenta Swing elimina el daily loss — compatible con XAUUSD London.", c: "var(--amber)" },
+                { n: "4", t: "Fondear CoinEx cuando hayas pasado",  d: "Avisar a Claude → cambiar DRY_RUN=False en futures_bot.py para live trading en paralelo.", c: "var(--text-muted)" },
+              ].map(({ n, t, d, c }) => (
+                <div key={n} style={{ display: "flex", gap: "12px", padding: "10px 14px", background: "var(--bg)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                  <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: `${c}18`, color: c, border: `1px solid ${c}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, flexShrink: 0 }}>{n}</span>
+                  <div>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text)", marginBottom: "3px" }}>{t}</div>
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5 }}>{d}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
