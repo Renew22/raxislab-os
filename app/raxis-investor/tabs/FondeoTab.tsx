@@ -149,7 +149,22 @@ export default function FondeoTab() {
       const res = await fetch("/api/server/fondeo/backtest");
       if (res.ok) {
         const json = await res.json();
-        if (json && !json.error) { setBacktest(json); return; }
+        if (json && !json.error) {
+          // Hetzner usa top10/pair/trades — normalizar a top_results/instrument/total_trades
+          const rawItems: Array<Record<string, unknown>> = json.top_results ?? json.top10 ?? [];
+          const normalized: BacktestResult[] = rawItems.map((r) => ({
+            instrument:   String(r.instrument ?? r.pair ?? ""),
+            strategy:     String(r.strategy ?? ""),
+            session:      String(r.session ?? ""),
+            pass_rate:    Number(r.pass_rate ?? 0),
+            total_trades: Number(r.total_trades ?? r.trades ?? 0),
+            win_rate:     Number(r.win_rate ?? 0),
+            total_r:      Number(r.total_r ?? 0),
+            avg_r:        r.avg_r != null ? Number(r.avg_r) : undefined,
+          }));
+          setBacktest({ generated: String(json.generated ?? ""), top_results: normalized, winner: normalized[0] });
+          return;
+        }
       }
     } catch {}
     // Fallback: known static results from last backtest run 2026-07-07

@@ -47,7 +47,7 @@ export default function M9Tab() {
   useEffect(() => {
     fetch("/api/server/data")
       .then(r=>r.json())
-      .then(d=>{ setCandidates(d?.m9?.top_candidates??[]); setLastLog(d?.m9?.last_log??""); })
+      .then(d=>{ setCandidates(d?.m9?.top_candidates??[]); const raw=d?.m9?.last_log; setLastLog(Array.isArray(raw)?raw.at(-1)??"":raw??""); })
       .catch(()=>setError("No se pudo conectar con el servidor"))
       .finally(()=>setLoading(false));
   }, []);
@@ -64,7 +64,7 @@ export default function M9Tab() {
       {/* Señales M9 */}
       {sub==="Señales" && (
         <div>
-          {lastLog && <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"12px" }}>Último scan M9: {new Date(lastLog).toLocaleString("es-ES")}</p>}
+          {lastLog && <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"12px" }}>Último scan M9: {(()=>{ const m=lastLog.match(/\[([^\]]+)\]/); return m?new Date(m[1]).toLocaleString("es-ES"):lastLog; })()}</p>}
           <div style={{ ...CARD, overflow:"hidden" }}>
             <div style={{ padding:"14px 20px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <p style={LABEL}>Candidatos detectados por M9 — Radar de mercado</p>
