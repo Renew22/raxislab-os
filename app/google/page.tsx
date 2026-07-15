@@ -21,15 +21,15 @@ interface ClientConfig {
   id: string; name: string; sector: string;
   googleSiteUrl: string;
   ga4PropertyId: string;
+  adsCustomerId: string;
 }
 
 // ── Static clients ─────────────────────────────────────────────────────────────
 
 const CLIENTS: ClientConfig[] = [
-  { id: 'identity-peluqueros',    name: 'Identity Peluqueros',    sector: 'Peluquería', googleSiteUrl: 'https://identitypeluqueros.com/', ga4PropertyId: '' },
-  { id: 'desancho-estilistas',    name: 'Desancho Estilistas',    sector: 'Peluquería', googleSiteUrl: 'https://desancho.com/',            ga4PropertyId: '' },
-  { id: 'malvarrosa-cf',          name: 'Malvarrosa CF',          sector: 'Deporte',    googleSiteUrl: '',                                 ga4PropertyId: '' },
-  { id: 'matias-benegas-tattoo',  name: 'Matías Benegas Tattoo',  sector: 'Tattoo',     googleSiteUrl: '',                                 ga4PropertyId: '' },
+  { id: 'identity-peluqueros',    name: 'Identity Peluqueros',    sector: 'Peluquería',  googleSiteUrl: 'https://identitypeluqueros.com/', ga4PropertyId: '', adsCustomerId: '2979427201' },
+  { id: 'desancho-estilistas',    name: 'Desancho Estilistas',    sector: 'Peluquería',  googleSiteUrl: 'https://desancho.com/',            ga4PropertyId: '', adsCustomerId: '7395427320' },
+  { id: 'last-mile-distribution', name: 'Last Mile Distribution', sector: 'Distribución',googleSiteUrl: 'https://lastmiledist.com/',        ga4PropertyId: '', adsCustomerId: '9497091021' },
 ];
 
 const STORAGE_KEY = 'raxislab_google_ids_v1';
@@ -371,23 +371,12 @@ export default function GooglePage() {
         </div>
       )}
 
-      {/* Google Ads — pendiente de aprobación de acceso estándar */}
-      <div style={{ marginBottom: "24px", padding: "16px 20px", borderRadius: "6px", background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.3)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-          <span style={{ fontSize: "14px" }}>⏳</span>
-          <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--amber)", margin: 0 }}>Google Ads — Pendiente de aprobación de acceso estándar</p>
-        </div>
-        <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "0 0 10px", lineHeight: 1.6 }}>
-          El Developer Token del proyecto (cuenta Manager 717-986-5639) está en <strong style={{ color: "var(--amber)" }}>modo cuenta de prueba</strong> — solo puede acceder a cuentas de test, no a cuentas de producción reales.<br/>
-          <strong style={{ color: "var(--text)" }}>GSC, GA4 y GBP funcionan correctamente</strong>. Solo Google Ads está pendiente.
-        </p>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <div style={{ padding: "6px 12px", borderRadius: "4px", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.25)", fontSize: "11px", color: "var(--amber)", fontWeight: 600 }}>
-            Acción pendiente (solo René): Google Ads → Centro de la API → "Solicita el acceso estándar"
-          </div>
-          <div style={{ padding: "6px 12px", borderRadius: "4px", background: "var(--surface)", border: "1px solid var(--border)", fontSize: "11px", color: "var(--text-muted)" }}>
-            Google revisa manualmente — puede tardar varios días
-          </div>
+      {/* Google Ads — Basic Access aprobado */}
+      <div style={{ marginBottom: "24px", padding: "14px 18px", borderRadius: "6px", background: "rgba(52,211,153,0.05)", border: "1px solid rgba(52,211,153,0.2)", display: "flex", alignItems: "center", gap: "12px" }}>
+        <span style={{ color: "var(--green)", fontSize: "16px" }}>✓</span>
+        <div>
+          <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--green)", margin: 0 }}>Google Ads · Basic Access aprobado — 13 jul 2026</p>
+          <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>MCC 717-986-5639 · 15.000 operaciones/día · Pendiente: añadir <code style={{ color: "var(--accent)" }}>GOOGLE_ADS_DEVELOPER_TOKEN</code> en Vercel para activar datos reales.</p>
         </div>
       </div>
 
