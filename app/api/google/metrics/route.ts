@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+  const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN ?? process.env.GOOGLE_ADS_API_KEY;
   if (!developerToken) {
     return NextResponse.json(
       { error: 'GOOGLE_ADS_DEVELOPER_TOKEN no configurada en Vercel.' },

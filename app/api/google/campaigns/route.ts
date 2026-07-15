@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   const { customerId, days = 30 } = await req.json();
   if (!customerId) return NextResponse.json({ error: 'customerId requerido' }, { status: 400 });
 
-  const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+  const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN ?? process.env.GOOGLE_ADS_API_KEY;
   if (!developerToken || googleNotConfigured()) {
     return NextResponse.json({ error: 'GOOGLE_ADS_DEVELOPER_TOKEN no configurado en Vercel' }, { status: 500 });
   }

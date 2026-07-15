@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   const { customerId } = await req.json();
   if (!customerId) return NextResponse.json({ valid: false, error: 'Customer ID requerido.' }, { status: 400 });
 
-  const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+  const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN ?? process.env.GOOGLE_ADS_API_KEY;
   if (!developerToken || googleNotConfigured()) {
     return NextResponse.json({ valid: false, error: 'Google Ads no configurado (GOOGLE_ADS_DEVELOPER_TOKEN o refresh token faltante).' }, { status: 500 });
   }
