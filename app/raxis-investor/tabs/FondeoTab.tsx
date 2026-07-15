@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Calculator, BookOpen, TrendingUp, Plus, Trash2, Info, Shield, Activity, BarChart2, RefreshCw } from "lucide-react";
+import { Calculator, BookOpen, TrendingUp, Plus, Trash2, Info, Shield, Activity, BarChart2, RefreshCw, Target, Clock } from "lucide-react";
 
 type Firma = "FTMO" | "Apex" | "TopStep" | "E8" | "Custom";
 type Direccion = "LONG" | "SHORT";
@@ -28,6 +28,18 @@ interface Trade {
   stop: number;
   pnl: number;
   notas: string;
+}
+
+interface BacktestResult {
+  instrument: string; strategy: string; session: string;
+  pass_rate: number; total_trades: number; win_rate: number; total_r: number;
+  avg_r?: number; max_dd?: number;
+}
+interface BacktestData {
+  generated?: string;
+  top_results?: BacktestResult[];
+  winner?: BacktestResult;
+  error?: string;
 }
 
 interface XAUSignalData {
@@ -93,7 +105,7 @@ function getLondonCountdown(d: Date): string {
 }
 
 export default function FondeoTab() {
-  const [tab, setTab] = useState<"cuenta" | "signal" | "calc" | "diario" | "progreso" | "comparativa">("cuenta");
+  const [tab, setTab] = useState<"cuenta" | "signal" | "calc" | "diario" | "progreso" | "comparativa" | "backtest" | "protocolo">("cuenta");
   const [cfg, setCfg] = useState<FondeoConfig>(DEFAULT_CONFIG);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [saved, setSaved] = useState(false);
@@ -109,8 +121,10 @@ export default function FondeoTab() {
   const [form, setForm]         = useState<Partial<Trade>>({ fecha: today(), direccion: "LONG", instrumento: "XAU/USD" });
   const [showForm, setShowForm] = useState(false);
 
-  const [xauSignal,  setXauSignal]  = useState<XAUSignalData | null>(null);
-  const [xauLoading, setXauLoading] = useState(false);
+  const [xauSignal,    setXauSignal]    = useState<XAUSignalData | null>(null);
+  const [xauLoading,   setXauLoading]   = useState(false);
+  const [backtest,     setBacktest]     = useState<BacktestData | null>(null);
+  const [btLoading,    setBtLoading]    = useState(false);
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -123,10 +137,34 @@ export default function FondeoTab() {
   useEffect(() => {
     const tick = setInterval(() => setNow(new Date()), 1000);
     fetchXAUSignal();
+    fetchBacktest();
     const refresh = setInterval(fetchXAUSignal, 30000);
     return () => { clearInterval(tick); clearInterval(refresh); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function fetchBacktest() {
+    setBtLoading(true);
+    try {
+      const res = await fetch("/api/server/fondeo/backtest");
+      if (res.ok) {
+        const json = await res.json();
+        if (json && !json.error) { setBacktest(json); return; }
+      }
+    } catch {}
+    // Fallback: known static results from last backtest run 2026-07-07
+    setBacktest({
+      generated: "2026-07-07 (Hetzner offline — datos estáticos)",
+      winner: { instrument: "XAUUSD", strategy: "sr_structure", session: "London", pass_rate: 90, total_trades: 49, win_rate: 49, total_r: 23, avg_r: 0.47 },
+      top_results: [
+        { instrument: "XAUUSD",  strategy: "sr_structure",   session: "London",  pass_rate: 90, total_trades: 49, win_rate: 49, total_r: 23, avg_r: 0.47 },
+        { instrument: "NAS100",  strategy: "ema_cross",       session: "overlap", pass_rate: 75, total_trades: 37, win_rate: 54, total_r: 37, avg_r: 1.0  },
+        { instrument: "XAUUSD",  strategy: "london_breakout", session: "London",  pass_rate: 75, total_trades: 41, win_rate: 46, total_r: 27, avg_r: 0.66 },
+        { instrument: "EURUSD",  strategy: "sr_structure",    session: "London",  pass_rate: 60, total_trades: 38, win_rate: 50, total_r: 14, avg_r: 0.37 },
+      ],
+    });
+    setBtLoading(false);
+  }
 
   async function fetchXAUSignal() {
     setXauLoading(true);
@@ -214,6 +252,8 @@ export default function FondeoTab() {
     { id: "diario",      label: "Diario",      Icon: BookOpen   },
     { id: "progreso",    label: "Progreso",    Icon: TrendingUp },
     { id: "comparativa", label: "Comparativa", Icon: BarChart2  },
+    { id: "backtest",    label: "Backtest",    Icon: Target     },
+    { id: "protocolo",   label: "Cuándo operar", Icon: Clock  },
   ] as const;
 
   return (
@@ -861,6 +901,236 @@ export default function FondeoTab() {
           </div>
         </div>
       )}
+
+      {/* ══════ TAB: BACKTEST ══════ */}
+      {tab === "backtest" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <h2 style={{ fontSize: "18px", fontWeight: 600, color: "var(--text)", margin: 0 }}>Resultados del backtest</h2>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "4px 0 0" }}>
+                {backtest?.generated ? `Generado: ${backtest.generated}` : "Cargando de Hetzner..."}
+              </p>
+            </div>
+            <button onClick={fetchBacktest} disabled={btLoading} style={{ padding: "7px 14px", borderRadius: "5px", border: "none", background: "var(--accent)", color: "#000", fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "5px" }}>
+              <RefreshCw size={11}/> Actualizar
+            </button>
+          </div>
+
+          {/* Winner card */}
+          {backtest?.winner && (
+            <div style={{ ...CARD, border: "1px solid var(--accent)", background: "rgba(200,245,66,0.04)" }}>
+              <div style={{ display: "flex", gap: "16px", alignItems: "flex-start", flexWrap: "wrap" }}>
+                <div style={{ fontSize: "32px" }}>🏆</div>
+                <div style={{ flex: 1, minWidth: "200px" }}>
+                  <p style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", color: "var(--accent)", textTransform: "uppercase", margin: "0 0 6px" }}>Estrategia ganadora</p>
+                  <p style={{ fontSize: "20px", fontWeight: 700, color: "var(--text)", margin: "0 0 4px", fontFamily: "monospace" }}>
+                    {backtest.winner.instrument} · {backtest.winner.strategy} · sesión {backtest.winner.session}
+                  </p>
+                  <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0 }}>
+                    Esta combinación es la que se usará en el challenge de fondeo
+                  </p>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "12px" }}>
+                  {[
+                    ["Pass Rate", `${backtest.winner.pass_rate}%`, backtest.winner.pass_rate >= 80 ? "var(--green)" : "var(--amber)"],
+                    ["Total Trades", `${backtest.winner.total_trades}`, "var(--accent)"],
+                    ["Win Rate", `${backtest.winner.win_rate}%`, "var(--text)"],
+                    ["Total R", `${backtest.winner.total_r}R`, "var(--green)"],
+                  ].map(([l, v, c]) => (
+                    <div key={l as string} style={{ textAlign: "center", padding: "12px 10px", background: "var(--bg)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                      <p style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 4px" }}>{l}</p>
+                      <p style={{ fontSize: "22px", fontWeight: 800, color: c as string, fontFamily: "monospace", margin: 0 }}>{v}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ marginTop: "16px", padding: "12px 14px", background: "rgba(200,245,66,0.06)", borderRadius: "6px", fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7 }}>
+                <strong style={{ color: "var(--text)" }}>Por qué funciona:</strong> El oro (XAUUSD) en sesión London (07:00–12:00 UTC = 09:00–14:00 Madrid) tiene las condiciones óptimas: mayor volumen del día, spread bajo (~0.25 pip), y los niveles de S/R del día anterior se respetan más fielmente porque los grandes bancos europeos abren posiciones justo en esta ventana. La estrategia <em>sr_structure</em> explota exactamente ese patrón: precio llega a un nivel previo → rechazo → entrada en la dirección de la tendencia macro (EMA50/200).
+              </div>
+            </div>
+          )}
+
+          {/* All results table */}
+          {backtest?.top_results && backtest.top_results.length > 0 && (
+            <div style={CARD}>
+              <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", margin: "0 0 14px" }}>Top combinaciones — ranking por pass rate + R total</h3>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                      {["#", "Instrumento", "Estrategia", "Sesión", "Pass Rate", "Trades", "Win %", "Total R", "R medio/trade"].map(h => (
+                        <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "var(--text-muted)", fontWeight: 600, fontSize: "10px", letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {backtest.top_results.map((r, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid var(--border)", background: i === 0 ? "rgba(200,245,66,0.04)" : "transparent" }}>
+                        <td style={{ padding: "10px 12px", fontWeight: 700, color: i === 0 ? "var(--accent)" : "var(--text-muted)" }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i+1}`}</td>
+                        <td style={{ padding: "10px 12px", fontWeight: 600, fontFamily: "monospace", color: "var(--text)" }}>{r.instrument}</td>
+                        <td style={{ padding: "10px 12px", color: "var(--text-mid)" }}>{r.strategy}</td>
+                        <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{r.session}</td>
+                        <td style={{ padding: "10px 12px", fontWeight: 700, color: r.pass_rate >= 80 ? "var(--green)" : r.pass_rate >= 70 ? "var(--amber)" : "var(--red)" }}>{r.pass_rate}%</td>
+                        <td style={{ padding: "10px 12px", color: "var(--text-mid)", fontFamily: "monospace" }}>{r.total_trades}</td>
+                        <td style={{ padding: "10px 12px", color: "var(--text-mid)", fontFamily: "monospace" }}>{r.win_rate}%</td>
+                        <td style={{ padding: "10px 12px", fontWeight: 700, color: "var(--green)", fontFamily: "monospace" }}>{r.total_r}R</td>
+                        <td style={{ padding: "10px 12px", color: "var(--text-muted)", fontFamily: "monospace" }}>{r.avg_r != null ? `${r.avg_r.toFixed(2)}R` : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "10px", lineHeight: 1.5 }}>
+                <strong>Pass Rate:</strong> % de veces que la estrategia habría pasado el challenge de fondeo simulado (no es win rate de trades, es si el conjunto de trades supera las reglas de la firm). · <strong>Total R:</strong> ganancias totales en múltiplos de riesgo (1R = 1% de la cuenta si arriesgas 1%).
+              </p>
+            </div>
+          )}
+
+          {/* Why NOT the others */}
+          <div style={CARD}>
+            <h3 style={{ fontSize: "13px", fontWeight: 600, color: "var(--text)", margin: "0 0 12px" }}>Por qué NO las otras combinaciones</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px" }}>
+              {[
+                { what: "NAS100 + ema_cross + overlap", why: "El NAS100 solo está disponible como índice CFD o futuros (NQ/MNQ en Apex). El spread y el slippage en noticias macro (CPI, FOMC) son mucho más peligrosos que en XAUUSD. 75% pass rate pero con más varianza." },
+                { what: "XAUUSD + london_breakout", why: "La estrategia de breakout en London tiene más falsos rompimientos — el oro frecuentemente rompe un nivel para luego revertir. sr_structure (esperar al nivel y confirmar rechazo) es más seguro que entrar en breakout." },
+                { what: "EURUSD + sr_structure", why: "Misma estrategia pero EURUSD tiene menos rango diario (menos pips por operación), lo que resulta en R/R peor y más tiempo para llegar al target. 60% pass rate confirma que no es suficiente para el fondeo." },
+              ].map(({ what, why }) => (
+                <div key={what} style={{ padding: "10px 12px", background: "var(--bg)", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                  <p style={{ fontWeight: 600, color: "var(--text-mid)", margin: "0 0 3px", fontFamily: "monospace", fontSize: "11px" }}>{what}</p>
+                  <p style={{ color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>{why}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════ TAB: CUÁNDO OPERAR / PROTOCOLO ══════ */}
+      {tab === "protocolo" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {/* Live session status */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px" }}>
+            <div style={{ ...CARD, borderColor: session.active ? `${session.color}55` : "var(--border)" }}>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>Sesión ahora</p>
+              <p style={{ fontSize: "24px", fontWeight: 800, color: session.color, fontFamily: "monospace", margin: "0 0 4px" }}>{session.name}</p>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "monospace" }}>{countdown}</p>
+            </div>
+            <div style={CARD}>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>Hora UTC ahora</p>
+              <p style={{ fontSize: "24px", fontWeight: 800, color: "var(--accent)", fontFamily: "monospace", margin: "0 0 4px" }}>
+                {String(now.getUTCHours()).padStart(2,"0")}:{String(now.getUTCMinutes()).padStart(2,"0")}:{String(now.getUTCSeconds()).padStart(2,"0")}
+              </p>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)" }}>Madrid = UTC+2 (verano) / UTC+1 (invierno)</p>
+            </div>
+            <div style={{ ...CARD, background: session.name === "LONDON" ? "rgba(200,245,66,0.06)" : "var(--card)", borderColor: session.name === "LONDON" ? "var(--accent)" : "var(--border)" }}>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>¿Operar ahora?</p>
+              <p style={{ fontSize: "20px", fontWeight: 800, color: session.name === "LONDON" ? "var(--green)" : "var(--text-muted)", margin: "0 0 4px" }}>
+                {session.name === "LONDON" ? "✅ SÍ" : session.name === "PRE-LONDON" ? "⏳ PREPARAR" : "🚫 NO"}
+              </p>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)" }}>{session.name === "LONDON" ? "Ventana activa — buscar setups" : session.name === "PRE-LONDON" ? "Revisar niveles ahora" : "Fuera de ventana operativa"}</p>
+            </div>
+          </div>
+
+          {/* Daily schedule */}
+          <div style={CARD}>
+            <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", margin: "0 0 14px" }}>Horario diario (Madrid — hora de verano CET+2)</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              {[
+                { hora: "07:00–09:00", accion: "Revisar gráfico H4 y H1 de XAUUSD", tipo: "prep", detalle: "Ver tendencia macro (EMA50/200 en H4). Identificar niveles S/R del día anterior. Anotar el rango del día anterior (high/low)." },
+                { hora: "09:00–09:30", accion: "London Open — ATENCIÓN MÁXIMA", tipo: "clave", detalle: "Alta volatilidad al abrir. NO entrar en los primeros 15 min si hay movimiento brusco. Esperar que el precio se estabilice cerca de un nivel." },
+                { hora: "09:30–13:00", accion: "Ventana operativa principal", tipo: "operar", detalle: "Buscar setups. Precio llega a nivel S/R → esperar vela de rechazo en TF 15min → confirmar EMA50/200 → entrar. MÁXIMO 2 operaciones al día." },
+                { hora: "13:00–14:00", accion: "Cierre de posiciones London", tipo: "prep", detalle: "Liquidez empieza a bajar. Si estás en una operación ganadora pero sin llegar al target, considera cerrar parcial. Cuidado con el slippage." },
+                { hora: "14:00–15:30", accion: "Pausa — NY pre-mercado", tipo: "pausa", detalle: "Momento de mayor volatilidad falsa. NO abrir nuevas posiciones. Revisar si hay noticias macro (CPI, FOMC, NFP)." },
+                { hora: "15:30–17:00", accion: "NY Open — opcional (solo XAUUSD)", tipo: "opcional", detalle: "Segunda ventana para XAUUSD si no operaste en London. Mismas reglas. Menos prioridad porque el spread sube y hay más ruido." },
+                { hora: "Resto del día", accion: "CERRADO — no operar", tipo: "cerrado", detalle: "Fuera de estas ventanas el mercado es noise. Asia tiene muy baja liquidez en XAUUSD. El riesgo supera el beneficio potencial." },
+              ].map(({ hora, accion, tipo, detalle }) => {
+                const colors: Record<string, string> = { prep: "var(--text-muted)", clave: "var(--red)", operar: "var(--green)", pausa: "var(--amber)", opcional: "#4285F4", cerrado: "var(--border)" };
+                const bgs: Record<string, string> = { prep: "var(--bg)", clave: "rgba(255,50,50,0.05)", operar: "rgba(0,200,100,0.05)", pausa: "rgba(255,170,0,0.05)", opcional: "rgba(66,133,244,0.05)", cerrado: "var(--bg)" };
+                return (
+                  <div key={hora} style={{ display: "flex", gap: "12px", padding: "12px 14px", background: bgs[tipo], borderRadius: "6px", border: `1px solid ${colors[tipo]}22` }}>
+                    <div style={{ minWidth: "110px", flexShrink: 0 }}>
+                      <p style={{ fontFamily: "monospace", fontSize: "12px", fontWeight: 700, color: colors[tipo], margin: 0 }}>{hora}</p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text)", margin: "0 0 3px" }}>{accion}</p>
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>{detalle}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Entry checklist */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div style={CARD}>
+              <h3 style={{ fontSize: "13px", fontWeight: 600, color: "var(--green)", margin: "0 0 12px" }}>✅ Checklist de entrada (sr_structure)</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
+                {[
+                  "Estás en ventana London (09:00–13:00 Madrid)",
+                  "Hay un nivel S/R claro (mínimo 2 toques previos)",
+                  "El precio se acerca al nivel desde la dirección correcta",
+                  "EMA200 en H4 confirma la dirección del trade (precio por encima = LONG)",
+                  "EMA50 en H1 alineada con el trade",
+                  "RSI 14 NO está sobrecomprado/sobrevendido contra tu dirección",
+                  "Aparece vela de rechazo o pin bar en 15min en el nivel",
+                  "Stop loss < 1.5% de la cuenta (máx 1% ideal)",
+                  "No hay noticias macro en las próximas 2 horas (CPI, FOMC, NFP)",
+                  "Llevas <2 operaciones hoy",
+                ].map((item, i) => (
+                  <div key={i} style={{ display: "flex", gap: "8px", padding: "7px 10px", background: "rgba(0,200,100,0.04)", borderRadius: "5px", border: "1px solid rgba(0,200,100,0.15)" }}>
+                    <span style={{ color: "var(--green)", flexShrink: 0 }}>□</span>
+                    <span style={{ color: "var(--text-mid)" }}>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div style={CARD}>
+                <h3 style={{ fontSize: "13px", fontWeight: 600, color: "var(--red)", margin: "0 0 12px" }}>🚫 NO entres si...</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px" }}>
+                  {[
+                    "Ya llevas 2 operaciones hoy (aunque sean ganadoras)",
+                    "Has perdido >50% del daily limit (para el día)",
+                    "El precio lleva >30 pips corriendo sin pullback",
+                    "Estás fuera de la ventana London/NY",
+                    "Hay spread >0.8 pip en XAUUSD",
+                    "No ves el nivel claramente — si dudas, no entres",
+                    "El news calendar muestra HIGH IMPACT en <2h",
+                  ].map((item, i) => (
+                    <div key={i} style={{ display: "flex", gap: "8px", padding: "6px 10px", background: "rgba(255,50,50,0.04)", borderRadius: "5px", border: "1px solid rgba(255,50,50,0.1)", color: "var(--text-muted)" }}>
+                      <span style={{ color: "var(--red)", flexShrink: 0 }}>✗</span>
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={CARD}>
+                <h3 style={{ fontSize: "13px", fontWeight: 600, color: "var(--amber)", margin: "0 0 12px" }}>📌 Reglas de salida</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px", color: "var(--text-muted)" }}>
+                  {[
+                    { l: "Target mínimo", d: "2R desde la entrada (si arriesgas 10 pips, target 20)" },
+                    { l: "Cierre parcial", d: "Al llegar a 1R, cierra 50% y mueve stop a breakeven" },
+                    { l: "Stop inicial", d: "Al otro lado del nivel S/R + pequeño margen (2-3 pips)" },
+                    { l: "Trailing stop", d: "Si supera 1.5R, trail por máximos/mínimos de 15min" },
+                    { l: "Tiempo límite", d: "Si en 3 horas no llega al target, cierra aunque esté en +0" },
+                    { l: "Noticias macro", d: "Cierra siempre 30 min antes de NFP, CPI, FOMC" },
+                  ].map(({ l, d }) => (
+                    <div key={l} style={{ padding: "6px 10px", background: "var(--bg)", borderRadius: "5px", border: "1px solid var(--border)" }}>
+                      <span style={{ color: "var(--amber)", fontWeight: 600 }}>{l}: </span>
+                      <span>{d}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
