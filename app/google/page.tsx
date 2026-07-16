@@ -61,6 +61,7 @@ interface AuditData {
 interface DiscoverData {
   ga4Properties: { id: string; displayName: string }[];
   scSites:       { url: string; permission: string }[];
+  gtmAccounts:   { id: string; name: string }[];
   autoMap:       { ga4: Record<string, { id: string; displayName: string }>; sc: Record<string, string> };
 }
 
