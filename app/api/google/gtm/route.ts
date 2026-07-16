@@ -5,8 +5,10 @@ const GTM_BASE = 'https://www.googleapis.com/tagmanager/v2';
 
 // Known GTM container public IDs (GTM-XXXXX format)
 const KNOWN_CONTAINERS: Record<string, string> = {
-  desancho:  'GTM-W3VKZM6',
-  lastmile:  'GTM-TWJL8NHF',
+  desancho:         'GTM-W3VKZM6',
+  identity_web:     'GTM-T2J7JGD',
+  identity_server:  'GTM-THW23VLK',
+  lastmile:         'GTM-TWJL8NHF',
 };
 
 async function gtmGet(token: string, path: string) {

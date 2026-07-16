@@ -68,9 +68,9 @@ interface DiscoverData {
 // ── Config ─────────────────────────────────────────────────────────────────────
 
 const CLIENTS = [
-  { id: 'identity', name: 'Identity Peluqueros',    color: '#8B5CF6', siteUrl: 'https://identitypeluqueros.com/', adsId: '2979427201', adsUrl: 'https://ads.google.com/aw/campaigns?__e=2979427201' },
-  { id: 'desancho', name: 'Desancho Estilistas',    color: '#F59E0B', siteUrl: 'https://desancho.com/',           adsId: '7395427320', adsUrl: 'https://ads.google.com/aw/campaigns?__e=7395427320' },
-  { id: 'lastmile', name: 'Last Mile Distribution', color: '#10B981', siteUrl: 'https://lastmiledist.com/',       adsId: '9497091021', adsUrl: 'https://ads.google.com/aw/campaigns?__e=9497091021' },
+  { id: 'identity', name: 'Identity Peluqueros',    color: '#8B5CF6', siteUrl: 'https://identitypeluqueros.com/', adsId: '2979427201', ga4Default: '359963445', adsUrl: 'https://ads.google.com/aw/campaigns?__e=2979427201' },
+  { id: 'desancho', name: 'Desancho Estilistas',    color: '#F59E0B', siteUrl: 'https://desancho.com/',           adsId: '7395427320', ga4Default: '262734277', adsUrl: 'https://ads.google.com/aw/campaigns?__e=7395427320' },
+  { id: 'lastmile', name: 'Last Mile Distribution', color: '#10B981', siteUrl: 'https://lastmiledist.com/',       adsId: '9497091021', ga4Default: '523165876', adsUrl: 'https://ads.google.com/aw/campaigns?__e=9497091021' },
 ] as const;
 
 type ClientId = typeof CLIENTS[number]['id'];
@@ -652,9 +652,9 @@ export default function GooglePage() {
   const [configs, setConfigs] = useState<Record<string, { ga4: string; siteUrl: string }>>(() => {
     const s = loadStore();
     return {
-      identity: { ga4: s['identity_ga4'] ?? '', siteUrl: s['identity_site'] ?? 'https://identitypeluqueros.com/' },
-      desancho: { ga4: s['desancho_ga4'] ?? '', siteUrl: s['desancho_site'] ?? 'https://desancho.com/' },
-      lastmile: { ga4: s['lastmile_ga4'] ?? '', siteUrl: s['lastmile_site'] ?? 'https://lastmiledist.com/' },
+      identity: { ga4: s['identity_ga4'] ?? '359963445', siteUrl: s['identity_site'] ?? 'https://identitypeluqueros.com/' },
+      desancho: { ga4: s['desancho_ga4'] ?? '262734277', siteUrl: s['desancho_site'] ?? 'https://desancho.com/' },
+      lastmile: { ga4: s['lastmile_ga4'] ?? '523165876', siteUrl: s['lastmile_site'] ?? 'https://lastmiledist.com/' },
     };
   });
 
