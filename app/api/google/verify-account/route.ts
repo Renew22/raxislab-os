@@ -29,8 +29,10 @@ export async function POST(req: Request) {
       }
     );
     if (!res.ok) {
-      const err = await res.json();
-      return NextResponse.json({ valid: false, error: err?.error?.message ?? `HTTP ${res.status}` });
+      const text = await res.text();
+      let msg = `HTTP ${res.status}`;
+      try { msg = JSON.parse(text)?.error?.message ?? msg; } catch { msg = text.slice(0, 300); }
+      return NextResponse.json({ valid: false, error: msg, status: res.status, token_prefix: developerToken.slice(0, 6) });
     }
     const data = await res.json();
     const name = data.results?.[0]?.customer?.descriptiveName ?? `Cuenta ${customerId}`;
