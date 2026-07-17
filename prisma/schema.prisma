@@ -1,0 +1,257 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── USUARIOS ────────────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(CLIENT)
+  name      String?
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([clientId])
+}
+
+enum Role {
+  ADMIN
+  CLIENT
+}
+
+// ─── CLIENTES (empresas) ─────────────────────────────────────
+model Client {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  sector      Sector   @default(OTROS)
+  logo        String?
+  website     String?
+  phone       String?
+  city        String?
+  country     String   @default("ES")
+  plan        Plan     @default(BASICO)
+  mrr         Float    @default(0)
+  status      Status   @default(TRIAL)
+  stripeId    String?
+  notes       String?
+
+  users        User[]
+  integrations Integration[]
+  metrics      MetricLog[]
+  invoices     Invoice[]
+  payments     Payment[]
+  audits       Audit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([sector])
+  @@index([status])
+}
+
+enum Sector {
+  PELUQUERIA
+  RESTAURANTE
+  TALLER
+  LOGISTICA
+  CLUB_DEPORTIVO
+  TIENDA
+  CLINICA
+  INMOBILIARIA
+  ECOMMERCE
+  TECNOLOGIA
+  HOSTELERIA
+  BELLEZA
+  EDUCACION
+  CONSTRUCCION
+  TRANSPORTE
+  OTROS
+}
+
+enum Plan {
+  BASICO
+  PRO
+  AGENCIA
+}
+
+enum Status {
+  TRIAL
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+// ─── INTEGRACIONES por cliente ────────────────────────────────
+model Integration {
+  id           String   @id @default(cuid())
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  type         IntType
+  accountId    String?
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  siteUrl      String?
+  ga4Id        String?
+  extra        Json?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([clientId, type])
+  @@index([clientId])
+}
+
+enum IntType {
+  META
+  GOOGLE_ADS
+  GA4
+  GMB
+  SEARCH_CONSOLE
+  GTM
+  BREVO
+  STRIPE
+  FRESHA
+  CALENDLY
+  INSTAGRAM
+  TIKTOK
+  WHATSAPP
+}
+
+// ─── MÉTRICAS HISTÓRICAS ─────────────────────────────────────
+model MetricLog {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  date        DateTime
+  channel     String
+  spend       Float    @default(0)
+  leads       Int      @default(0)
+  clicks      Int      @default(0)
+  impressions Int      @default(0)
+  conversions Int      @default(0)
+  revenue     Float    @default(0)
+  cpl         Float?
+  roas        Float?
+  extra       Json?
+  createdAt   DateTime @default(now())
+
+  @@unique([clientId, date, channel])
+  @@index([clientId, date])
+}
+
+// ─── LEADS (captación) ───────────────────────────────────────
+model Lead {
+  id             String     @id @default(cuid())
+  sourceClientId String?
+  negocio        String
+  sector         String?
+  ciudad         String?
+  website        String?
+  phone          String?
+  email          String?
+  rating         Float?
+  reviewsTotal   Int?
+  address        String?
+  comoLlego      String?
+  necesita       String?
+  notas          String?
+  auditScore     Int?
+  demoUrl        String?
+  status         LeadStatus @default(NUEVO)
+  assignedTo     String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([status])
+  @@index([sector])
+}
+
+enum LeadStatus {
+  NUEVO
+  CONTACTADO
+  PROPUESTA
+  NEGOCIACION
+  CERRADO
+  PERDIDO
+}
+
+// ─── PAGOS ───────────────────────────────────────────────────
+model Payment {
+  id          String    @id @default(cuid())
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id])
+  amount      Float
+  currency    String    @default("EUR")
+  status      PayStatus @default(PENDING)
+  stripeId    String?   @unique
+  description String?
+  paidAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([clientId])
+  @@index([status])
+}
+
+enum PayStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+// ─── FACTURAS ────────────────────────────────────────────────
+model Invoice {
+  id          String    @id @default(cuid())
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id])
+  number      String    @unique
+  concept     String
+  amount      Float
+  taxRate     Float     @default(21)
+  total       Float
+  status      InvStatus @default(DRAFT)
+  dueDate     DateTime?
+  paidAt      DateTime?
+  pdfUrl      String?
+  stripeId    String?
+  createdAt   DateTime  @default(now())
+
+  @@index([clientId])
+  @@index([status])
+}
+
+enum InvStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// ─── AUDITORÍAS guardadas ────────────────────────────────────
+model Audit {
+  id       String  @id @default(cuid())
+  url      String
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+  leadId   String?
+  type     String
+  score    Int?
+  data     Json
+  report   String?
+  createdAt DateTime @default(now())
+
+  @@index([url])
+  @@index([clientId])
+}
