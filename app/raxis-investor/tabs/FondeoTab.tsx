@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Calculator, BookOpen, TrendingUp, Plus, Trash2, Info, Shield, Activity, BarChart2, RefreshCw, Target, Clock } from "lucide-react";
 
 type Firma = "FTMO" | "Apex" | "TopStep" | "E8" | "Custom";
@@ -55,6 +55,20 @@ interface XAUSignalData {
   error?: string;
 }
 
+interface Cuenta {
+  id: string;
+  nombre: string;
+  firma: string;
+  tipo: "Challenge" | "Funded" | "Live";
+  balance: number;
+  pnlHoy: number;
+  pnlTotal: number;
+  estado: "Activa" | "Pasada" | "Fallida";
+  inicio: string;
+  notas: string;
+}
+const CUENTAS_KEY = "raxislab_cuentas_v1";
+
 const PRESETS: Record<Firma, Omit<FondeoConfig, "firma" | "fase" | "inicio">> = {
   FTMO:    { balance: 10000, target_pct: 10, daily_loss_pct: 5,   drawdown_pct: 10, min_dias: 4, instrumento_rec: "EUR/USD, XAU/USD, DAX" },
   Apex:    { balance: 25000, target_pct: 6,  daily_loss_pct: 2,   drawdown_pct: 4,  min_dias: 0, instrumento_rec: "MES (mini S&P500), MNQ" },
@@ -105,7 +119,7 @@ function getLondonCountdown(d: Date): string {
 }
 
 export default function FondeoTab() {
-  const [tab, setTab] = useState<"cuenta" | "signal" | "calc" | "diario" | "progreso" | "comparativa" | "backtest" | "protocolo">("cuenta");
+  const [tab, setTab] = useState<"cuenta" | "signal" | "calc" | "diario" | "progreso" | "comparativa" | "backtest" | "protocolo" | "cuentas">("cuenta");
   const [cfg, setCfg] = useState<FondeoConfig>(DEFAULT_CONFIG);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [saved, setSaved] = useState(false);
@@ -126,22 +140,68 @@ export default function FondeoTab() {
   const [backtest,     setBacktest]     = useState<BacktestData | null>(null);
   const [btLoading,    setBtLoading]    = useState(false);
   const [now, setNow] = useState(new Date());
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [cuentas, setCuentas] = useState<Cuenta[]>([]);
+  const [cuentaForm, setCuentaForm] = useState<Partial<Cuenta>>({ tipo: "Challenge", estado: "Activa", inicio: today() });
+  const [showCuentaForm, setShowCuentaForm] = useState(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const prevSniperRef = useRef<"red" | "yellow" | "green">("red");
 
   useEffect(() => {
     try {
       const s = localStorage.getItem(STORAGE_KEY);
       if (s) { const { c, t } = JSON.parse(s); if (c) { setCfg(c); setCBalance(c.balance); } if (t) setTrades(t); }
     } catch {}
+    try {
+      const sc = localStorage.getItem(CUENTAS_KEY);
+      if (sc) setCuentas(JSON.parse(sc));
+    } catch {}
   }, []);
+
+  function playBeep(freq = 880, dur = 0.4) {
+    if (typeof window === "undefined") return;
+    try {
+      if (!audioCtxRef.current) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const AC = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AC) return;
+        audioCtxRef.current = new AC();
+      }
+      const ctx = audioCtxRef.current;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+      osc.start(); osc.stop(ctx.currentTime + dur);
+    } catch {}
+  }
 
   useEffect(() => {
     const tick = setInterval(() => setNow(new Date()), 1000);
     fetchXAUSignal();
     fetchBacktest();
-    const refresh = setInterval(fetchXAUSignal, 30000);
+    const refresh = setInterval(fetchXAUSignal, 15000);
     return () => { clearInterval(tick); clearInterval(refresh); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!xauSignal) return;
+    let lvl: "red" | "yellow" | "green" = "red";
+    if (xauSignal.signal !== "AGUARDAR") lvl = "green";
+    else if (xauSignal.sr_levels?.length) {
+      const sorted = [...xauSignal.sr_levels].sort((a, b) => Math.abs(a.level - xauSignal.price) - Math.abs(b.level - xauSignal.price));
+      if (sorted.length && Math.abs(xauSignal.price - sorted[0].level) < 8) lvl = "yellow";
+    }
+    if (audioEnabled && lvl !== prevSniperRef.current) {
+      if (lvl === "green") { playBeep(880, 0.5); setTimeout(() => playBeep(1100, 0.3), 250); }
+      else if (lvl === "yellow") playBeep(660, 0.25);
+    }
+    prevSniperRef.current = lvl;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [xauSignal]);
 
   async function fetchBacktest() {
     setBtLoading(true);
@@ -222,6 +282,16 @@ export default function FondeoTab() {
   }
   function delTrade(id: string) { const next = trades.filter(t => t.id !== id); setTrades(next); persist(cfg, next); }
 
+  function persistCuentas(c: Cuenta[]) { localStorage.setItem(CUENTAS_KEY, JSON.stringify(c)); }
+  function addCuenta() {
+    if (!cuentaForm.nombre || !cuentaForm.balance) return;
+    const c: Cuenta = { id: Date.now().toString(), nombre: cuentaForm.nombre ?? "", firma: cuentaForm.firma ?? "FTMO", tipo: cuentaForm.tipo ?? "Challenge", balance: Number(cuentaForm.balance), pnlHoy: 0, pnlTotal: 0, estado: cuentaForm.estado ?? "Activa", inicio: cuentaForm.inicio ?? today(), notas: cuentaForm.notas ?? "" };
+    const next = [c, ...cuentas]; setCuentas(next); persistCuentas(next);
+    setCuentaForm({ tipo: "Challenge", estado: "Activa", inicio: today() }); setShowCuentaForm(false);
+  }
+  function delCuenta(id: string) { const next = cuentas.filter(c => c.id !== id); setCuentas(next); persistCuentas(next); }
+  function updateCuenta(id: string, patch: Partial<Cuenta>) { const next = cuentas.map(c => c.id === id ? { ...c, ...patch } : c); setCuentas(next); persistCuentas(next); }
+
   const pnlTotal     = trades.reduce((s, t) => s + t.pnl, 0);
   const targetAmt    = cfg.balance * cfg.target_pct / 100;
   const dailyLim     = cfg.balance * cfg.daily_loss_pct / 100;
@@ -255,6 +325,22 @@ export default function FondeoTab() {
     }
   }
 
+  // ── Sniper level ──
+  let sniperLevel: "red" | "yellow" | "green" = "red";
+  let nearestSR: { level: number; type: "support" | "resistance" } | null = null;
+  let distancePips = 999;
+  if (xauSignal?.price && xauSignal.sr_levels?.length) {
+    const sorted = [...xauSignal.sr_levels].sort((a, b) => Math.abs(a.level - xauSignal.price) - Math.abs(b.level - xauSignal.price));
+    nearestSR = sorted[0];
+    distancePips = Math.abs(xauSignal.price - nearestSR.level);
+    if (xauSignal.signal !== "AGUARDAR") sniperLevel = "green";
+    else if (distancePips < 8) sniperLevel = "yellow";
+  }
+  const sniperColor   = sniperLevel === "green" ? "var(--green)" : sniperLevel === "yellow" ? "var(--amber)" : "var(--red)";
+  const sniperEmoji   = sniperLevel === "green" ? "🟢" : sniperLevel === "yellow" ? "🟡" : "🔴";
+  const sniperLabel   = sniperLevel === "green" ? "ZONA DE ENTRADA" : sniperLevel === "yellow" ? "APROXIMÁNDOSE" : "EN ESPERA";
+  const distBarFill   = nearestSR ? Math.max(5, Math.min(97, 100 - (distancePips / 20) * 92)) : 5;
+
   const session   = getSession(now);
   const countdown = getLondonCountdown(now);
   const sigColor  = xauSignal?.signal === "LONG" ? "var(--green)" : xauSignal?.signal === "SHORT" ? "var(--red)" : "var(--text-muted)";
@@ -269,6 +355,7 @@ export default function FondeoTab() {
     { id: "comparativa", label: "Comparativa", Icon: BarChart2  },
     { id: "backtest",    label: "Backtest",    Icon: Target     },
     { id: "protocolo",   label: "Cuándo operar", Icon: Clock  },
+    { id: "cuentas",     label: "Cuentas",       Icon: Plus   },
   ] as const;
 
   return (
@@ -420,6 +507,54 @@ export default function FondeoTab() {
       {/* ══════ TAB: SEÑAL XAU ══════ */}
       {tab === "signal" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+          {/* ── SNIPER PANEL ── */}
+          <div style={{ ...CARD, border: `2px solid ${sniperColor}`, background: `${sniperColor}08`, padding: "18px 24px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
+              {/* Semáforo */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px", flexShrink: 0 }}>
+                {(["green", "yellow", "red"] as const).map(c => (
+                  <div key={c} style={{ width: "14px", height: "14px", borderRadius: "50%",
+                    background: c === sniperLevel ? (c === "green" ? "#00c864" : c === "yellow" ? "#ffaa00" : "#ff3232") : "var(--border)",
+                    boxShadow: c === sniperLevel ? `0 0 8px ${c === "green" ? "#00c864" : c === "yellow" ? "#ffaa00" : "#ff3232"}` : "none",
+                    transition: "all 0.4s" }}/>
+                ))}
+              </div>
+              {/* Estado */}
+              <div style={{ flex: "0 0 auto" }}>
+                <div style={{ fontSize: "20px", fontWeight: 800, color: sniperColor, fontFamily: "monospace", letterSpacing: "0.04em" }}>
+                  {sniperEmoji} {sniperLabel}
+                </div>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "3px" }}>
+                  {sniperLevel === "green"
+                    ? `Señal ${xauSignal?.signal} — confirmar setup visualmente antes de entrar`
+                    : sniperLevel === "yellow"
+                    ? `$${distancePips.toFixed(1)} del nivel más cercano — preparar MT5 y calcular tamaño`
+                    : xauSignal?.price ? `Precio $${xauSignal.price.toFixed(2)} — esperando acercamiento a zona S/R` : "Esperando datos del monitor..."}
+                </div>
+              </div>
+              {/* Barra de distancia */}
+              {nearestSR && xauSignal?.price && (
+                <div style={{ flex: 1, minWidth: "180px", maxWidth: "380px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px" }}>
+                    <span>Precio: <strong style={{ color: "var(--text)", fontFamily: "monospace" }}>${xauSignal.price.toFixed(2)}</strong></span>
+                    <span>{nearestSR.type === "support" ? "SUP" : "RES"}: <strong style={{ color: sniperColor, fontFamily: "monospace" }}>${nearestSR.level.toFixed(2)}</strong></span>
+                  </div>
+                  <div style={{ height: "8px", background: "var(--border)", borderRadius: "999px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", borderRadius: "999px", width: `${distBarFill}%`, background: `linear-gradient(90deg, ${sniperColor}44, ${sniperColor})`, transition: "width 0.8s" }}/>
+                  </div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "center" }}>
+                    $${distancePips.toFixed(1)} · {nearestSR.type === "support" ? "buscar LONG en soporte" : "buscar SHORT en resistencia"}
+                  </div>
+                </div>
+              )}
+              {/* Audio */}
+              <button onClick={() => setAudioEnabled(p => !p)} style={{ padding: "7px 14px", borderRadius: "6px", border: `1px solid ${audioEnabled ? "var(--accent)" : "var(--border)"}`, background: audioEnabled ? "var(--accent-dim)" : "var(--bg)", color: audioEnabled ? "var(--accent)" : "var(--text-muted)", fontSize: "12px", fontWeight: 600, cursor: "pointer", flexShrink: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
+                {audioEnabled ? "🔔 Alerta ON" : "🔕 Alerta OFF"}
+              </button>
+            </div>
+          </div>
+
           {/* Top row: Sesión · Precio · Señal */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
             {/* Sesión */}
@@ -481,6 +616,31 @@ export default function FondeoTab() {
               )}
             </div>
           </div>
+
+          {/* Escalado de entradas — solo cuando hay señal activa */}
+          {xauSignal?.signal !== "AGUARDAR" && xauSignal?.signal && nearestSR && (
+            <div style={CARD}>
+              <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", margin: "0 0 14px" }}>
+                Plan de entradas escalado — <span style={{ color: sigColor }}>{xauSignal.signal}</span>
+              </h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "12px" }}>
+                {[
+                  { lbl: "E1 — 50%", price: nearestSR.level, cond: nearestSR.type === "support" ? "precio toca soporte" : "precio toca resistencia", active: true },
+                  { lbl: "E2 — 30%", price: xauSignal.ema50 ?? (nearestSR.level + (xauSignal.signal === "LONG" ? -5 : 5)), cond: "pullback a EMA50 si retrocede", active: false },
+                  { lbl: "E3 — 20%", price: xauSignal.signal === "LONG" ? nearestSR.level - 4 : nearestSR.level + 4, cond: "confirmación de momentum", active: false },
+                ].map(({ lbl, price, cond, active }) => (
+                  <div key={lbl} style={{ padding: "16px", background: active ? `${sigColor}06` : "var(--bg)", borderRadius: "8px", border: `1px solid ${active ? sigColor : "var(--border)"}44`, textAlign: "center" }}>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>{lbl}</div>
+                    <div style={{ fontSize: "22px", fontWeight: 800, fontFamily: "monospace", color: active ? sigColor : "var(--text)" }}>${price.toFixed(2)}</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px" }}>{cond}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ padding: "10px 12px", background: "var(--bg)", borderRadius: "6px", border: "1px solid var(--border)", fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.6 }}>
+                Entra con 50% en E1. Si el precio confirma dirección, añade 30% en E2 (EMA50). Reserva 20% para E3 si el momentum sigue. Stop total: al otro lado del nivel S/R ± 2-3 pips de margen.
+              </div>
+            </div>
+          )}
 
           {/* Bottom row: Indicadores + SR Levels */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
@@ -1142,6 +1302,148 @@ export default function FondeoTab() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════ TAB: CUENTAS ══════ */}
+      {tab === "cuentas" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          {/* Header */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <h2 style={{ fontSize: "16px", fontWeight: 600, color: "var(--text)", margin: 0 }}>Gestión de cuentas</h2>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "3px 0 0" }}>Seguimiento multi-cuenta: challenges, funded y live</p>
+            </div>
+            <button onClick={() => setShowCuentaForm(!showCuentaForm)} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", borderRadius: "6px", background: "var(--accent)", color: "#000", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}>
+              <Plus size={14}/> Nueva cuenta
+            </button>
+          </div>
+
+          {/* Formulario nueva cuenta */}
+          {showCuentaForm && (
+            <div style={{ ...CARD, border: "1px solid var(--accent)" }}>
+              <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", margin: "0 0 14px" }}>Nueva cuenta</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "10px" }}>
+                <div><span style={LBL}>Nombre</span><input value={cuentaForm.nombre ?? ""} onChange={e => setCuentaForm(p => ({...p, nombre: e.target.value}))} style={INP} placeholder="FTMO Challenge $25k"/></div>
+                <div><span style={LBL}>Firma</span><input value={cuentaForm.firma ?? ""} onChange={e => setCuentaForm(p => ({...p, firma: e.target.value}))} style={INP} placeholder="FTMO"/></div>
+                <div><span style={LBL}>Balance inicial ($)</span><input type="number" value={cuentaForm.balance ?? ""} onChange={e => setCuentaForm(p => ({...p, balance: Number(e.target.value)}))} style={INP} placeholder="25000"/></div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "10px" }}>
+                <div><span style={LBL}>Tipo</span>
+                  <select value={cuentaForm.tipo} onChange={e => setCuentaForm(p => ({...p, tipo: e.target.value as Cuenta["tipo"]}))} style={INP}>
+                    <option>Challenge</option><option>Funded</option><option>Live</option>
+                  </select>
+                </div>
+                <div><span style={LBL}>Estado</span>
+                  <select value={cuentaForm.estado} onChange={e => setCuentaForm(p => ({...p, estado: e.target.value as Cuenta["estado"]}))} style={INP}>
+                    <option>Activa</option><option>Pasada</option><option>Fallida</option>
+                  </select>
+                </div>
+                <div><span style={LBL}>Fecha inicio</span><input type="date" value={cuentaForm.inicio ?? today()} onChange={e => setCuentaForm(p => ({...p, inicio: e.target.value}))} style={INP}/></div>
+              </div>
+              <div style={{ marginBottom: "12px" }}><span style={LBL}>Notas</span><input value={cuentaForm.notas ?? ""} onChange={e => setCuentaForm(p => ({...p, notas: e.target.value}))} style={INP} placeholder="Fase 1, objetivo, broker..."/></div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button onClick={addCuenta} style={{ padding: "8px 20px", borderRadius: "6px", background: "var(--accent)", color: "#000", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}>Añadir</button>
+                <button onClick={() => setShowCuentaForm(false)} style={{ padding: "8px 14px", borderRadius: "6px", background: "var(--bg)", color: "var(--text-muted)", border: "1px solid var(--border)", cursor: "pointer", fontSize: "13px" }}>Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {/* Resumen agregado */}
+          {cuentas.length > 0 && (
+            <div style={{ ...CARD, background: "rgba(200,245,66,0.04)", border: "1px solid rgba(200,245,66,0.2)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
+                {[
+                  { l: "Cuentas activas", v: `${cuentas.filter(c => c.estado === "Activa").length}`, c: "var(--accent)" },
+                  { l: "P&L Hoy (total)", v: fmtUSD(cuentas.reduce((s, c) => s + c.pnlHoy, 0)), c: cuentas.reduce((s, c) => s + c.pnlHoy, 0) >= 0 ? "var(--green)" : "var(--red)" },
+                  { l: "P&L Acumulado", v: fmtUSD(cuentas.reduce((s, c) => s + c.pnlTotal, 0)), c: cuentas.reduce((s, c) => s + c.pnlTotal, 0) >= 0 ? "var(--green)" : "var(--red)" },
+                  { l: "Capital total", v: `$${cuentas.reduce((s, c) => s + c.balance, 0).toLocaleString()}`, c: "var(--text)" },
+                ].map(({ l, v, c }) => (
+                  <div key={l} style={{ textAlign: "center", padding: "10px" }}>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "5px" }}>{l}</div>
+                    <div style={{ fontSize: "20px", fontWeight: 700, color: c, fontFamily: "monospace" }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tarjetas por cuenta */}
+          {cuentas.length === 0 ? (
+            <div style={{ ...CARD, textAlign: "center", padding: "52px" }}>
+              <Target size={36} color="var(--text-muted)" style={{ marginBottom: "12px", opacity: 0.4 }}/>
+              <p style={{ color: "var(--text-muted)", fontSize: "14px", margin: 0 }}>Sin cuentas registradas</p>
+              <p style={{ color: "var(--text-muted)", fontSize: "12px", margin: "6px 0 0" }}>Añade tu primera cuenta cuando empieces el challenge</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {cuentas.map(c => {
+                const estColor = c.estado === "Activa" ? "var(--green)" : c.estado === "Pasada" ? "var(--accent)" : "var(--red)";
+                const ddPctC = c.balance > 0 ? Math.abs(Math.min(0, c.pnlTotal)) / c.balance * 100 : 0;
+                return (
+                  <div key={c.id} style={CARD}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px" }}>
+                      <div>
+                        <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text)" }}>{c.nombre}</div>
+                        <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
+                          {c.firma} · {c.tipo} · Inicio: {c.inicio}
+                          {c.notas && ` · ${c.notas}`}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <span style={{ padding: "3px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, background: `${estColor}18`, color: estColor, border: `1px solid ${estColor}33` }}>{c.estado}</span>
+                        <button onClick={() => delCuenta(c.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "3px" }}><Trash2 size={13}/></button>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }}>
+                      {/* Balance */}
+                      <div style={{ padding: "10px 12px", background: "var(--bg)", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>Balance</div>
+                        <div style={{ fontSize: "15px", fontWeight: 700, fontFamily: "monospace" }}>${c.balance.toLocaleString()}</div>
+                      </div>
+                      {/* P&L Hoy */}
+                      <div style={{ padding: "10px 12px", background: "var(--bg)", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>P&L Hoy</div>
+                        <input type="number" step={0.01} value={c.pnlHoy || ""}
+                          onChange={e => updateCuenta(c.id, { pnlHoy: Number(e.target.value) || 0 })}
+                          style={{ ...INP, fontSize: "14px", fontWeight: 700, fontFamily: "monospace", color: c.pnlHoy >= 0 ? "var(--green)" : "var(--red)", padding: "3px 6px" }}
+                          placeholder="0"/>
+                      </div>
+                      {/* P&L Total */}
+                      <div style={{ padding: "10px 12px", background: "var(--bg)", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>P&L Total</div>
+                        <input type="number" step={0.01} value={c.pnlTotal || ""}
+                          onChange={e => updateCuenta(c.id, { pnlTotal: Number(e.target.value) || 0 })}
+                          style={{ ...INP, fontSize: "14px", fontWeight: 700, fontFamily: "monospace", color: c.pnlTotal >= 0 ? "var(--green)" : "var(--red)", padding: "3px 6px" }}
+                          placeholder="0"/>
+                      </div>
+                      {/* DD */}
+                      <div style={{ padding: "10px 12px", background: "var(--bg)", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>Drawdown</div>
+                        <div style={{ fontSize: "15px", fontWeight: 700, fontFamily: "monospace", color: ddPctC > 7 ? "var(--red)" : ddPctC > 4 ? "var(--amber)" : "var(--green)" }}>
+                          {ddPctC.toFixed(1)}%
+                        </div>
+                      </div>
+                      {/* Estado */}
+                      <div style={{ padding: "10px 12px", background: "var(--bg)", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>Estado</div>
+                        <select value={c.estado} onChange={e => updateCuenta(c.id, { estado: e.target.value as Cuenta["estado"] })}
+                          style={{ ...INP, fontSize: "12px", padding: "3px 6px", color: estColor, fontWeight: 600 }}>
+                          <option value="Activa">Activa</option>
+                          <option value="Pasada">Pasada</option>
+                          <option value="Fallida">Fallida</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div style={{ ...CARD, background: "rgba(0,200,100,0.04)", border: "1px solid rgba(0,200,100,0.15)", fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.6 }}>
+            <strong style={{ color: "var(--green)" }}>Trade Copier MT5:</strong> Cuando tengas 2+ cuentas activas, configura el MT5 Trade Copier EA (gratuito, incluido en MT5) para copiar órdenes de la cuenta master a las slave en milisegundos. Una sola decisión de entrada — múltiples cuentas ejecutan simultáneamente.
           </div>
         </div>
       )}
