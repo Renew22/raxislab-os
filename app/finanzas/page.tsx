@@ -1,1288 +1,633 @@
 "use client";
+import { useState, useEffect, useCallback } from "react";
+import { TrendingUp, AlertTriangle, CheckCircle, Edit3, Save, X, FileText } from "lucide-react";
 
-import { useState, useRef } from "react";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
-} from "recharts";
-import { Pencil, Plus, X, Check, FileText, Upload } from "lucide-react";
-import SparkLine from "../components/spark-line";
-import { useTheme } from "../components/theme-provider";
+const C = {
+  bg: "#0A0A0F", card: "#13131A", border: "#1E1E2E",
+  accent: "#C8F542", green: "#00C864", red: "#FF3232", amber: "#FFAA00", blue: "#4499FF",
+  text: "#E8E8F0", mid: "#9898B0", muted: "#5A5A70",
+};
+const S: Record<string, React.CSSProperties> = {
+  card:  { background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" },
+  input: { width: "100%", padding: "7px 10px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: "6px", color: C.text, fontSize: "12px", outline: "none", boxSizing: "border-box" as const },
+  btn:   { padding: "8px 16px", borderRadius: "7px", border: "none", background: C.accent, color: "#000", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" },
+  lbl:   { fontSize: "10px", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase" as const, color: C.muted, marginBottom: "4px", display: "block" },
+  mono:  { fontFamily: "'Space Mono', monospace" },
+  ghost: { padding: "6px 12px", borderRadius: "6px", border: `1px solid ${C.border}`, background: "transparent", color: C.mid, fontSize: "11px", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px" },
+};
+function badge(c: string): React.CSSProperties { return { fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "4px", background: `${c}18`, color: c, border: `1px solid ${c}33` }; }
 
-// ─── TYPES ────────────────────────────────────────────────────────────────────
+function eur(n: number) { return n.toLocaleString("es", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }); }
+function eurD(n: number) { return n.toLocaleString("es", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-type Tab             = "Resumen" | "GastosFijos" | "Calendario" | "Ingresos" | "Impuestos" | "Extracto";
+/* ── Types ── */
+interface Ingreso { id: string; cliente: string; concepto: string; importe: number; metodo: string; estado: "activo"|"prospecto"|"pendiente"; nota: string; paquete: string; confirmado: boolean }
+interface Suscripcion { id: string; servicio: string; importe: number; frecuencia: "mensual"|"anual"|"variable"; metodo: string; confirmado: boolean; nota: string }
+interface Editor { id: string; nombre: string; concepto: string; importes: number[]; moneda: "EUR"|"USD"; tarifa_variable: boolean; tarifa_nota: string }
+interface Prospecto { id: string; nombre: string; tipo: string; paquete: string; estado: string; nota: string }
+interface Personal { id: string; concepto: string; importe: number; esNegocio: boolean|null; nota: string }
+interface JaggerCalc { nVideos: number; horas: number; valorHora: number; ayudante: number; desplaz: number; margen: number; costeEditor: number }
+interface FinData { ingresos: Ingreso[]; suscripciones: Suscripcion[]; editores: Editor[]; prospectos: Prospecto[]; personales: Personal[]; jaggerCalc: JaggerCalc }
 
-interface Factura {
-  id: string; proveedor: string; concepto: string; importe: number; iva: number;
-  fecha: string; numero_factura: string; tipo: "emitida" | "recibida";
-  categoria: string; archivo_url?: string; created_at: string;
+const STORAGE = "raxis_finanzas_v1";
+
+const SEED: FinData = {
+  ingresos: [
+    { id:"i1", cliente:"Jorge DeSancho", concepto:"Servicio agencia mensual (Workana)", importe:637, metodo:"Workana → banco", estado:"activo", nota:"Promedio 4 meses: 635.44/636.27/639.59/640.43€. UN solo cliente — no dos entidades distintas.", paquete:"premium", confirmado:true },
+  ],
+  suscripciones: [
+    { id:"s1",  servicio:"Canva Pro",          importe:12.00, frecuencia:"mensual",  metodo:"PayPal",         confirmado:true,  nota:"Confirmado banco (CANVAPTYLIM)" },
+    { id:"s2",  servicio:"Freepik",            importe:9.68,  frecuencia:"mensual",  metodo:"PayPal",         confirmado:true,  nota:"Recibo domiciliado" },
+    { id:"s3",  servicio:"ChatGPT Plus",       importe:8.00,  frecuencia:"mensual",  metodo:"PayPal",         confirmado:true,  nota:"Recurrente" },
+    { id:"s4",  servicio:"OpenAI API",         importe:17.00, frecuencia:"variable", metodo:"Tarjeta directa",confirmado:true,  nota:"Variable: 10.88–23.99€/mes. Media estimada 17€" },
+    { id:"s5",  servicio:"Anthropic / Claude", importe:21.53, frecuencia:"mensual",  metodo:"Tarjeta directa",confirmado:true,  nota:"Cargo visto 22/06/2026" },
+    { id:"s6",  servicio:"Cloudflare",         importe:3.43,  frecuencia:"mensual",  metodo:"PayPal",         confirmado:false, nota:"⚠️ Visto 1 vez (20/04). ¿Mensual o puntual?" },
+    { id:"s7",  servicio:"Zoho Corp",          importe:59.87, frecuencia:"mensual",  metodo:"PayPal",         confirmado:false, nota:"⚠️ 1 cargo (19/06). ¿Qué servicio Zoho? ¿CRM/Mail? ¿Recurrente?" },
+    { id:"s8",  servicio:"Apple.com/bill",     importe:0,     frecuencia:"mensual",  metodo:"Tarjeta directa",confirmado:false, nota:"⚠️ Múltiples líneas: 1.99/8.99/9.99/22/23.99€. Revisar iPhone → Ajustes → Suscripciones" },
+    { id:"s9",  servicio:"Hetzner (servidor)", importe:0,     frecuencia:"mensual",  metodo:"Por confirmar",  confirmado:false, nota:"⚠️ ¿Cuánto pagas de servidor Hetzner al mes?" },
+  ],
+  editores: [
+    { id:"e1", nombre:"Maitena Altesor",        concepto:"Edición vídeo / diseño redes",    importes:[40.62,111.99,66.34,100,59], moneda:"USD", tarifa_variable:true,  tarifa_nota:"Pagos variables. Media ~76€/lote. ⚠️ Confirmar tarifa real: ¿por vídeo, hora o proyecto?" },
+    { id:"e2", nombre:"David Urrutia Ortiz",    concepto:"Editor vídeo profesional (Workana)",importes:[19.24],                     moneda:"EUR", tarifa_variable:true,  tarifa_nota:"⚠️ Solo depósito inicial 19.24€. Tarifa por vídeo sin confirmar — actualizar al cerrar" },
+    { id:"e3", nombre:"Bryan Alexander Patiño", concepto:"Flyers digitales",                importes:[84],                          moneda:"USD", tarifa_variable:false, tarifa_nota:"Pago puntual PayPal" },
+    { id:"e4", nombre:"Fernando Luis Gutierrez",concepto:"Flyers digitales",                importes:[50],                          moneda:"USD", tarifa_variable:false, tarifa_nota:"Pago puntual PayPal" },
+    { id:"e5", nombre:"Francisco Jose Herrera", concepto:"Sin concepto especificado",       importes:[30],                          moneda:"USD", tarifa_variable:false, tarifa_nota:"Pago puntual PayPal" },
+  ],
+  prospectos: [
+    { id:"p1", nombre:"Jagger Club",         tipo:"Discoteca / Venue",  paquete:"Básico (producción vídeo/foto)",       estado:"En negociación — primera noche muestra", nota:"Usar calculadora para precio exacto. NO incluye publicación redes." },
+    { id:"p2", nombre:"David / Captura Más", tipo:"Contenido",          paquete:"Por definir",                           estado:"Pendiente alcance exacto",                nota:"¿Solo producción o también ads?" },
+  ],
+  personales: [
+    { id:"pp1", concepto:"Interflora Italia",                importe:51.96,  esNegocio:false, nota:"Florería — personal" },
+    { id:"pp2", concepto:"Trainline.com (tren)",             importe:53.91,  esNegocio:null,  nota:"¿Viaje de trabajo (grabación fuera)?" },
+    { id:"pp3", concepto:"Booking.com",                      importe:109.35, esNegocio:null,  nota:"¿Alojamiento viaje de trabajo?" },
+    { id:"pp4", concepto:"Headout Europe (actividades)",     importe:76.98,  esNegocio:false, nota:"Turismo — personal" },
+    { id:"pp5", concepto:"Remitly (x2: 96.59 + 74.99)",    importe:171.58, esNegocio:false, nota:"Envíos al extranjero" },
+    { id:"pp6", concepto:"Xoom / Luis Benegas (varios)",    importe:0,      esNegocio:null,  nota:"⚠️ ¿Eres tú enviándote dinero o remesas familia? Varios cargos 200–550€" },
+    { id:"pp7", concepto:"Payoneer Europe",                  importe:150.00, esNegocio:null,  nota:"¿Cobro de cliente externo? ¿Transferencia propia?" },
+  ],
+  jaggerCalc: { nVideos:4, horas:5, valorHora:65, ayudante:100, desplaz:20, margen:0.5, costeEditor:40 },
+};
+
+// Inventario real del Excel inventario_equipo.xlsx
+const EQUIPO = [
+  { cat:"Cámaras",       item:"Sony ZV-E10 (mirrorless APS-C)",           v:650   },
+  { cat:"Cámaras",       item:"Sony α7S II (full-frame)",                  v:1000  },
+  { cat:"Cámaras",       item:"Canon EOS 1300D + 18-55mm",                v:320   },
+  { cat:"Objetivos",     item:"Sony FE 50mm f/1.8",                       v:200   },
+  { cat:"Objetivos",     item:"Sony FE 28-70mm f/3.5-5.6",               v:180   },
+  { cat:"Objetivos",     item:"Sony E 18-105mm f/4 G PZ",                v:600   },
+  { cat:"Objetivos",     item:"Sony E 16-50mm f/3.5-5.6",                v:150   },
+  { cat:"Estabilización",item:"DJI RS3 Mini",                              v:260   },
+  { cat:"Estabilización",item:"SmallRig cage + top/side handle",          v:110   },
+  { cat:"Estabilización",item:"SmallRig 5285B tripode/monopié",           v:59.93 },
+  { cat:"Audio",         item:"Hollyland Lark M2S (wireless dual)",       v:140   },
+  { cat:"Iluminación",   item:"Photoolex B320S tubo LED RGB",              v:65.99 },
+  { cat:"Iluminación",   item:"SmallRig P96L luz portátil RGB",           v:55    },
+  { cat:"Iluminación",   item:"Soonpho 2-Pack kit focos fotografía",      v:109   },
+  { cat:"Fondo",         item:"EMART fondo blanco 1.5×2.6m + soporte",   v:46.99 },
+  { cat:"Almacenamiento",item:"SanDisk SD Extreme 128GB",                  v:25    },
+  { cat:"Almacenamiento",item:"SanDisk microSD x3 + adaptador",           v:45    },
+  { cat:"Almacenamiento",item:"Acer lector tarjetas USB-C",               v:10.99 },
+  { cat:"Accesorios",    item:"iPad antigua (monitorización set)",         v:130   },
+  { cat:"Accesorios",    item:"Filtro ND + limpieza + power bank",        v:73    },
+  { cat:"Trabajo",       item:"Portátil Acer Nitro V15 (RTX, 144Hz)",    v:950   },
+  { cat:"Trabajo",       item:"Monitor externo",                           v:150   },
+  { cat:"Trabajo",       item:"KROM: teclado + ratón + alfombrilla",      v:90    },
+  { cat:"Trabajo",       item:"Altavoz + auriculares + Hub USB",          v:120   },
+];
+
+function calcPL(d: FinData) {
+  const ingresosMes  = d.ingresos.filter(i => i.estado === "activo").reduce((s, i) => s + i.importe, 0);
+  const totalSusc    = d.suscripciones.filter(s => s.importe > 0).reduce((s, x) => s + x.importe, 0);
+  const editoresEur  = d.editores.reduce((s, e) => {
+    const tot = e.importes.reduce((a, b) => a + b, 0);
+    return s + (e.moneda === "USD" ? tot * 0.92 : tot);
+  }, 0);
+  const neto         = ingresosMes - totalSusc - (editoresEur / 5); // editores historico/5 meses
+  const margen       = ingresosMes > 0 ? (neto / ingresosMes) * 100 : 0;
+  return { ingresosMes, totalSusc, editoresEur, neto, margen };
 }
-type EstadoGasto     = "activo" | "cancelar" | "cancelado";
-type EstadoIngreso   = "activo" | "verificar";
 
-type GastoFijo = {
-  id: number; servicio: string; importe: number;
-  dia: number; categoria: string; estado: EstadoGasto;
-};
-type Ingreso = {
-  id: number; fuente: string; importe: number;
-  dia: number; frecuencia: string; estado: EstadoIngreso;
-};
-
-// ─── DATA ─────────────────────────────────────────────────────────────────────
-
-const SPARK = {
-  gastos:   [1050, 1080, 1100, 1130, 1110, 1120, 1130],
-  margen:   [1150, 1320, 1400, 1570, 1640, 1780, 1870],
-  cobro:    [30,   25,   20,   14,   10,   7,    5   ],
-};
-
-const GASTOS_INITIAL: GastoFijo[] = [
-  { id:1,  servicio:"Alquiler",             importe:650,    dia:1,  categoria:"Vivienda",        estado:"activo"  },
-  { id:2,  servicio:"Coche",                importe:165,    dia:1,  categoria:"Transporte",      estado:"activo"  },
-  { id:3,  servicio:"Pepephone",            importe:15,     dia:4,  categoria:"Telecom",         estado:"activo"  },
-  { id:4,  servicio:"AXA Seguro mensual",   importe:27.46,  dia:5,  categoria:"Seguros",         estado:"activo"  },
-  { id:5,  servicio:"Digi",                 importe:10,     dia:28, categoria:"Telecom",         estado:"activo"  },
-  { id:6,  servicio:"Renting Tec",          importe:22.99,  dia:25, categoria:"Tecnología",      estado:"activo"  },
-  { id:7,  servicio:"Canva Pro",            importe:12,     dia:22, categoria:"Herramientas",    estado:"activo"  },
-  { id:8,  servicio:"Genspark",             importe:25,     dia:1,  categoria:"Herramientas IA", estado:"activo"  },
-  { id:9,  servicio:"Apple servicios",      importe:15,     dia:5,  categoria:"Suscripciones",   estado:"activo"  },
-  { id:10, servicio:"Cloudflare",           importe:3.5,    dia:17, categoria:"Tecnología",      estado:"activo"  },
-  { id:11, servicio:"Windsor.ai",           importe:20,     dia:30, categoria:"Agencia",         estado:"cancelar"},
-  { id:12, servicio:"AXA Hogar trimestral", importe:138.38, dia:5,  categoria:"Seguros",         estado:"activo"  },
-];
-
-const INGRESOS_INITIAL: Ingreso[] = [
-  { id:1, fuente:"Recaba Inversiones (trabajo)", importe:1400, dia:25, frecuencia:"Mensual",  estado:"activo"   },
-  { id:2, fuente:"Identity Peluqueros",           importe:550,  dia:5,  frecuencia:"Mensual",  estado:"verificar"},
-  { id:3, fuente:"Desancho Estilistas",            importe:550,  dia:5,  frecuencia:"Mensual",  estado:"verificar"},
-  { id:4, fuente:"Last Mile Distribution",         importe:100,  dia:0,  frecuencia:"Variable", estado:"activo"   },
-  { id:5, fuente:"Matías (envíos)",                importe:400,  dia:0,  frecuencia:"Variable", estado:"activo"   },
-];
-
-const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-const DOW   = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
-
-// ─── STYLES ───────────────────────────────────────────────────────────────────
-
-const CARD:    React.CSSProperties = { background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px", padding:"20px" };
-const LABEL = { fontSize:"11px", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase" as const, color:"var(--text-muted)", marginBottom:"8px" };
-const NUM:     React.CSSProperties = { fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"26px", lineHeight:1, marginBottom:"6px" };
-const TH    = { padding:"10px 14px", textAlign:"left" as const, fontSize:"11px", fontWeight:600, letterSpacing:"0.06em", color:"var(--text-muted)", borderBottom:"1px solid var(--border)" };
-const TD    = { padding:"11px 14px", borderBottom:"1px solid var(--border)", fontSize:"13px" };
-const INPUT_S: React.CSSProperties = { padding:"8px 10px", borderRadius:"4px", border:"1px solid var(--border)", background:"var(--card-hover)", color:"var(--text)", fontSize:"13px", outline:"none", width:"100%", boxSizing:"border-box" };
-
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-
-function nextCobro(gastos: GastoFijo[]) {
-  const d = new Date().getDate();
-  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-  return gastos
-    .filter(g => g.estado === "activo")
-    .map(g => ({ ...g, daysLeft: g.dia >= d ? g.dia - d : daysInMonth - d + g.dia }))
-    .sort((a, b) => a.daysLeft - b.daysLeft)[0] ?? null;
+function calcJagger(j: JaggerCalc) {
+  const costEdicion   = j.nVideos * j.costeEditor;
+  const costTiempo    = j.horas * j.valorHora;
+  const costTotal     = costEdicion + costTiempo + j.ayudante + j.desplaz;
+  const precio        = Math.ceil(costTotal * (1 + j.margen) / 10) * 10;
+  const precioVideo   = Math.ceil((precio / j.nVideos) / 5) * 5;
+  const precioMensual = Math.ceil(precio * 4 * 0.9 / 10) * 10;
+  const ganancia      = precio - costTotal;
+  return { costEdicion, costTiempo, costTotal, precio, precioVideo, precioMensual, ganancia };
 }
 
-// ─── SUB-COMPONENT: IMPUESTOS Y FACTURAS ─────────────────────────────────────
+const TABS = ["Resumen P&L","Ingresos","Gastos","Equipo","Jagger Club","Personales"] as const;
+type Tab = typeof TABS[number];
 
-const TRIMESTRES = ["T1 (Ene-Mar)", "T2 (Abr-Jun)", "T3 (Jul-Sep)", "T4 (Oct-Dic)"];
-const TRIMESTRE_MONTHS: Record<string, number[]> = {
-  "T1 (Ene-Mar)": [1,2,3], "T2 (Abr-Jun)": [4,5,6],
-  "T3 (Jul-Sep)": [7,8,9], "T4 (Oct-Dic)": [10,11,12],
-};
-const currentMonth = new Date().getMonth() + 1;
-const DEFAULT_TRIMESTRE = TRIMESTRES.find(t => TRIMESTRE_MONTHS[t].includes(currentMonth)) ?? TRIMESTRES[1];
+export default function FinanzasPage() {
+  const [tab, setTab]             = useState<Tab>("Resumen P&L");
+  const [data, setData]           = useState<FinData>(SEED);
+  const [saved, setSaved]         = useState(false);
+  const [editingJ, setEditingJ]   = useState(false);
+  const [showProp, setShowProp]   = useState(false);
 
-const CATEGORIAS_FACTURA = ["Servicios profesionales","Software/SaaS","Marketing","Infraestructura","Viaje/Transporte","Material","Formación","Otros"];
+  useEffect(() => {
+    try { const d = JSON.parse(localStorage.getItem(STORAGE) || "{}"); if (d.ingresos) setData(d); } catch {}
+  }, []);
 
-const CALENDARIO_FISCAL_ES = [
-  { concepto:"IVA Trimestral (Modelo 303)", trimestre:"T1", fecha_limite:"20 Abr", plazo_dias:20, modelo:"303" },
-  { concepto:"IVA Trimestral (Modelo 303)", trimestre:"T2", fecha_limite:"20 Jul", plazo_dias:20, modelo:"303" },
-  { concepto:"IVA Trimestral (Modelo 303)", trimestre:"T3", fecha_limite:"20 Oct", plazo_dias:20, modelo:"303" },
-  { concepto:"IVA Anual (Modelo 303 T4)", trimestre:"T4", fecha_limite:"30 Ene", plazo_dias:30, modelo:"303" },
-  { concepto:"IRPF Trimestral (Modelo 130)", trimestre:"T1", fecha_limite:"20 Abr", plazo_dias:20, modelo:"130" },
-  { concepto:"IRPF Trimestral (Modelo 130)", trimestre:"T2", fecha_limite:"20 Jul", plazo_dias:20, modelo:"130" },
-  { concepto:"IRPF Trimestral (Modelo 130)", trimestre:"T3", fecha_limite:"20 Oct", plazo_dias:20, modelo:"130" },
-  { concepto:"IRPF Trimestral (Modelo 130)", trimestre:"T4", fecha_limite:"30 Ene", plazo_dias:30, modelo:"130" },
-  { concepto:"Resumen Anual IVA (Modelo 390)", trimestre:"Anual", fecha_limite:"30 Ene", plazo_dias:30, modelo:"390" },
-  { concepto:"Renta Anual (IRPF)", trimestre:"Anual", fecha_limite:"30 Jun", plazo_dias:30, modelo:"RENTA" },
-];
+  const persist = useCallback((next: FinData) => {
+    setData(next); localStorage.setItem(STORAGE, JSON.stringify(next));
+    setSaved(true); setTimeout(() => setSaved(false), 1500);
+  }, []);
 
-function ImpuestosTab() {
-  const [facturas, setFacturas]         = useState<Factura[]>(() => {
-    if (typeof window === "undefined") return [];
-    try { return JSON.parse(localStorage.getItem("raxislab_facturas_v1") ?? "[]"); } catch { return []; }
-  });
-  const [trimFiltro, setTrimFiltro]     = useState<string>(DEFAULT_TRIMESTRE);
-  const [tipoFiltro, setTipoFiltro]     = useState<"todas" | "emitida" | "recibida">("todas");
-  const [uploading, setUploading]       = useState(false);
-  const [preview, setPreview]           = useState<Partial<Factura> | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [regime, setRegime]             = useState<"es" | "py">("es");
+  const pl   = calcPL(data);
+  const jRes = calcJagger(data.jaggerCalc);
+  const equipoFoto  = EQUIPO.filter(e => e.cat !== "Trabajo").reduce((s, e) => s + e.v, 0);
+  const equipoTrab  = EQUIPO.filter(e => e.cat === "Trabajo").reduce((s, e) => s + e.v, 0);
+  const equipoTotal = equipoFoto + equipoTrab;
+  const equipoCats  = [...new Set(EQUIPO.map(e => e.cat))];
 
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  function saveFacturas(f: Factura[]) {
-    setFacturas(f);
-    localStorage.setItem("raxislab_facturas_v1", JSON.stringify(f));
-  }
-
-  async function handleFile(file: File) {
-    setUploading(true); setPreviewError(null); setPreview(null);
-    try {
-      const base64 = await new Promise<string>((res, rej) => {
-        const r = new FileReader();
-        r.onload = e => res((e.target?.result as string).split(",")[1]);
-        r.onerror = rej;
-        r.readAsDataURL(file);
-      });
-      const mediaType = file.type || "image/png";
-      const resp = await fetch("/api/claude/extract-invoice", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileBase64: base64, mediaType }),
-      });
-      const json = await resp.json();
-      if (json.error) { setPreviewError(json.error); return; }
-      setPreview({ ...json.data, tipo: "recibida", categoria: "Servicios profesionales" });
-    } catch (e) { setPreviewError(String(e)); }
-    finally { setUploading(false); }
-  }
-
-  function confirmarFactura() {
-    if (!preview) return;
-    const f: Factura = {
-      id: Date.now().toString(),
-      proveedor: preview.proveedor ?? "—", concepto: preview.concepto ?? "—",
-      importe: Number(preview.importe ?? 0), iva: Number(preview.iva ?? 21),
-      fecha: preview.fecha ?? new Date().toISOString().split("T")[0],
-      numero_factura: preview.numero_factura ?? "—",
-      tipo: preview.tipo ?? "recibida", categoria: preview.categoria ?? "Otros",
-      created_at: new Date().toISOString(),
-    };
-    saveFacturas([...facturas, f]);
-    setPreview(null);
-  }
-
-  // Filter by trimestre
-  const monthsFiltro = TRIMESTRE_MONTHS[trimFiltro] ?? [];
-  const facFiltradas = facturas.filter(f => {
-    const m = new Date(f.fecha).getMonth() + 1;
-    const matchTrim = monthsFiltro.includes(m);
-    const matchTipo = tipoFiltro === "todas" || f.tipo === tipoFiltro;
-    return matchTrim && matchTipo;
-  });
-
-  // Stats del trimestre
-  const emitidas  = facFiltradas.filter(f => f.tipo === "emitida");
-  const recibidas = facFiltradas.filter(f => f.tipo === "recibida");
-  const ivaRepercutido = emitidas.reduce((s, f)  => s + (f.importe * f.iva / 100), 0);
-  const ivaSoportado   = recibidas.reduce((s, f) => s + (f.importe * f.iva / 100), 0);
-  const ivaPagar       = ivaRepercutido - ivaSoportado;
-  const baseImponible  = emitidas.reduce((s, f)  => s + f.importe, 0);
+  const pendientes = [
+    ...data.suscripciones.filter(s => !s.confirmado).map(s => ({ txt:`${s.servicio}: ${s.nota}`, w:true })),
+    { txt:"David Urrutia: tarifa por vídeo sin confirmar", w:true },
+    { txt:"Maitena Altesor: ¿tarifa por vídeo, hora o proyecto?", w:false },
+    { txt:"Desglose Apple.com/bill → iPhone Ajustes → Suscripciones", w:true },
+    { txt:"Xoom / Luis Benegas: ¿enviándote a ti mismo o remesas?", w:false },
+    { txt:"Booking/Trainline/Headout: ¿viaje de trabajo o personal?", w:false },
+  ];
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:"24px" }}>
-
-      {/* Regime toggle */}
-      <div style={{ display:"flex", alignItems:"center", gap:"12px", padding:"10px 16px", borderRadius:"6px", background:"rgba(0,87,255,0.04)", border:"1px solid rgba(0,87,255,0.12)" }}>
-        <p style={{ fontSize:"12px", color:"var(--text-muted)", margin:0 }}>Régimen fiscal:</p>
-        {[["es","España — Autónomo (303/130)"],["py","Paraguay — por definir"]].map(([v,l]) => (
-          <button key={v} onClick={() => setRegime(v as "es"|"py")} style={{ padding:"5px 12px", borderRadius:"4px", border:"none", cursor:"pointer", fontSize:"12px", fontWeight:v===regime?600:400, background:v===regime?"var(--accent)":"var(--surface)", color:v===regime?"#000":"var(--text-muted)" }}>{l}</button>
-        ))}
-        <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:"0 0 0 auto" }}>Edita para cambiar según tu situación</p>
+    <div style={{ background:C.bg, minHeight:"100vh", padding:"28px 36px", fontFamily:"'Space Grotesk', sans-serif", color:C.text }}>
+      {/* Header */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"22px" }}>
+        <div>
+          <h1 style={{ fontSize:"22px", fontWeight:700, margin:0 }}>Finanzas Raxislab</h1>
+          <p style={{ fontSize:"12px", color:C.muted, margin:"4px 0 0" }}>Datos reales banco Santander + Workana hasta 17/07/2026</p>
+        </div>
+        <div style={{ display:"flex", gap:"16px", alignItems:"center" }}>
+          {saved && <span style={{ fontSize:"11px", color:C.green }}>✓ Guardado</span>}
+          <div style={{ textAlign:"right" }}>
+            <div style={{ fontSize:"10px", color:C.muted }}>Beneficio neto / mes</div>
+            <div style={{ ...S.mono, fontSize:"20px", fontWeight:800, color:pl.neto>=0?C.green:C.red }}>{eurD(pl.neto)}</div>
+          </div>
+          <div style={{ textAlign:"right" }}>
+            <div style={{ fontSize:"10px", color:C.muted }}>Margen</div>
+            <div style={{ ...S.mono, fontSize:"20px", fontWeight:800, color:pl.margen>=40?C.green:C.amber }}>{pl.margen.toFixed(0)}%</div>
+          </div>
+        </div>
       </div>
 
-      {/* ── SECCIÓN A: SUBIDA DE FACTURAS ── */}
-      <div style={{ ...CARD }}>
-        <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"16px" }}>
-          <FileText size={15} color="var(--accent)"/>
-          <p style={{ ...LABEL, margin:0, color:"var(--text)" }}>Subir factura</p>
-        </div>
-        <div
-          onClick={() => fileRef.current?.click()}
-          onDragOver={e => e.preventDefault()}
-          onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-          style={{ border:"2px dashed var(--border)", borderRadius:"8px", padding:"32px 24px", textAlign:"center", cursor:"pointer", background:"var(--surface)", transition:"border-color 0.2s" }}
-        >
-          <Upload size={22} color="var(--accent)" style={{ margin:"0 auto 8px" }}/>
-          <p style={{ fontSize:"13px", color:"var(--text-mid)", margin:"0 0 4px" }}>
-            {uploading ? "Analizando con Claude..." : "Arrastra una factura aquí o haz clic"}
-          </p>
-          <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:0 }}>PNG, JPG, WEBP, PDF</p>
-        </div>
-        <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display:"none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-        {previewError && <p style={{ fontSize:"12px", color:"var(--red)", marginTop:"10px" }}>{previewError}</p>}
+      {/* Tabs */}
+      <div style={{ display:"flex", gap:"2px", marginBottom:"20px", borderBottom:`1px solid ${C.border}` }}>
+        {TABS.map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            padding:"8px 14px", fontSize:"12px", fontWeight:tab===t?600:400, cursor:"pointer",
+            border:"1px solid transparent", borderBottom:tab===t?`1px solid ${C.card}`:"transparent",
+            borderRadius:"6px 6px 0 0", background:tab===t?C.card:"transparent",
+            color:tab===t?C.accent:C.muted, fontFamily:"'Space Grotesk', sans-serif", marginBottom:tab===t?"-1px":0,
+          }}>{t}</button>
+        ))}
+      </div>
 
-        {/* Preview extraído */}
-        {preview && (
-          <div style={{ marginTop:"16px", padding:"16px", borderRadius:"6px", background:"var(--surface)", border:"1px solid var(--border-accent)" }}>
-            <p style={{ ...LABEL, marginBottom:"12px", color:"var(--accent)" }}>Vista previa — edita si algo no es correcto</p>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px", marginBottom:"12px" }}>
-              {([
-                ["proveedor","Proveedor","text"], ["concepto","Concepto","text"],
-                ["numero_factura","Nº Factura","text"], ["fecha","Fecha","date"],
-                ["importe","Importe (€)","number"], ["iva","IVA (%)","number"],
-              ] as [keyof Factura, string, string][]).map(([k,l,t]) => (
-                <div key={k}>
-                  <p style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"3px" }}>{l}</p>
-                  <input
-                    type={t} value={String(preview[k] ?? "")}
-                    onChange={e => setPreview(p => ({ ...p, [k]: t === "number" ? parseFloat(e.target.value)||0 : e.target.value }))}
-                    style={{ ...INPUT_S, fontSize:"12px" }}
-                  />
+      {/* ══ RESUMEN P&L ══ */}
+      {tab === "Resumen P&L" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:"12px" }}>
+            {[
+              { l:"Ingresos / mes",       v:eurD(pl.ingresosMes),    c:C.green, sub:`${data.ingresos.filter(i=>i.estado==="activo").length} cliente activo` },
+              { l:"Suscripciones / mes",  v:eurD(pl.totalSusc),      c:C.amber, sub:"Algunas pendientes confirmar" },
+              { l:"Editores (media/mes)", v:eurD(pl.editoresEur/5),  c:C.blue,  sub:"Total histórico ÷ 5 meses" },
+              { l:"Gastos totales / mes", v:eurD(pl.totalSusc + pl.editoresEur/5), c:C.red, sub:"Susc + editores" },
+              { l:"Neto real / mes",      v:eurD(pl.neto),           c:pl.neto>=0?C.green:C.red, sub:`Margen ${pl.margen.toFixed(0)}%` },
+            ].map(({ l,v,c,sub }) => (
+              <div key={l} style={S.card}>
+                <div style={{ fontSize:"10px", color:C.muted, marginBottom:"4px" }}>{l}</div>
+                <div style={{ ...S.mono, fontSize:"17px", fontWeight:800, color:c }}>{v}</div>
+                <div style={{ fontSize:"10px", color:C.muted, marginTop:"3px" }}>{sub}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px" }}>
+            <div style={S.card}>
+              <h3 style={{ fontSize:"13px", fontWeight:600, color:C.green, margin:"0 0 12px" }}>↑ Ingresos</h3>
+              {data.ingresos.map(i => (
+                <div key={i.id} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:`1px solid ${C.border}` }}>
+                  <div>
+                    <span style={{ fontSize:"12px", fontWeight:600 }}>{i.cliente}</span>
+                    <span style={{ ...badge(C.green), marginLeft:"8px" }}>{i.estado}</span>
+                  </div>
+                  <span style={{ ...S.mono, fontSize:"13px", color:C.green, fontWeight:700 }}>{eurD(i.importe)}</span>
+                </div>
+              ))}
+              {data.prospectos.map(p => (
+                <div key={p.id} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:`1px solid ${C.border}`, opacity:0.55 }}>
+                  <div>
+                    <span style={{ fontSize:"12px", color:C.mid }}>{p.nombre}</span>
+                    <span style={{ ...badge(C.muted), marginLeft:"8px" }}>prospecto</span>
+                  </div>
+                  <span style={{ ...S.mono, fontSize:"12px", color:C.muted }}>—</span>
+                </div>
+              ))}
+              <div style={{ display:"flex", justifyContent:"space-between", padding:"10px 0 0", fontWeight:700 }}>
+                <span style={{ color:C.mid, fontSize:"12px" }}>TOTAL INGRESOS / MES</span>
+                <span style={{ ...S.mono, color:C.green, fontSize:"15px" }}>{eurD(pl.ingresosMes)}</span>
+              </div>
+            </div>
+
+            <div style={S.card}>
+              <h3 style={{ fontSize:"13px", fontWeight:600, color:C.red, margin:"0 0 12px" }}>↓ Gastos</h3>
+              <div style={{ fontSize:"10px", color:C.muted, fontWeight:700, marginBottom:"6px" }}>SUSCRIPCIONES</div>
+              {data.suscripciones.filter(s => s.importe > 0).map(s => (
+                <div key={s.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", borderBottom:`1px solid ${C.border}22` }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:"5px" }}>
+                    <span style={{ fontSize:"11px", color:s.confirmado?C.mid:C.amber }}>{s.servicio}</span>
+                    {!s.confirmado && <span style={{ fontSize:"9px" }}>⚠️</span>}
+                  </div>
+                  <span style={{ ...S.mono, fontSize:"11px", color:s.confirmado?C.text:C.amber }}>{eurD(s.importe)}</span>
+                </div>
+              ))}
+              <div style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", marginBottom:"8px" }}>
+                <span style={{ fontSize:"11px", color:C.muted }}>Subtotal suscripciones</span>
+                <span style={{ ...S.mono, fontSize:"12px", color:C.amber }}>{eurD(pl.totalSusc)}</span>
+              </div>
+              <div style={{ fontSize:"10px", color:C.muted, fontWeight:700, marginBottom:"6px" }}>EDITORES (media/mes)</div>
+              {data.editores.map(e => {
+                const tot = e.importes.reduce((a,b)=>a+b,0) * (e.moneda==="USD"?0.92:1);
+                return (
+                  <div key={e.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", borderBottom:`1px solid ${C.border}22` }}>
+                    <span style={{ fontSize:"11px", color:C.mid }}>{e.nombre.split(" ")[0]}</span>
+                    <span style={{ ...S.mono, fontSize:"11px" }}>{eurD(tot/5)}/mes</span>
+                  </div>
+                );
+              })}
+              <div style={{ display:"flex", justifyContent:"space-between", padding:"10px 0 0", fontWeight:700 }}>
+                <span style={{ color:C.mid, fontSize:"12px" }}>TOTAL GASTOS / MES</span>
+                <span style={{ ...S.mono, color:C.red, fontSize:"15px" }}>{eurD(pl.totalSusc + pl.editoresEur/5)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ ...S.card, border:`1px solid ${pl.neto>=0?C.green:C.red}44`, background:`${pl.neto>=0?C.green:C.red}08` }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:"16px" }}>
+              {[
+                { l:"Beneficio neto / mes",  v:eurD(pl.neto),      c:pl.neto>=0?C.green:C.red },
+                { l:"Margen real",            v:`${pl.margen.toFixed(1)}%`, c:C.accent },
+                { l:"Proyección anual",       v:eur(pl.neto*12),    c:C.text },
+                { l:"Equipo total invertido", v:eur(equipoTotal),   c:C.mid },
+              ].map(({ l,v,c }) => (
+                <div key={l}>
+                  <div style={{ fontSize:"11px", color:C.muted, marginBottom:"4px" }}>{l}</div>
+                  <div style={{ ...S.mono, fontSize:"22px", fontWeight:900, color:c }}>{v}</div>
                 </div>
               ))}
             </div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px", marginBottom:"14px" }}>
-              <div>
-                <p style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"3px" }}>Tipo</p>
-                <select value={preview.tipo ?? "recibida"} onChange={e => setPreview(p => ({ ...p, tipo: e.target.value as "emitida"|"recibida" }))} style={INPUT_S}>
-                  <option value="recibida">Recibida (gasto)</option>
-                  <option value="emitida">Emitida (ingreso)</option>
-                </select>
-              </div>
-              <div>
-                <p style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"3px" }}>Categoría</p>
-                <select value={preview.categoria ?? "Otros"} onChange={e => setPreview(p => ({ ...p, categoria: e.target.value }))} style={INPUT_S}>
-                  {CATEGORIAS_FACTURA.map(c => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
-            <div style={{ display:"flex", gap:"8px" }}>
-              <button onClick={() => setPreview(null)} style={{ flex:1, padding:"8px", borderRadius:"5px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", cursor:"pointer", fontSize:"13px" }}>Descartar</button>
-              <button onClick={confirmarFactura} style={{ flex:2, padding:"8px", borderRadius:"5px", border:"none", background:"var(--accent)", color:"#000", cursor:"pointer", fontSize:"13px", fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:"6px" }}>
-                <Check size={13}/> Guardar factura
-              </button>
-            </div>
           </div>
-        )}
-      </div>
 
-      {/* ── SECCIÓN D: RESUMEN FISCAL ── */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"12px" }}>
-        {[
-          { l:"IVA repercutido",  v:`${ivaRepercutido.toFixed(2)}€`, c:"var(--green)",  s:"Facturas emitidas" },
-          { l:"IVA soportado",    v:`${ivaSoportado.toFixed(2)}€`,   c:"var(--red)",    s:"Facturas recibidas" },
-          { l:"IVA a pagar",      v:`${Math.max(0,ivaPagar).toFixed(2)}€`, c: ivaPagar>0?"var(--amber)":"var(--green)", s: ivaPagar<0?"A compensar":"A ingresar a Hacienda" },
-          { l:"Base IRPF estim.", v:`${baseImponible.toFixed(2)}€`,  c:"var(--accent)", s:"Ingresos emitidos" },
-        ].map(({l,v,c,s}) => (
-          <div key={l} style={{ ...CARD }}>
-            <p style={LABEL}>{l}</p>
-            <p style={{ fontFamily:"'Space Mono', monospace", fontWeight:700, fontSize:"22px", color:c, margin:"0 0 4px" }}>{v}</p>
-            <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:0 }}>{s}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* ── SECCIÓN B: LISTADO ── */}
-      <div style={{ ...CARD }}>
-        <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"16px", flexWrap:"wrap" }}>
-          <p style={{ ...LABEL, margin:0, flex:1 }}>{facFiltradas.length} facturas · {trimFiltro}</p>
-          <div style={{ display:"flex", gap:"4px" }}>
-            {TRIMESTRES.map(t => <button key={t} onClick={() => setTrimFiltro(t)} style={{ padding:"4px 10px", borderRadius:"4px", border:"none", cursor:"pointer", fontSize:"11px", fontWeight:t===trimFiltro?600:400, background:t===trimFiltro?"var(--accent-dim)":"transparent", color:t===trimFiltro?"var(--accent)":"var(--text-muted)" }}>{t.split(" ")[0]}</button>)}
-          </div>
-          <div style={{ display:"flex", gap:"4px" }}>
-            {(["todas","emitida","recibida"] as const).map(t => <button key={t} onClick={() => setTipoFiltro(t)} style={{ padding:"4px 10px", borderRadius:"4px", border:"none", cursor:"pointer", fontSize:"11px", fontWeight:t===tipoFiltro?600:400, background:t===tipoFiltro?"var(--accent-dim)":"transparent", color:t===tipoFiltro?"var(--accent)":"var(--text-muted)" }}>{t==="todas"?"Todas":t==="emitida"?"Emitidas":"Recibidas"}</button>)}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px" }}>
+            <div style={S.card}>
+              <h3 style={{ fontSize:"12px", fontWeight:700, color:C.amber, margin:"0 0 10px", display:"flex", alignItems:"center", gap:"6px" }}><AlertTriangle size={13}/>Pendiente aclarar</h3>
+              {pendientes.map((p,i) => (
+                <div key={i} style={{ fontSize:"11px", color:p.w?C.amber:C.mid, display:"flex", gap:"6px", marginBottom:"5px", lineHeight:1.5 }}>
+                  <span style={{ flexShrink:0 }}>{p.w?"⚠️":"ℹ️"}</span>{p.txt}
+                </div>
+              ))}
+            </div>
+            <div style={S.card}>
+              <h3 style={{ fontSize:"12px", fontWeight:700, color:C.green, margin:"0 0 10px", display:"flex", alignItems:"center", gap:"6px" }}><TrendingUp size={13}/>Crecimiento</h3>
+              {[
+                { t:`1 cliente como Jorge (637€) = ${eurD(pl.neto)}/mes neto. Con 2 clientes → ${eurD(pl.neto*2)}/mes (suscripciones ya pagadas).`, c:C.green },
+                { t:`Jagger Club a 800€/mes → ingresos 1.437€, neto sube a ~950€/mes, margen 66%.`, c:C.accent },
+                { t:"Zoho 59.87€: si no lo usas activamente, cancelar = +60€/mes neto.", c:C.amber },
+                { t:"Confirmar tarifa real editor (Maitena vs David) antes de comprometer proyectos.", c:C.mid },
+                { t:"1 cliente agencia más → ingresos × 2 con el mismo sistema sin costos extra.", c:C.green },
+              ].map(({ t,c },i) => (
+                <div key={i} style={{ fontSize:"11px", color:c, lineHeight:1.5, display:"flex", gap:"6px", marginBottom:"6px" }}>
+                  <span style={{ flexShrink:0 }}>→</span>{t}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-        {facFiltradas.length === 0 ? (
-          <p style={{ fontSize:"13px", color:"var(--text-muted)", textAlign:"center", padding:"32px 0" }}>Sin facturas en {trimFiltro}. Sube una con el botón de arriba.</p>
-        ) : (
-          <div style={{ overflowX:"auto" }}>
-            <table style={{ width:"100%", borderCollapse:"collapse" }}>
-              <thead><tr>{["Fecha","Proveedor/Cliente","Concepto","Importe","IVA","Tipo","Categoría",""].map(h => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+      )}
+
+      {/* ══ INGRESOS ══ */}
+      {tab === "Ingresos" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
+          <div style={S.card}>
+            <h3 style={{ fontSize:"13px", fontWeight:600, margin:"0 0 14px" }}>Clientes activos</h3>
+            {data.ingresos.map(i => (
+              <div key={i.id} style={{ padding:"12px 0", borderBottom:`1px solid ${C.border}`, display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr 2fr", gap:"12px", alignItems:"center" }}>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:"13px" }}>{i.cliente}</div>
+                  <div style={{ fontSize:"11px", color:C.muted }}>{i.concepto}</div>
+                </div>
+                <div style={{ ...S.mono, fontSize:"15px", fontWeight:700, color:C.green }}>{eurD(i.importe)}<span style={{ fontSize:"10px", color:C.muted }}>/mes</span></div>
+                <span style={{ ...badge(C.green) }}>{i.estado}</span>
+                <span style={{ ...badge(C.blue) }}>{i.paquete || "—"}</span>
+                <div style={{ fontSize:"11px", color:C.muted, lineHeight:1.5 }}>{i.nota}</div>
+              </div>
+            ))}
+          </div>
+          <div style={S.card}>
+            <h3 style={{ fontSize:"13px", fontWeight:600, color:C.amber, margin:"0 0 12px" }}>Paquetes de servicio</h3>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"10px", marginBottom:"14px" }}>
+              {[
+                { l:"Básico",    d:"Solo producción vídeo/foto. René graba y entrega. No publica en redes del cliente.",      p:"250–600€",     c:C.mid   },
+                { l:"Estándar", d:"Producción + gestión Meta Ads. Entrega contenido Y gestiona anuncios. Sin publicación orgánica.", p:"800–1.200€",   c:C.amber },
+                { l:"Premium",  d:"Producción + Meta Ads + Google Ads. Pendiente: ¿gestiona René o subcontrata?",              p:"1.200–2.000€", c:C.accent },
+              ].map(({ l,d,p,c }) => (
+                <div key={l} style={{ padding:"12px", background:C.bg, borderRadius:"8px", border:`1px solid ${c}33` }}>
+                  <div style={{ fontWeight:700, color:c, fontSize:"13px", marginBottom:"4px" }}>Paquete {l}</div>
+                  <div style={{ fontSize:"11px", color:C.muted, lineHeight:1.5, marginBottom:"6px" }}>{d}</div>
+                  <div style={{ ...S.mono, fontSize:"13px", color:c }}>{p}/mes</div>
+                </div>
+              ))}
+            </div>
+            <h3 style={{ fontSize:"12px", fontWeight:600, color:C.amber, margin:"0 0 10px" }}>Prospectos en pipeline</h3>
+            {data.prospectos.map(p => (
+              <div key={p.id} style={{ padding:"10px 12px", background:C.bg, borderRadius:"7px", border:`1px solid ${C.border}`, display:"grid", gridTemplateColumns:"1fr 1fr 1.5fr 2fr", gap:"10px", alignItems:"center", marginBottom:"7px" }}>
+                <span style={{ fontWeight:600, fontSize:"12px" }}>{p.nombre}</span>
+                <span style={{ fontSize:"11px", color:C.mid }}>{p.tipo}</span>
+                <span style={{ ...badge(C.amber) }}>{p.paquete}</span>
+                <span style={{ fontSize:"11px", color:C.muted }}>{p.estado}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ══ GASTOS ══ */}
+      {tab === "Gastos" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
+          <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
+            <div style={{ padding:"14px 18px", borderBottom:`1px solid ${C.border}`, display:"flex", justifyContent:"space-between" }}>
+              <h3 style={{ fontSize:"13px", fontWeight:600, margin:0 }}>Suscripciones mensuales</h3>
+              <span style={{ ...S.mono, fontSize:"12px", color:C.amber }}>{eurD(pl.totalSusc)}/mes confirmado</span>
+            </div>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"11px" }}>
+              <thead><tr style={{ borderBottom:`1px solid ${C.border}` }}>
+                {["Servicio","Importe","Frecuencia","Método","Estado","Nota"].map(h => (
+                  <th key={h} style={{ padding:"8px 14px", textAlign:"left", color:C.muted, fontWeight:600, fontSize:"10px", textTransform:"uppercase", letterSpacing:"0.07em" }}>{h}</th>
+                ))}
+              </tr></thead>
               <tbody>
-                {facFiltradas.map(f => (
-                  <tr key={f.id}>
-                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontSize:"11px", color:"var(--text-muted)" }}>{f.fecha}</td>
-                    <td style={{ ...TD, fontWeight:500, color:"var(--text)" }}>{f.proveedor}</td>
-                    <td style={{ ...TD, fontSize:"12px", color:"var(--text-muted)", maxWidth:"200px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.concepto}</td>
-                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color: f.tipo==="emitida"?"var(--green)":"var(--red)" }}>{f.tipo==="emitida"?"+":"-"}{f.importe.toFixed(2)}€</td>
-                    <td style={{ ...TD, fontSize:"12px", color:"var(--text-muted)" }}>{f.iva}%</td>
-                    <td style={{ ...TD }}>
-                      <span style={{ fontSize:"10px", fontWeight:600, padding:"2px 7px", borderRadius:"3px", background: f.tipo==="emitida"?"rgba(0,230,118,0.1)":"rgba(255,61,113,0.1)", color: f.tipo==="emitida"?"var(--green)":"var(--red)" }}>{f.tipo}</span>
+                {data.suscripciones.map(s => (
+                  <tr key={s.id} style={{ borderBottom:`1px solid ${C.border}22` }}>
+                    <td style={{ padding:"8px 14px", fontWeight:600, color:C.text }}>{s.servicio}</td>
+                    <td style={{ padding:"8px 14px", ...S.mono, color:s.importe?C.text:C.muted }}>{s.importe?eurD(s.importe):"?"}</td>
+                    <td style={{ padding:"8px 14px", color:C.mid }}>{s.frecuencia}</td>
+                    <td style={{ padding:"8px 14px", color:C.mid }}>{s.metodo}</td>
+                    <td style={{ padding:"8px 14px" }}>
+                      {s.confirmado
+                        ? <span style={{ ...badge(C.green), display:"inline-flex", alignItems:"center", gap:"4px" }}><CheckCircle size={9}/>OK</span>
+                        : <span style={{ ...badge(C.amber), display:"inline-flex", alignItems:"center", gap:"4px" }}><AlertTriangle size={9}/>Pendiente</span>
+                      }
                     </td>
-                    <td style={{ ...TD, fontSize:"11px", color:"var(--text-muted)" }}>{f.categoria}</td>
-                    <td style={{ ...TD }}>
-                      <button onClick={() => saveFacturas(facturas.filter(x => x.id !== f.id))} style={{ padding:"3px 8px", borderRadius:"4px", border:"1px solid rgba(255,61,113,0.2)", background:"transparent", color:"var(--red)", cursor:"pointer", fontSize:"11px" }}>×</button>
-                    </td>
+                    <td style={{ padding:"8px 14px", color:C.muted, fontSize:"10px" }}>{s.nota}</td>
                   </tr>
                 ))}
-                <tr style={{ background:"var(--accent-dim)" }}>
-                  <td colSpan={3} style={{ ...TD, fontWeight:700, color:"var(--text)", borderBottom:"none" }}>TOTAL {trimFiltro}</td>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--text)", borderBottom:"none" }}>
-                    {facFiltradas.reduce((s,f) => s + (f.tipo==="emitida"?f.importe:-f.importe), 0).toFixed(2)}€
-                  </td>
-                  <td colSpan={4} style={{ borderBottom:"none" }}/>
-                </tr>
               </tbody>
             </table>
           </div>
-        )}
-      </div>
 
-      {/* ── SECCIÓN C: CALENDARIO FISCAL ── */}
-      <div style={{ ...CARD }}>
-        <p style={{ ...LABEL, marginBottom:"16px" }}>Calendario fiscal — {regime === "es" ? "España (Autónomo)" : "Paraguay"}</p>
-        {regime === "es" ? (
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:"10px" }}>
-            {CALENDARIO_FISCAL_ES.map((item, i) => {
-              const hoy = new Date();
-              const [dia, mesStr] = item.fecha_limite.split(" ");
-              const meses: Record<string, number> = { Ene:0, Abr:3, Jul:6, Oct:9, Jun:5 };
-              const targetDate = new Date(hoy.getFullYear(), meses[mesStr] ?? 0, parseInt(dia));
-              const diff = Math.ceil((targetDate.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
-              const color = diff < 0 ? "var(--text-muted)" : diff < 7 ? "var(--red)" : diff < 30 ? "var(--amber)" : "var(--green)";
-              const badge = diff < 0 ? "Pasado" : diff < 7 ? `${diff}d` : diff < 30 ? `${diff}d` : "OK";
+          <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
+            <div style={{ padding:"14px 18px", borderBottom:`1px solid ${C.border}` }}>
+              <h3 style={{ fontSize:"13px", fontWeight:600, margin:0 }}>Editores / Colaboradores (pagos históricos)</h3>
+            </div>
+            {data.editores.map(e => {
+              const tot = e.importes.reduce((a,b)=>a+b,0) * (e.moneda==="USD"?0.92:1);
               return (
-                <div key={i} style={{ padding:"12px 14px", borderRadius:"6px", background:"var(--surface)", border:`1px solid ${diff < 7 && diff >= 0 ? "rgba(239,68,68,0.25)" : diff < 30 && diff >= 0 ? "rgba(251,191,36,0.25)" : "var(--border)"}` }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"8px" }}>
-                    <div style={{ flex:1 }}>
-                      <p style={{ fontSize:"12px", fontWeight:600, color:"var(--text)", margin:"0 0 2px" }}>{item.concepto}</p>
-                      <p style={{ fontSize:"11px", color:"var(--text-muted)", margin:"0 0 4px" }}>Límite: {item.fecha_limite} — {item.trimestre}</p>
-                    </div>
-                    <span style={{ fontSize:"10px", fontWeight:700, padding:"2px 7px", borderRadius:"3px", background: diff < 0 ? "var(--surface)" : diff < 7 ? "rgba(239,68,68,0.12)" : diff < 30 ? "rgba(251,191,36,0.1)" : "rgba(0,230,118,0.1)", color }}>{badge}</span>
+                <div key={e.id} style={{ padding:"12px 18px", borderBottom:`1px solid ${C.border}22` }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"3px" }}>
+                    <span style={{ fontWeight:700, fontSize:"12px" }}>{e.nombre}</span>
+                    <span style={{ ...S.mono, fontSize:"12px", fontWeight:700 }}>{eurD(tot)}</span>
                   </div>
-                  <span style={{ fontSize:"10px", fontFamily:"'Space Mono', monospace", color:"var(--accent)" }}>Modelo {item.modelo}</span>
+                  <div style={{ fontSize:"11px", color:C.muted, marginBottom:"4px" }}>{e.concepto} — {e.moneda === "USD" ? "USD" : ""} {e.importes.join(" · ")} {e.moneda}</div>
+                  <div style={{ fontSize:"10px", padding:"4px 8px", borderRadius:"4px", background:`${e.tarifa_variable?C.amber:C.green}0A`, border:`1px solid ${e.tarifa_variable?C.amber:C.green}22`, color:e.tarifa_variable?C.amber:C.mid }}>
+                    {e.tarifa_nota}
+                  </div>
                 </div>
               );
             })}
           </div>
-        ) : (
-          <div style={{ padding:"20px", textAlign:"center", color:"var(--text-muted)", fontSize:"13px" }}>
-            Régimen Paraguay pendiente de configurar. Cambia arriba a "España" para ver el calendario fiscal por ahora.
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── SUB-COMPONENT: CALENDARIO ───────────────────────────────────────────────
-
-function CalendarioTab({ gastos, ingresos }: { gastos: GastoFijo[]; ingresos: Ingreso[] }) {
-  const [hovered, setHovered] = useState<string | null>(null);
-
-  const today       = new Date();
-  const todayDay    = today.getDate();
-  const year        = today.getFullYear();
-  const month       = today.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const offset      = (new Date(year, month, 1).getDay() + 6) % 7;
-
-  const cells: (number | null)[] = [...Array(offset).fill(null)];
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
-
-  const gastosByDay: Record<number, GastoFijo[]> = {};
-  gastos.filter(g => g.estado !== "cancelado").forEach(g => {
-    gastosByDay[g.dia] = [...(gastosByDay[g.dia] ?? []), g];
-  });
-
-  const ingresosByDay: Record<number, Ingreso[]> = {};
-  ingresos.filter(i => i.dia > 0 && i.frecuencia === "Mensual").forEach(i => {
-    ingresosByDay[i.dia] = [...(ingresosByDay[i.dia] ?? []), i];
-  });
-
-  const proximos7 = gastos
-    .filter(g => g.estado === "activo")
-    .map(g => {
-      const dl = g.dia >= todayDay ? g.dia - todayDay : daysInMonth - todayDay + g.dia;
-      return { ...g, daysLeft: dl };
-    })
-    .filter(g => g.daysLeft <= 7)
-    .sort((a, b) => a.daysLeft - b.daysLeft);
-
-  const ingresosEsperados = ingresos.filter(i => i.estado === "activo" || i.estado === "verificar");
-
-  return (
-    <div style={{ display:"flex", gap:"20px", alignItems:"flex-start" }}>
-
-      {/* ── Grid ── */}
-      <div style={{ flex:1 }}>
-        <p style={{ ...LABEL, marginBottom:"14px" }}>{MESES[month]} {year}</p>
-
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:"2px", marginBottom:"2px" }}>
-          {DOW.map(d => (
-            <div key={d} style={{ padding:"6px 4px", textAlign:"center", fontSize:"11px", fontWeight:600, color:"var(--text-muted)", letterSpacing:"0.05em" }}>{d}</div>
-          ))}
-        </div>
-
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:"2px" }}>
-          {cells.map((day, i) => {
-            const isToday  = day === todayDay;
-            const gItems   = day ? (gastosByDay[day] ?? [])   : [];
-            const iItems   = day ? (ingresosByDay[day] ?? []) : [];
-            return (
-              <div
-                key={i}
-                style={{
-                  minHeight:"70px", padding:"5px", borderRadius:"4px",
-                  border:     isToday ? "1px solid var(--border-accent)" : "1px solid var(--border)",
-                  background: isToday ? "var(--accent-dim)" : day ? "var(--card)" : "transparent",
-                }}
-              >
-                {day && (
-                  <>
-                    <span style={{ display:"block", fontSize:"11px", fontWeight: isToday ? 700 : 400, color: isToday ? "var(--accent)" : "var(--text-muted)", marginBottom:"3px" }}>
-                      {day}
-                    </span>
-                    <div style={{ display:"flex", flexDirection:"column", gap:"2px" }}>
-                      {/* Gastos en rojo */}
-                      {gItems.map(g => {
-                        const key = `g-${day}-${g.id}`;
-                        return (
-                          <div key={g.id} style={{ position:"relative" }}
-                            onMouseEnter={() => setHovered(key)} onMouseLeave={() => setHovered(null)}>
-                            <div style={{ fontSize:"10px", fontWeight:600, padding:"2px 4px", borderRadius:"3px",
-                              background: g.estado === "cancelar" ? "rgba(255,61,113,0.06)" : "rgba(255,61,113,0.15)",
-                              color: g.estado === "cancelar" ? "var(--text-muted)" : "var(--red)",
-                              whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
-                              opacity: g.estado === "cancelar" ? 0.5 : 1, cursor:"default",
-                            }}>
-                              {g.servicio.split(" ")[0]}
-                            </div>
-                            {hovered === key && (
-                              <div style={{ position:"absolute", bottom:"calc(100% + 4px)", left:0,
-                                background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px",
-                                padding:"6px 10px", fontSize:"11px", color:"var(--text)",
-                                whiteSpace:"nowrap", zIndex:50, pointerEvents:"none", boxShadow:"0 4px 12px rgba(0,0,0,0.22)" }}>
-                                <span style={{ fontWeight:600 }}>{g.servicio}</span><br />
-                                <span style={{ color:"var(--red)", fontFamily:"'Space Mono', monospace" }}>{g.importe.toFixed(2)}€</span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                      {/* Ingresos en verde */}
-                      {iItems.map(ing => {
-                        const key = `i-${day}-${ing.id}`;
-                        return (
-                          <div key={ing.id} style={{ position:"relative" }}
-                            onMouseEnter={() => setHovered(key)} onMouseLeave={() => setHovered(null)}>
-                            <div style={{ fontSize:"10px", fontWeight:600, padding:"2px 4px", borderRadius:"3px",
-                              background:"rgba(0,230,118,0.12)", color:"var(--green)",
-                              whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", cursor:"default",
-                              opacity: ing.estado === "verificar" ? 0.6 : 1,
-                            }}>
-                              {ing.fuente.split(" ")[0]}
-                            </div>
-                            {hovered === key && (
-                              <div style={{ position:"absolute", bottom:"calc(100% + 4px)", left:0,
-                                background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px",
-                                padding:"6px 10px", fontSize:"11px", color:"var(--text)",
-                                whiteSpace:"nowrap", zIndex:50, pointerEvents:"none", boxShadow:"0 4px 12px rgba(0,0,0,0.22)" }}>
-                                <span style={{ fontWeight:600 }}>{ing.fuente}</span><br />
-                                <span style={{ color:"var(--green)", fontFamily:"'Space Mono', monospace" }}>+{ing.importe.toLocaleString("es-ES")}€</span>
-                                {ing.estado === "verificar" && <span style={{ color:"var(--amber)", marginLeft:"6px" }}>· pendiente verificar</span>}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Panel lateral ── */}
-      <div style={{ width:"224px", flexShrink:0, display:"flex", flexDirection:"column", gap:"16px" }}>
-        {/* Próximos 7 días — gastos */}
-        <div>
-          <p style={{ ...LABEL, marginBottom:"12px" }}>Próximos 7 días</p>
-          <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
-            {proximos7.length === 0 ? (
-              <p style={{ fontSize:"12px", color:"var(--text-muted)" }}>Sin cobros pendientes</p>
-            ) : proximos7.map(g => (
-              <div key={`prox-${g.id}`} style={{ background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px", padding:"10px 12px" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"2px" }}>
-                  <span style={{ fontSize:"12px", fontWeight:500, color:"var(--text)" }}>{g.servicio}</span>
-                  <span style={{ fontFamily:"'Space Mono', monospace", fontSize:"12px", fontWeight:700, color:"var(--red)" }}>{g.importe.toFixed(2)}€</span>
-                </div>
-                <span style={{ fontSize:"11px", color:"var(--text-muted)" }}>
-                  {g.daysLeft === 0 ? "Hoy" : g.daysLeft === 1 ? "Mañana" : `En ${g.daysLeft} días`}
-                  {" · día "}{g.dia}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Ingresos esperados este mes */}
-        <div>
-          <p style={{ ...LABEL, marginBottom:"12px" }}>Ingresos del mes</p>
-          <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
-            {ingresosEsperados.map(ing => (
-              <div key={`ing-${ing.id}`} style={{ background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px", padding:"10px 12px" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"2px" }}>
-                  <span style={{ fontSize:"11px", fontWeight:500, color:"var(--text)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"120px" }}>{ing.fuente}</span>
-                  <span style={{ fontFamily:"'Space Mono', monospace", fontSize:"12px", fontWeight:700, color:"var(--green)", flexShrink:0 }}>+{ing.importe.toLocaleString("es-ES")}€</span>
-                </div>
-                <span style={{ fontSize:"10px", color: ing.estado === "verificar" ? "var(--amber)" : "var(--text-muted)" }}>
-                  {ing.estado === "verificar" ? "Por verificar" : ing.frecuencia}
-                  {ing.dia > 0 ? ` · día ${ing.dia}` : ""}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── SUB-COMPONENT: INGRESOS ─────────────────────────────────────────────────
-
-function IngresosTab({ ingresos, setIngresos }: { ingresos: Ingreso[]; setIngresos: React.Dispatch<React.SetStateAction<Ingreso[]>> }) {
-  const [showAdd, setShowAdd]       = useState(false);
-  const [addForm, setAddForm]       = useState({ fuente:"", importe:"", dia:"", frecuencia:"Mensual", estado:"activo" as EstadoIngreso });
-  const [badgeHover, setBadgeHover] = useState<number | null>(null);
-
-  const total = ingresos.reduce((s, i) => s + i.importe, 0);
-
-  function addIngreso() {
-    if (!addForm.fuente || !addForm.importe) return;
-    const newId = Math.max(...ingresos.map(i => i.id), 0) + 1;
-    setIngresos(prev => [...prev, { id:newId, fuente:addForm.fuente, importe:parseFloat(addForm.importe)||0, dia:parseInt(addForm.dia)||0, frecuencia:addForm.frecuencia, estado:addForm.estado }]);
-    setAddForm({ fuente:"", importe:"", dia:"", frecuencia:"Mensual", estado:"activo" });
-    setShowAdd(false);
-  }
-
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <p style={{ ...LABEL, margin:0 }}>{ingresos.length} fuentes · {total.toLocaleString("es-ES")}€/mes</p>
-        <button onClick={() => setShowAdd(true)}
-          style={{ display:"flex", alignItems:"center", gap:"6px", padding:"8px 14px", borderRadius:"6px", background:"var(--accent)", color:"var(--bg)", border:"none", cursor:"pointer", fontSize:"13px", fontWeight:600 }}>
-          <Plus size={14} /> Añadir ingreso
-        </button>
-      </div>
-
-      <div style={{ background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px", overflow:"hidden" }}>
-        <table style={{ width:"100%", borderCollapse:"collapse" }}>
-          <thead>
-            <tr>{["Fuente","Importe","Día","Frecuencia","Estado"].map(h => <th key={h} style={TH}>{h}</th>)}</tr>
-          </thead>
-          <tbody>
-            {ingresos.map(ing => (
-              <tr key={ing.id}>
-                <td style={{ ...TD, fontWeight:500, color:"var(--text)" }}>{ing.fuente}</td>
-                <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--green)" }}>
-                  {ing.importe.toLocaleString("es-ES")}€
-                </td>
-                <td style={{ ...TD, color:"var(--text-muted)", fontSize:"12px" }}>
-                  {ing.dia > 0 ? `día ${ing.dia}` : "—"}
-                </td>
-                <td style={{ ...TD, color:"var(--text-muted)", fontSize:"12px" }}>{ing.frecuencia}</td>
-                <td style={{ ...TD }}>
-                  {ing.estado === "activo" ? (
-                    <span style={{ fontSize:"11px", fontWeight:700, padding:"2px 8px", borderRadius:"4px", background:"rgba(0,230,118,0.1)", color:"var(--green)", border:"1px solid rgba(0,230,118,0.25)" }}>
-                      Activo
-                    </span>
-                  ) : (
-                    <div style={{ position:"relative", display:"inline-block" }}
-                      onMouseEnter={() => setBadgeHover(ing.id)} onMouseLeave={() => setBadgeHover(null)}>
-                      <span style={{ fontSize:"11px", fontWeight:700, padding:"2px 8px", borderRadius:"4px", background:"rgba(255,184,0,0.12)", color:"var(--amber)", border:"1px solid rgba(255,184,0,0.3)", cursor:"help" }}>
-                        Verificar
-                      </span>
-                      {badgeHover === ing.id && (
-                        <div style={{ position:"absolute", bottom:"calc(100% + 6px)", left:"50%", transform:"translateX(-50%)",
-                          background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px",
-                          padding:"6px 10px", fontSize:"11px", color:"var(--text-muted)",
-                          whiteSpace:"nowrap", zIndex:50, pointerEvents:"none", boxShadow:"0 4px 12px rgba(0,0,0,0.2)" }}>
-                          No detectado en últimos movimientos
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-            <tr style={{ background:"var(--accent-dim)" }}>
-              <td style={{ ...TD, fontWeight:700, color:"var(--text)", borderBottom:"none" }}>TOTAL</td>
-              <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--green)", borderBottom:"none" }}>
-                {total.toLocaleString("es-ES")}€
-              </td>
-              <td colSpan={3} style={{ borderBottom:"none" }} />
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      {showAdd && (
-        <div onClick={() => setShowAdd(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"var(--card)", border:"1px solid var(--border)", borderRadius:"10px", padding:"28px", width:"420px" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"20px" }}>
-              <h3 style={{ color:"var(--text)", margin:0, fontSize:"15px", fontWeight:600 }}>Añadir ingreso</h3>
-              <button onClick={() => setShowAdd(false)} style={{ background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", padding:"2px" }}><X size={18} /></button>
-            </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
-              <div>
-                <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Fuente</p>
-                <input value={addForm.fuente} onChange={e => setAddForm(f => ({ ...f, fuente:e.target.value }))} style={INPUT_S} />
-              </div>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:"10px" }}>
-                <div>
-                  <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Importe (€)</p>
-                  <input value={addForm.importe} onChange={e => setAddForm(f => ({ ...f, importe:e.target.value }))} style={INPUT_S} type="number" />
-                </div>
-                <div>
-                  <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Día cobro</p>
-                  <input value={addForm.dia} onChange={e => setAddForm(f => ({ ...f, dia:e.target.value }))} style={INPUT_S} type="number" placeholder="0=variable" />
-                </div>
-                <div>
-                  <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Frecuencia</p>
-                  <select value={addForm.frecuencia} onChange={e => setAddForm(f => ({ ...f, frecuencia:e.target.value }))} style={INPUT_S}>
-                    <option>Mensual</option><option>Variable</option><option>Anual</option>
-                  </select>
-                </div>
-                <div>
-                  <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Estado</p>
-                  <select value={addForm.estado} onChange={e => setAddForm(f => ({ ...f, estado:e.target.value as EstadoIngreso }))} style={INPUT_S}>
-                    <option value="activo">Activo</option>
-                    <option value="verificar">Verificar</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div style={{ display:"flex", gap:"8px", marginTop:"20px" }}>
-              <button onClick={() => setShowAdd(false)} style={{ flex:1, padding:"9px", borderRadius:"5px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", cursor:"pointer", fontSize:"13px" }}>Cancelar</button>
-              <button onClick={addIngreso} style={{ flex:1, padding:"9px", borderRadius:"5px", border:"none", background:"var(--accent)", color:"var(--bg)", cursor:"pointer", fontSize:"13px", fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:"6px" }}>
-                <Plus size={14} /> Añadir
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── SUB-COMPONENT: EXTRACTO BANCARIO ────────────────────────────────────────
-
-type CategoriaMov = "negocio" | "personal";
-interface Movimiento {
-  id: string; fecha: string; concepto: string; importe: number; saldo?: number; categoria: CategoriaMov;
-}
-
-const KWORDS_NEG = ["amazon web","aws","anthropic","meta ads","google ads","cloudflare","hetzner","vercel","stripe","brevo","sendgrid","canva","genspark","openai","notion","jetbrains","github","figma","digitalocean","ovh","hostinger","godaddy","namecheap","mailchimp","activecampaign","raxislab","raxis"];
-const KWORDS_PER = ["mercadona","carrefour","lidl","aldi","alcampo","eroski","consum","dia super","gasolinera","repsol","cepsa","bp petro","shell","farmacia","clinica","hospital","dentista","netflix","spotify","hbo","disney","corte ingles","zara","mango","h&m","uniqlo","decathlon","restaurante","cafe ","cafeter","taberna","gimnasio","gym","natacion","peluquer","correos"];
-
-function parseEsNum(s: string): number {
-  s = s.replace(/[€$\s]/g, "").trim();
-  if (s.includes(",") && s.includes(".")) {
-    s = s.indexOf(".") < s.indexOf(",") ? s.replace(/\./g,"").replace(",",".") : s.replace(",","");
-  } else if (s.includes(",")) {
-    s = s.replace(",",".");
-  }
-  return parseFloat(s) || 0;
-}
-
-function parseFechaStr(s: string): string {
-  const m = s.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
-  if (!m) return s;
-  const [,d,mo,y] = m;
-  return `${y.length===2?"20"+y:y}-${mo.padStart(2,"0")}-${d.padStart(2,"0")}`;
-}
-
-function autoClasif(concepto: string): CategoriaMov {
-  const l = concepto.toLowerCase();
-  if (KWORDS_NEG.some(k => l.includes(k))) return "negocio";
-  if (KWORDS_PER.some(k => l.includes(k))) return "personal";
-  return "personal";
-}
-
-function splitCSVLine(line: string, sep: string): string[] {
-  const res: string[] = []; let cur = ""; let q = false;
-  for (const ch of line) {
-    if (ch === '"') { q = !q; }
-    else if (ch === sep && !q) { res.push(cur); cur = ""; }
-    else cur += ch;
-  }
-  res.push(cur); return res;
-}
-
-function csvToMovimientos(text: string): Movimiento[] {
-  const sep = (text.split("\n")[0]?.split(";").length || 0) > (text.split("\n")[0]?.split(",").length || 0) ? ";" : ",";
-  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-  let hi = -1; let hdr: string[] = [];
-  for (let i = 0; i < Math.min(15, lines.length); i++) {
-    const cols = splitCSVLine(lines[i], sep).map(c => c.replace(/"/g,"").toLowerCase().trim());
-    if (cols.some(c => c.includes("fecha") || c.includes("date") || c.includes("data"))) { hi = i; hdr = cols; break; }
-  }
-  if (hi === -1) return [];
-  const fi = hdr.findIndex(h => h.includes("fecha")||h.includes("date")||h.includes("data"));
-  const ci = hdr.findIndex(h => h.includes("concepto")||h.includes("descripci")||h.includes("movimiento")||h.includes("detail")||h.includes("comercio"));
-  const ii = hdr.findIndex(h => h.includes("importe")||h.includes("import")||h.includes("amount")||h==="cargo"||h==="abono"||h.includes("movim"));
-  const si = hdr.findIndex(h => h.includes("saldo")||h.includes("balance"));
-  if (fi < 0 || ci < 0) return [];
-  return lines.slice(hi+1).flatMap((line, idx) => {
-    const cols = splitCSVLine(line, sep).map(c => c.replace(/^"|"$/g,"").trim());
-    if (cols.length < 2) return [];
-    const fecha = parseFechaStr(cols[fi] || "");
-    const concepto = cols[ci] || "";
-    const importe = ii >= 0 ? parseEsNum(cols[ii] || "0") : 0;
-    const saldo = si >= 0 ? parseEsNum(cols[si] || "0") : undefined;
-    if (!fecha || !concepto) return [];
-    return [{ id:`m${idx}_${Date.now()}`, fecha, concepto, importe, saldo, categoria: autoClasif(concepto) }];
-  });
-}
-
-function ExtractoTab() {
-  const [movimientos, setMovimientos] = useState<Movimiento[]>(() => {
-    if (typeof window === "undefined") return [];
-    try { return JSON.parse(localStorage.getItem("raxislab_extracto_v1") ?? "[]"); } catch { return []; }
-  });
-  const [filtro, setFiltro]     = useState<"todos" | CategoriaMov>("todos");
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  function save(m: Movimiento[]) {
-    setMovimientos(m);
-    localStorage.setItem("raxislab_extracto_v1", JSON.stringify(m));
-  }
-
-  function toggleCat(id: string) {
-    save(movimientos.map(m => m.id === id ? { ...m, categoria: m.categoria === "negocio" ? "personal" : "negocio" } : m));
-  }
-
-  async function handleFile(file: File) {
-    setLoading(true); setError(null);
-    try {
-      if (file.name.endsWith(".csv") || file.name.endsWith(".txt")) {
-        const text = await file.text();
-        const movs = csvToMovimientos(text);
-        if (movs.length === 0) { setError("No se pudo leer el CSV. Asegúrate de que tiene columnas Fecha, Concepto e Importe."); return; }
-        save([...movimientos, ...movs]);
-      } else if (file.type === "application/pdf" || file.type.startsWith("image/")) {
-        const base64 = await new Promise<string>((res, rej) => {
-          const r = new FileReader();
-          r.onload = e => res((e.target?.result as string).split(",")[1]);
-          r.onerror = rej;
-          r.readAsDataURL(file);
-        });
-        const resp = await fetch("/api/claude/extract-bank-statement", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileBase64: base64, mimeType: file.type }),
-        });
-        const json = await resp.json();
-        if (!resp.ok || !json.data) { setError(json.error ?? "Error al procesar el archivo"); return; }
-        const prefix = file.type.startsWith("image/") ? "img" : "pdf";
-        const movs: Movimiento[] = (json.data as Partial<Movimiento>[]).map((m, i) => ({
-          id: `${prefix}_${i}_${Date.now()}`,
-          fecha: m.fecha ?? "",
-          concepto: m.concepto ?? "",
-          importe: m.importe ?? 0,
-          saldo: m.saldo,
-          categoria: autoClasif(m.concepto ?? ""),
-        }));
-        save([...movimientos, ...movs]);
-      } else {
-        setError("Formato no soportado. Usa CSV, PDF o imagen (PNG, JPG, WebP).");
-      }
-    } catch { setError("Error al procesar el archivo."); }
-    finally { setLoading(false); }
-  }
-
-  const filtrados = filtro === "todos" ? movimientos : movimientos.filter(m => m.categoria === filtro);
-  const gastoNeg  = movimientos.filter(m => m.categoria === "negocio" && m.importe < 0).reduce((s, m) => s + m.importe, 0);
-  const gastoPer  = movimientos.filter(m => m.categoria === "personal" && m.importe < 0).reduce((s, m) => s + m.importe, 0);
-  const totalIng  = movimientos.filter(m => m.importe > 0).reduce((s, m) => s + m.importe, 0);
-  const balance   = totalIng + gastoNeg + gastoPer;
-  const hasSaldo  = movimientos.some(m => m.saldo !== undefined);
-  const totalGastos = Math.abs(gastoNeg) + Math.abs(gastoPer) || 1;
-
-  return (
-    <div>
-      {/* ── Upload zone ── */}
-      <div
-        onDragOver={e => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-        onClick={() => fileRef.current?.click()}
-        style={{
-          border: `2px dashed ${dragging ? "var(--accent)" : "var(--border)"}`,
-          borderRadius: "8px", padding: "32px", textAlign: "center", cursor: "pointer",
-          background: dragging ? "var(--accent-dim)" : "var(--card)", marginBottom: "20px", transition: "all 0.2s",
-        }}
-      >
-        <input ref={fileRef} type="file" accept=".csv,.txt,.pdf,image/*" style={{ display: "none" }}
-          onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
-        <Upload size={28} style={{ color: "var(--text-muted)", marginBottom: "10px" }} />
-        <p style={{ color: "var(--text)", fontWeight: 600, marginBottom: "4px" }}>
-          {loading ? "Procesando con Claude…" : "Arrastra tu extracto bancario aquí"}
-        </p>
-        <p style={{ color: "var(--text-muted)", fontSize: "12px" }}>
-          CSV · PDF · Screenshot de PayPal, banco o tarjeta (PNG, JPG, WebP) — se acumula con los anteriores
-        </p>
-        {error && <p style={{ color: "var(--red)", fontSize: "12px", marginTop: "8px" }}>{error}</p>}
-      </div>
-
-      {movimientos.length > 0 && (
-        <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
-
-          {/* ── Tabla principal ── */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", gap: "8px", marginBottom: "14px", alignItems: "center", flexWrap: "wrap" }}>
-              {(["todos", "negocio", "personal"] as const).map(f => (
-                <button key={f} onClick={() => setFiltro(f)} style={{
-                  padding: "5px 14px", borderRadius: "20px", border: "1px solid var(--border)", cursor: "pointer",
-                  fontSize: "12px", fontWeight: 600,
-                  background: filtro === f ? (f === "negocio" ? "rgba(33,150,243,0.2)" : f === "personal" ? "rgba(255,152,0,0.2)" : "var(--accent-dim)") : "transparent",
-                  color: filtro === f ? (f === "negocio" ? "#2196F3" : f === "personal" ? "#FF9800" : "var(--accent)") : "var(--text-muted)",
-                }}>
-                  {f === "todos" ? "Todos" : f.charAt(0).toUpperCase() + f.slice(1)}
-                  {" "}({f === "todos" ? movimientos.length : movimientos.filter(m => m.categoria === f).length})
-                </button>
-              ))}
-              <span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--text-muted)" }}>
-                {movimientos.length} movimientos cargados
-              </span>
-              <button
-                onClick={() => { if (confirm("¿Borrar todos los movimientos cargados?")) save([]); }}
-                style={{ padding: "5px 12px", borderRadius: "4px", border: "1px solid rgba(255,61,113,0.3)", background: "transparent", color: "var(--red)", fontSize: "11px", cursor: "pointer" }}
-              >
-                Borrar todo
-              </button>
-            </div>
-
-            <div style={{ ...CARD, padding: 0, overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ background: "var(--surface)" }}>
-                    <th style={TH}>Tipo</th>
-                    <th style={TH}>Fecha</th>
-                    <th style={{ ...TH, width: "99%" }}>Concepto</th>
-                    <th style={{ ...TH, textAlign: "right" }}>Importe</th>
-                    {hasSaldo && <th style={{ ...TH, textAlign: "right" }}>Saldo</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtrados.slice().reverse().map(m => (
-                    <tr key={m.id} style={{ background: m.importe > 0 ? "rgba(0,230,118,0.03)" : "transparent" }}>
-                      <td style={TD}>
-                        <button onClick={() => toggleCat(m.id)} title="Clic para cambiar categoría" style={{
-                          padding: "2px 8px", borderRadius: "12px", border: "none", cursor: "pointer",
-                          fontSize: "10px", fontWeight: 700, whiteSpace: "nowrap",
-                          background: m.categoria === "negocio" ? "rgba(33,150,243,0.18)" : "rgba(255,152,0,0.18)",
-                          color: m.categoria === "negocio" ? "#2196F3" : "#FF9800",
-                        }}>
-                          {m.categoria === "negocio" ? "NEGOCIO" : "PERSONAL"}
-                        </button>
-                      </td>
-                      <td style={{ ...TD, fontFamily: "'Space Mono',monospace", fontSize: "12px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
-                        {m.fecha}
-                      </td>
-                      <td style={{ ...TD, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "340px" }} title={m.concepto}>
-                        {m.concepto}
-                      </td>
-                      <td style={{ ...TD, textAlign: "right", fontFamily: "'Space Mono',monospace", fontWeight: 600, whiteSpace: "nowrap", color: m.importe >= 0 ? "var(--green)" : "var(--red)" }}>
-                        {m.importe >= 0 ? "+" : ""}{m.importe.toFixed(2)}€
-                      </td>
-                      {hasSaldo && (
-                        <td style={{ ...TD, textAlign: "right", fontFamily: "'Space Mono',monospace", fontSize: "12px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
-                          {m.saldo !== undefined ? m.saldo.toFixed(2) + "€" : "—"}
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* ── Panel resumen ── */}
-          <div style={{ width: "240px", flexShrink: 0, display: "flex", flexDirection: "column", gap: "12px" }}>
-            <div style={CARD}>
-              <p style={LABEL}>Gastos negocio</p>
-              <p style={{ ...NUM, fontSize: "22px", color: "#2196F3" }}>{Math.abs(gastoNeg).toFixed(2)}€</p>
-              <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                {movimientos.filter(m => m.categoria === "negocio" && m.importe < 0).length} movimientos
-              </p>
-            </div>
-            <div style={CARD}>
-              <p style={LABEL}>Gastos personales</p>
-              <p style={{ ...NUM, fontSize: "22px", color: "#FF9800" }}>{Math.abs(gastoPer).toFixed(2)}€</p>
-              <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                {movimientos.filter(m => m.categoria === "personal" && m.importe < 0).length} movimientos
-              </p>
-            </div>
-            <div style={CARD}>
-              <p style={LABEL}>Ingresos recibidos</p>
-              <p style={{ ...NUM, fontSize: "22px", color: "var(--green)" }}>{totalIng.toFixed(2)}€</p>
-              <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                {movimientos.filter(m => m.importe > 0).length} entradas
-              </p>
-            </div>
-            <div style={CARD}>
-              <p style={LABEL}>Balance período</p>
-              <p style={{ ...NUM, fontSize: "22px", color: balance >= 0 ? "var(--accent)" : "var(--red)" }}>
-                {balance >= 0 ? "+" : ""}{balance.toFixed(2)}€
-              </p>
-              <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>Ingresos − todos gastos</p>
-            </div>
-            <div style={{ ...CARD, padding: "16px" }}>
-              <p style={{ ...LABEL, marginBottom: "12px" }}>Proporción de gastos</p>
-              {[
-                { label: "Negocio", val: Math.abs(gastoNeg), color: "#2196F3" },
-                { label: "Personal", val: Math.abs(gastoPer), color: "#FF9800" },
-              ].map(item => {
-                const pct = ((item.val / totalGastos) * 100).toFixed(0);
-                return (
-                  <div key={item.label} style={{ marginBottom: "10px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
-                      <span style={{ color: "var(--text-muted)" }}>{item.label}</span>
-                      <span style={{ color: item.color, fontWeight: 600 }}>{pct}%</span>
-                    </div>
-                    <div style={{ height: "6px", background: "var(--surface)", borderRadius: "3px", overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${pct}%`, background: item.color, borderRadius: "3px", transition: "width 0.3s" }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-
-const TABS: [Tab, string][] = [
-  ["Resumen",    "Resumen mensual"        ],
-  ["GastosFijos","Gastos fijos"           ],
-  ["Calendario", "Calendario"             ],
-  ["Ingresos",   "Ingresos"              ],
-  ["Impuestos",  "Impuestos y Facturas"  ],
-  ["Extracto",   "Extracto bancario"     ],
-];
-
-export default function FinanzasPage() {
-  const [tab, setTab]         = useState<Tab>("Resumen");
-  const [gastos, setGastos]   = useState<GastoFijo[]>(GASTOS_INITIAL);
-  const [ingresos, setIngresos] = useState<Ingreso[]>(INGRESOS_INITIAL);
-  const [editId, setEditId]   = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ importe:"", dia:"" });
-  const [showAdd, setShowAdd]   = useState(false);
-  const [addForm, setAddForm]   = useState({ servicio:"", importe:"", dia:"", categoria:"", estado:"activo" as EstadoGasto });
-  const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
-  const { theme } = useTheme();
-
-  const greenColor   = theme === "dark" ? "#00E676" : "#00A152";
-  const redColor     = theme === "dark" ? "#FF3D71" : "#E5394B";
-
-  const gastosActivos   = gastos.filter(g => g.estado !== "cancelado");
-  const gastoCancelados = gastos.filter(g => g.estado === "cancelado");
-  const totalGastos     = gastosActivos.filter(g => g.estado === "activo").reduce((s, g) => s + g.importe, 0);
-  const totalIngresos   = ingresos.reduce((s, i) => s + i.importe, 0);
-  const margen          = totalIngresos - totalGastos;
-  const ahorroMensual   = gastos.filter(g => g.estado !== "activo").reduce((s, g) => s + g.importe, 0);
-  const next            = nextCobro(gastos);
-
-  // Últimos 4 meses para el gráfico (aproximado con datos actuales)
-  const barData = [
-    { mes:"Mar", Ingresos: Math.round(totalIngresos * 0.88), Gastos: Math.round(totalGastos * 0.97) },
-    { mes:"Abr", Ingresos: Math.round(totalIngresos * 0.92), Gastos: Math.round(totalGastos * 0.99) },
-    { mes:"May", Ingresos: Math.round(totalIngresos * 0.97), Gastos: Math.round(totalGastos * 0.99) },
-    { mes:"Jun", Ingresos: totalIngresos,                    Gastos: Math.round(totalGastos)         },
-  ];
-
-  function confirmCancel() {
-    if (cancelConfirmId === null) return;
-    setGastos(prev => prev.map(g => g.id === cancelConfirmId ? { ...g, estado: "cancelado" as EstadoGasto } : g));
-    setCancelConfirmId(null);
-  }
-  function reactivar(id: number) {
-    setGastos(prev => prev.map(g => g.id === id ? { ...g, estado: "activo" as EstadoGasto } : g));
-  }
-  function openEdit(g: GastoFijo) {
-    setEditId(g.id);
-    setEditForm({ importe:String(g.importe), dia:String(g.dia) });
-  }
-  function saveEdit() {
-    setGastos(prev => prev.map(g => g.id === editId ? { ...g, importe:parseFloat(editForm.importe)||g.importe, dia:parseInt(editForm.dia)||g.dia } : g));
-    setEditId(null);
-  }
-  function addGasto() {
-    if (!addForm.servicio || !addForm.importe) return;
-    const newId = Math.max(...gastos.map(g => g.id)) + 1;
-    setGastos(prev => [...prev, { id:newId, servicio:addForm.servicio, importe:parseFloat(addForm.importe)||0, dia:parseInt(addForm.dia)||1, categoria:addForm.categoria||"Otros", estado:addForm.estado }]);
-    setAddForm({ servicio:"", importe:"", dia:"", categoria:"", estado:"activo" });
-    setShowAdd(false);
-  }
-
-  const tooltipStyle: React.CSSProperties = { background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px", color:"var(--text)", fontSize:"12px" };
-
-  return (
-    <div style={{ padding:"32px 40px" }}>
-      <h1 style={{ fontSize:"24px", fontWeight:600, color:"var(--text)", marginBottom:"24px" }}>Finanzas</h1>
-
-      {/* ── Tab bar ── */}
-      <div style={{ display:"inline-flex", gap:"4px", padding:"4px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"8px", marginBottom:"24px" }}>
-        {TABS.map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} style={{ padding:"7px 16px", borderRadius:"5px", border:"none", cursor:"pointer", fontSize:"13px", fontWeight:tab===key?600:400, background:tab===key?"var(--accent-dim)":"transparent", color:tab===key?"var(--accent)":"var(--text-muted)", outline:tab===key?"1px solid var(--border-accent)":"none", whiteSpace:"nowrap" }}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* ════════ TAB 1: RESUMEN ════════ */}
-      {tab === "Resumen" && (
-        <div style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:"12px" }}>
-            <div style={CARD}>
-              <p style={LABEL}>Ingresos del mes</p>
-              <p style={{ ...NUM, color:"var(--green)" }}>{totalIngresos.toLocaleString("es-ES")}€</p>
-              <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"8px" }}>{ingresos.length} fuentes activas</p>
-              <SparkLine data={[...ingresos.map(i => i.importe).slice(0,6), totalIngresos]} id="fin-ing" />
-            </div>
-            <div style={CARD}>
-              <p style={LABEL}>Gastos fijos</p>
-              <p style={{ ...NUM, color:"var(--red)" }}>{totalGastos.toFixed(0)}€</p>
-              <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"8px" }}>{gastosActivos.filter(g => g.estado === "activo").length} servicios activos</p>
-              <SparkLine data={SPARK.gastos} id="fin-gas" />
-            </div>
-            <div style={CARD}>
-              <p style={LABEL}>Margen disponible</p>
-              <p style={{ ...NUM, color: margen >= 0 ? "var(--accent)" : "var(--red)" }}>{margen.toFixed(0)}€</p>
-              <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"8px" }}>Para invertir o ahorrar</p>
-              <SparkLine data={SPARK.margen} id="fin-mar" />
-            </div>
-            <div style={CARD}>
-              <p style={LABEL}>Próximo cobro</p>
-              <p style={{ ...NUM, color:"var(--amber)" }}>en {next?.daysLeft ?? "—"} días</p>
-              <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"8px" }}>
-                {next ? `${next.servicio} — ${next.importe.toFixed(2)}€` : "—"}
-              </p>
-              <SparkLine data={SPARK.cobro} id="fin-cob" />
-            </div>
-            <div style={CARD}>
-              <p style={LABEL}>Ahorro mensual</p>
-              <p style={{ ...NUM, color: ahorroMensual > 0 ? "var(--green)" : "var(--text-muted)" }}>
-                {ahorroMensual > 0 ? `${ahorroMensual.toFixed(2)}€` : "—"}
-              </p>
-              <p style={{ fontSize:"12px", color:"var(--text-muted)", marginBottom:"10px" }}>
-                {ahorroMensual > 0 ? "Servicios cancelados o por cancelar" : "Sin cancelaciones pendientes"}
-              </p>
-              {gastos.filter(g => g.estado !== "activo").map(g => (
-                <div key={g.id} style={{ display:"flex", justifyContent:"space-between", fontSize:"11px", color:"var(--text-muted)", marginBottom:"2px" }}>
-                  <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"120px" }}>{g.servicio}</span>
-                  <span style={{ fontFamily:"'Space Mono', monospace", color:"var(--green)", flexShrink:0 }}>+{g.importe.toFixed(2)}€</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{ ...CARD, padding:"24px" }}>
-            <p style={{ ...LABEL, marginBottom:"20px" }}>Ingresos vs Gastos — últimos 4 meses</p>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={barData} barGap={4} barCategoryGap="32%">
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="mes" tick={{ fill:"var(--text-muted)", fontSize:11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill:"var(--text-muted)", fontSize:11 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${(v/1000).toFixed(1)}k`} width={36} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ fill:"var(--accent-dim)" }} formatter={(v) => [`${Number(v ?? 0).toLocaleString("es-ES")}€`]} />
-                <Legend wrapperStyle={{ fontSize:"12px", paddingTop:"12px", color:"var(--text-muted)" }} />
-                <Bar dataKey="Ingresos" fill={greenColor} radius={[4,4,0,0]} maxBarSize={48} />
-                <Bar dataKey="Gastos"   fill={redColor}   radius={[4,4,0,0]} maxBarSize={48} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
         </div>
       )}
 
-      {/* ════════ TAB 2: GASTOS FIJOS ════════ */}
-      {tab === "GastosFijos" && (
-        <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <p style={{ ...LABEL, margin:0 }}>{gastosActivos.length} servicios activos · {totalGastos.toFixed(2)}€/mes</p>
-            <button onClick={() => setShowAdd(true)} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"8px 14px", borderRadius:"6px", background:"var(--accent)", color:"var(--bg)", border:"none", cursor:"pointer", fontSize:"13px", fontWeight:600 }}>
-              <Plus size={14} /> Añadir gasto fijo
-            </button>
+      {/* ══ EQUIPO ══ */}
+      {tab === "Equipo" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"12px" }}>
+            {[
+              { l:"Equipo foto/vídeo",  v:eur(equipoFoto),  c:C.accent },
+              { l:"Equipo de trabajo",  v:eur(equipoTrab),  c:C.blue   },
+              { l:"TOTAL INVENTARIO",   v:eur(equipoTotal), c:C.green  },
+            ].map(({ l,v,c }) => (
+              <div key={l} style={S.card}>
+                <div style={{ fontSize:"10px", color:C.muted, marginBottom:"4px" }}>{l}</div>
+                <div style={{ ...S.mono, fontSize:"20px", fontWeight:800, color:c }}>{v}</div>
+              </div>
+            ))}
           </div>
-
-          <div style={{ background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px", overflow:"hidden" }}>
-            <table style={{ width:"100%", borderCollapse:"collapse" }}>
-              <thead><tr>{["Servicio","Importe","Día","Categoría","Estado","Acciones"].map(h => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+          <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"12px" }}>
+              <thead><tr style={{ borderBottom:`1px solid ${C.border}` }}>
+                {["Categoría","Item","Valor"].map(h=><th key={h} style={{ padding:"9px 16px", textAlign:"left", color:C.muted, fontWeight:600, fontSize:"10px", textTransform:"uppercase", letterSpacing:"0.07em" }}>{h}</th>)}
+              </tr></thead>
               <tbody>
-                {gastosActivos.map(g => (
-                  <tr key={g.id} style={{ background:g.estado==="cancelar"?"rgba(255,61,113,0.03)":"transparent" }}>
-                    <td style={{ ...TD, fontWeight:500, color:"var(--text)" }}>{g.servicio}</td>
-                    <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:g.estado==="cancelar"?"var(--text-muted)":"var(--text)" }}>{g.importe.toFixed(2)}€</td>
-                    <td style={{ ...TD, color:"var(--text-mid)" }}>día {g.dia}</td>
-                    <td style={{ ...TD }}><span style={{ fontSize:"11px", padding:"2px 8px", borderRadius:"4px", background:"var(--accent-dim)", color:"var(--text-mid)", fontWeight:500 }}>{g.categoria}</span></td>
-                    <td style={{ ...TD }}>
-                      {g.estado==="activo"
-                        ? <span style={{ fontSize:"11px", fontWeight:700, padding:"2px 8px", borderRadius:"4px", background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--border-accent)" }}>Activo</span>
-                        : (
-                          <button onClick={() => setCancelConfirmId(g.id)} title="Confirmar cancelación"
-                            style={{ fontSize:"11px", fontWeight:700, padding:"2px 8px", borderRadius:"4px", background:"rgba(255,61,113,0.12)", color:"var(--red)", border:"1px solid rgba(255,61,113,0.25)", cursor:"pointer" }}>
-                            Cancelar ↗
-                          </button>
-                        )
-                      }
-                    </td>
-                    <td style={{ ...TD }}>
-                      <button onClick={() => openEdit(g)} style={{ display:"flex", alignItems:"center", gap:"4px", padding:"5px 10px", borderRadius:"4px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", cursor:"pointer", fontSize:"11px" }}>
-                        <Pencil size={12} /> Editar
-                      </button>
-                    </td>
+                {equipoCats.flatMap(cat => EQUIPO.filter(e=>e.cat===cat).map((e,j) => (
+                  <tr key={e.item} style={{ borderBottom:`1px solid ${C.border}22` }}>
+                    {j===0 && <td rowSpan={EQUIPO.filter(x=>x.cat===cat).length} style={{ padding:"9px 16px", verticalAlign:"top" }}>
+                      <span style={{ ...badge(cat==="Trabajo"?C.blue:C.accent) }}>{cat}</span>
+                    </td>}
+                    <td style={{ padding:"9px 16px", color:C.text }}>{e.item}</td>
+                    <td style={{ padding:"9px 16px", ...S.mono, color:C.mid }}>{eurD(e.v)}</td>
                   </tr>
-                ))}
-                <tr style={{ background:"var(--accent-dim)" }}>
-                  <td style={{ ...TD, fontWeight:700, color:"var(--text)", borderBottom:"none" }}>TOTAL</td>
-                  <td style={{ ...TD, fontFamily:"'Space Mono', monospace", fontWeight:700, color:"var(--text)", borderBottom:"none" }}>{totalGastos.toFixed(2)}€</td>
-                  <td colSpan={4} style={{ borderBottom:"none" }} />
-                </tr>
+                )))}
               </tbody>
             </table>
           </div>
-
-          {gastoCancelados.length > 0 && (
-            <div style={{ opacity:0.65 }}>
-              <p style={{ ...LABEL, marginBottom:"10px", display:"flex", alignItems:"center", gap:"8px" }}>
-                Cancelados / Pausados
-                <span style={{ fontFamily:"'Space Mono', monospace", fontSize:"11px", color:"var(--green)", fontWeight:700, textTransform:"none", letterSpacing:0 }}>
-                  +{gastoCancelados.reduce((s,g)=>s+g.importe,0).toFixed(2)}€/mes ahorrados
-                </span>
-              </p>
-              <div style={{ background:"var(--card)", border:"1px solid var(--border)", borderRadius:"6px", overflow:"hidden" }}>
-                <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                  <tbody>
-                    {gastoCancelados.map(g => (
-                      <tr key={g.id}>
-                        <td style={{ ...TD, color:"var(--text-muted)", textDecoration:"line-through", fontWeight:500 }}>{g.servicio}</td>
-                        <td style={{ ...TD, fontFamily:"'Space Mono', monospace", color:"var(--text-muted)", textDecoration:"line-through" }}>{g.importe.toFixed(2)}€</td>
-                        <td style={{ ...TD, color:"var(--text-muted)", fontSize:"11px" }}>{g.categoria}</td>
-                        <td style={{ ...TD }}><span style={{ fontSize:"11px", color:"var(--green)", fontWeight:600 }}>Ahorro: {g.importe.toFixed(2)}€/mes</span></td>
-                        <td style={{ ...TD, borderBottom:"none" }}>
-                          <button onClick={() => reactivar(g.id)} style={{ fontSize:"11px", padding:"4px 10px", borderRadius:"4px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", cursor:"pointer" }}>
-                            Reactivar
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ════════ TAB 3: CALENDARIO ════════ */}
-      {tab === "Calendario" && <CalendarioTab gastos={gastos} ingresos={ingresos} />}
-
-      {/* ════════ TAB 4: INGRESOS ════════ */}
-      {tab === "Ingresos" && <IngresosTab ingresos={ingresos} setIngresos={setIngresos} />}
-
-      {/* ════════ TAB 5: IMPUESTOS Y FACTURAS ════════ */}
-      {tab === "Impuestos" && <ImpuestosTab />}
-
-      {/* ════════ TAB 6: EXTRACTO BANCARIO ════════ */}
-      {tab === "Extracto" && <ExtractoTab />}
-
-      {/* ── Edit modal ── */}
-      {editId !== null && (
-        <div onClick={() => setEditId(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"var(--card)", border:"1px solid var(--border)", borderRadius:"10px", padding:"28px", width:"360px" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"20px" }}>
-              <h3 style={{ color:"var(--text)", margin:0, fontSize:"15px", fontWeight:600 }}>Editar — {gastos.find(g=>g.id===editId)?.servicio}</h3>
-              <button onClick={() => setEditId(null)} style={{ background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", padding:"2px" }}><X size={18} /></button>
-            </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
-              <div>
-                <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Importe (€)</p>
-                <input value={editForm.importe} onChange={e => setEditForm(f=>({...f,importe:e.target.value}))} style={INPUT_S} type="number" step="0.01" />
-              </div>
-              <div>
-                <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Día del mes</p>
-                <input value={editForm.dia} onChange={e => setEditForm(f=>({...f,dia:e.target.value}))} style={INPUT_S} type="number" min="1" max="31" />
-              </div>
-            </div>
-            <div style={{ display:"flex", gap:"8px", marginTop:"20px" }}>
-              <button onClick={() => setEditId(null)} style={{ flex:1, padding:"9px", borderRadius:"5px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", cursor:"pointer", fontSize:"13px" }}>Cancelar</button>
-              <button onClick={saveEdit} style={{ flex:1, padding:"9px", borderRadius:"5px", border:"none", background:"var(--accent)", color:"var(--bg)", cursor:"pointer", fontSize:"13px", fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:"6px" }}>
-                <Check size={14} /> Guardar
-              </button>
-            </div>
+          <div style={{ fontSize:"11px", color:C.muted, padding:"8px 12px", background:`${C.amber}06`, borderRadius:"7px", border:`1px solid ${C.amber}22` }}>
+            ⚠️ Precios orientativos (mercado usado + capturas Amazon). Actualizar con tickets reales cuando los tengas. Los precios en azul en el Excel original eran confirmados.
           </div>
         </div>
       )}
 
-      {/* ── Confirm cancel modal ── */}
-      {cancelConfirmId !== null && (() => {
-        const g = gastos.find(x => x.id === cancelConfirmId);
-        if (!g) return null;
-        return (
-          <div onClick={() => setCancelConfirmId(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <div onClick={e => e.stopPropagation()} style={{ background:"var(--card)", border:"1px solid rgba(255,61,113,0.35)", borderRadius:"10px", padding:"28px", width:"400px" }}>
-              <h3 style={{ color:"var(--text)", margin:"0 0 10px", fontSize:"16px", fontWeight:600 }}>¿Confirmar cancelación?</h3>
-              <p style={{ fontSize:"13px", color:"var(--text-muted)", margin:"0 0 6px" }}>
-                Servicio: <strong style={{ color:"var(--text)" }}>{g.servicio}</strong>
-              </p>
-              <p style={{ fontSize:"13px", color:"var(--text-muted)", margin:"0 0 18px" }}>
-                Dejarás de pagar <span style={{ fontFamily:"'Space Mono', monospace", color:"var(--green)", fontWeight:700 }}>{g.importe.toFixed(2)}€/mes</span>.
-              </p>
-              <div style={{ display:"flex", gap:"8px" }}>
-                <button onClick={() => setCancelConfirmId(null)} style={{ flex:1, padding:"9px", borderRadius:"5px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", cursor:"pointer", fontSize:"13px" }}>
-                  Mantener activo
+      {/* ══ JAGGER CLUB ══ */}
+      {tab === "Jagger Club" && (
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
+          <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
+            <div style={S.card}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"14px" }}>
+                <h3 style={{ fontSize:"14px", fontWeight:600, margin:0 }}>Calculadora de precio</h3>
+                <button onClick={()=>setEditingJ(!editingJ)} style={{ ...S.ghost, color:editingJ?C.accent:C.mid }}>
+                  {editingJ?<><Save size={11}/>Listo</>:<><Edit3 size={11}/>Editar</>}
                 </button>
-                <button onClick={confirmCancel} style={{ flex:1, padding:"9px", borderRadius:"5px", border:"1px solid rgba(255,61,113,0.4)", background:"rgba(255,61,113,0.12)", color:"var(--red)", cursor:"pointer", fontSize:"13px", fontWeight:700 }}>
-                  Sí, cancelar
-                </button>
+              </div>
+              {([
+                { l:"Nº vídeos a entregar",               k:"nVideos"    as const, min:1,  max:20,  step:1   },
+                { l:"Horas grabación (incl. desplaz.)",   k:"horas"      as const, min:1,  max:12,  step:0.5 },
+                { l:"Tu tarifa/hora (€)",                 k:"valorHora"  as const, min:20, max:150, step:5   },
+                { l:"Coste editor / vídeo (€)",           k:"costeEditor"as const, min:0,  max:100, step:5   },
+                { l:"Ayudante / cámara extra (€)",        k:"ayudante"   as const, min:0,  max:200, step:10  },
+                { l:"Desplazamiento / parking (€)",       k:"desplaz"    as const, min:0,  max:50,  step:5   },
+              ] as const).map(({ l,k,min,max,step }) => (
+                <div key={k} style={{ marginBottom:"10px" }}>
+                  <span style={S.lbl}>{l}</span>
+                  {editingJ
+                    ? <div style={{ display:"flex", gap:"10px", alignItems:"center" }}>
+                        <input type="range" min={min} max={max} step={step} value={data.jaggerCalc[k]}
+                          onChange={e=>persist({ ...data, jaggerCalc:{ ...data.jaggerCalc, [k]:Number(e.target.value) } })}
+                          style={{ flex:1 }} />
+                        <span style={{ ...S.mono, color:C.accent, minWidth:"44px", textAlign:"right", fontSize:"13px", fontWeight:700 }}>{data.jaggerCalc[k]}</span>
+                      </div>
+                    : <span style={{ ...S.mono, color:C.text, fontSize:"13px" }}>{data.jaggerCalc[k]}€</span>
+                  }
+                </div>
+              ))}
+              <div style={{ marginBottom:"10px" }}>
+                <span style={S.lbl}>Margen de beneficio (%)</span>
+                {editingJ
+                  ? <div style={{ display:"flex", gap:"10px", alignItems:"center" }}>
+                      <input type="range" min={10} max={200} step={5} value={Math.round(data.jaggerCalc.margen*100)}
+                        onChange={e=>persist({ ...data, jaggerCalc:{ ...data.jaggerCalc, margen:Number(e.target.value)/100 } })}
+                        style={{ flex:1 }} />
+                      <span style={{ ...S.mono, color:C.accent, minWidth:"44px", textAlign:"right", fontSize:"13px", fontWeight:700 }}>{Math.round(data.jaggerCalc.margen*100)}%</span>
+                    </div>
+                  : <span style={{ ...S.mono, color:C.text, fontSize:"13px" }}>{Math.round(data.jaggerCalc.margen*100)}%</span>
+                }
               </div>
             </div>
           </div>
-        );
-      })()}
 
-      {/* ── Add gasto modal ── */}
-      {showAdd && (
-        <div onClick={() => setShowAdd(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"var(--card)", border:"1px solid var(--border)", borderRadius:"10px", padding:"28px", width:"420px" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"20px" }}>
-              <h3 style={{ color:"var(--text)", margin:0, fontSize:"15px", fontWeight:600 }}>Añadir gasto fijo</h3>
-              <button onClick={() => setShowAdd(false)} style={{ background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", padding:"2px" }}><X size={18} /></button>
-            </div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginBottom:"12px" }}>
-              {([ ["servicio","Servicio"],["categoria","Categoría"] ] as [string,string][]).map(([k,l]) => (
-                <div key={k}>
-                  <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>{l}</p>
-                  <input value={(addForm as Record<string,string>)[k]} onChange={e => setAddForm(f=>({...f,[k]:e.target.value}))} style={INPUT_S} />
+          <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
+            <div style={S.card}>
+              <h3 style={{ fontSize:"14px", fontWeight:600, margin:"0 0 12px" }}>Desglose de costos</h3>
+              {[
+                { l:`Edición (${data.jaggerCalc.nVideos}×${data.jaggerCalc.costeEditor}€)`, v:jRes.costEdicion },
+                { l:`Tu tiempo (${data.jaggerCalc.horas}h×${data.jaggerCalc.valorHora}€)`,   v:jRes.costTiempo  },
+                { l:"Ayudante",       v:data.jaggerCalc.ayudante, hide:!data.jaggerCalc.ayudante },
+                { l:"Desplazamiento", v:data.jaggerCalc.desplaz,  hide:!data.jaggerCalc.desplaz  },
+              ].filter(x=>!x.hide).map(({ l,v }) => (
+                <div key={l} style={{ display:"flex", justifyContent:"space-between", padding:"6px 10px", background:C.bg, borderRadius:"5px", marginBottom:"4px", border:`1px solid ${C.border}` }}>
+                  <span style={{ fontSize:"12px", color:C.mid }}>{l}</span>
+                  <span style={{ ...S.mono, fontSize:"12px" }}>{eurD(v)}</span>
+                </div>
+              ))}
+              <div style={{ display:"flex", justifyContent:"space-between", padding:"8px 10px", background:`${C.red}0A`, borderRadius:"5px", marginBottom:"12px", border:`1px solid ${C.red}33` }}>
+                <span style={{ fontSize:"12px", color:C.mid, fontWeight:700 }}>COSTO TOTAL</span>
+                <span style={{ ...S.mono, fontSize:"13px", color:C.red, fontWeight:700 }}>{eurD(jRes.costTotal)}</span>
+              </div>
+              {[
+                { l:"Por sesión / noche",        v:jRes.precio,        sub:`Tu ganancia: ${eurD(jRes.ganancia)}`, c:C.accent, big:true },
+                { l:"Por vídeo individual",       v:jRes.precioVideo,   sub:"Si venden reels sueltos",            c:C.amber,  big:false },
+                { l:"Pack mensual (4 noches -10%)", v:jRes.precioMensual, sub:"Recurrente, más estable",         c:C.green,  big:false },
+              ].map(({ l,v,sub,c,big }) => (
+                <div key={l} style={{ padding:"10px 12px", background:C.bg, borderRadius:"7px", border:`1px solid ${c}22`, marginBottom:"7px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div>
+                    <div style={{ fontSize:"12px", color:C.mid, marginBottom:"2px" }}>{l}</div>
+                    <div style={{ fontSize:"10px", color:C.muted }}>{sub}</div>
+                  </div>
+                  <div style={{ ...S.mono, fontSize:big?"22px":"16px", fontWeight:800, color:c }}>{eur(v)}</div>
                 </div>
               ))}
             </div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"12px", marginBottom:"12px" }}>
-              <div>
-                <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Importe (€)</p>
-                <input value={addForm.importe} onChange={e => setAddForm(f=>({...f,importe:e.target.value}))} style={INPUT_S} type="number" step="0.01" />
+
+            <div style={{ ...S.card, border:`1px solid ${C.accent}33`, background:`${C.accent}05` }}>
+              <h3 style={{ fontSize:"12px", fontWeight:700, color:C.accent, margin:"0 0 10px" }}>Estrategia Jagger Club</h3>
+              <div style={{ fontSize:"11px", color:C.mid, lineHeight:1.9 }}>
+                <div>• <strong style={{ color:C.text }}>Hoy:</strong> primera noche muestra → 3-4 reels en 24h → muestras calidad real</div>
+                <div>• <strong style={{ color:C.text }}>Semana siguiente:</strong> propuesta formal (sesión suelta {eur(jRes.precio)} o pack {eur(jRes.precioMensual)}/mes)</div>
+                <div>• <strong style={{ color:C.text }}>No incluye</strong> publicación en redes del cliente — ellos publican el contenido que entregas</div>
+                <div>• <strong style={{ color:C.text }}>Meta Ads:</strong> ofrecer en 2-3 meses si quieren más gente en el local (+300-400€/mes)</div>
               </div>
-              <div>
-                <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Día del mes</p>
-                <input value={addForm.dia} onChange={e => setAddForm(f=>({...f,dia:e.target.value}))} style={INPUT_S} type="number" min="1" max="31" />
-              </div>
-              <div>
-                <p style={{ fontSize:"11px", color:"var(--text-muted)", marginBottom:"4px" }}>Estado</p>
-                <select value={addForm.estado} onChange={e => setAddForm(f=>({...f,estado:e.target.value as EstadoGasto}))} style={INPUT_S}>
-                  <option value="activo">Activo</option>
-                  <option value="cancelar">Cancelar</option>
-                </select>
+              <button onClick={()=>setShowProp(true)} style={{ ...S.btn, marginTop:"12px", width:"100%", justifyContent:"center" }}>
+                <FileText size={13}/> Ver propuesta (imprimir / PDF)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ PERSONALES ══ */}
+      {tab === "Personales" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
+          <div style={{ ...S.card, background:`${C.amber}05`, border:`1px solid ${C.amber}22`, fontSize:"12px", color:C.mid, lineHeight:1.7 }}>
+            <strong style={{ color:C.amber }}>Gastos a revisar:</strong> movimientos del banco que parecen personales. No están en el P&L. Si alguno es de negocio (viaje de trabajo, etc.) márcalo y se sumará a los gastos.
+          </div>
+          <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"12px" }}>
+              <thead><tr style={{ borderBottom:`1px solid ${C.border}` }}>
+                {["Concepto","Importe","¿Negocio?","Nota"].map(h=><th key={h} style={{ padding:"9px 16px", textAlign:"left", color:C.muted, fontWeight:600, fontSize:"10px", textTransform:"uppercase", letterSpacing:"0.07em" }}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {data.personales.map(p => (
+                  <tr key={p.id} style={{ borderBottom:`1px solid ${C.border}22` }}>
+                    <td style={{ padding:"9px 16px", fontWeight:600, color:C.text }}>{p.concepto}</td>
+                    <td style={{ padding:"9px 16px", ...S.mono, color:p.importe?C.text:C.muted }}>{p.importe?eurD(p.importe):"?"}</td>
+                    <td style={{ padding:"9px 16px" }}>
+                      <div style={{ display:"flex", gap:"8px" }}>
+                        {([true,false,null] as const).map(v=>(
+                          <label key={String(v)} style={{ display:"flex", alignItems:"center", gap:"4px", cursor:"pointer", fontSize:"11px", color:p.esNegocio===v?C.accent:C.muted }}>
+                            <input type="radio" checked={p.esNegocio===v}
+                              onChange={()=>persist({ ...data, personales:data.personales.map(x=>x.id===p.id?{...x,esNegocio:v}:x) })}
+                              style={{ accentColor:C.accent }} />
+                            {v===true?"Sí":v===false?"No":"?"}
+                          </label>
+                        ))}
+                      </div>
+                    </td>
+                    <td style={{ padding:"9px 16px", color:C.muted, fontSize:"11px" }}>{p.nota}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ fontSize:"11px", color:C.mid }}>
+            Gastos marcados como negocio: <strong style={{ color:C.text, ...S.mono }}>{eurD(data.personales.filter(p=>p.esNegocio===true).reduce((s,p)=>s+p.importe,0))}</strong> — se añadirán al P&L cuando los confirmes.
+          </div>
+        </div>
+      )}
+
+      {/* ══ MODAL PROPUESTA ══ */}
+      {showProp && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:100, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:"14px", width:"660px", maxHeight:"85vh", overflowY:"auto", padding:"28px" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"20px" }}>
+              <h2 style={{ fontSize:"16px", fontWeight:700, margin:0 }}>Propuesta — Jagger Club</h2>
+              <div style={{ display:"flex", gap:"8px" }}>
+                <button onClick={()=>window.print()} style={S.btn}><FileText size={12}/>Imprimir / PDF</button>
+                <button onClick={()=>setShowProp(false)} style={S.ghost}><X size={12}/></button>
               </div>
             </div>
-            <div style={{ display:"flex", gap:"8px", marginTop:"20px" }}>
-              <button onClick={() => setShowAdd(false)} style={{ flex:1, padding:"9px", borderRadius:"5px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", cursor:"pointer", fontSize:"13px" }}>Cancelar</button>
-              <button onClick={addGasto} style={{ flex:1, padding:"9px", borderRadius:"5px", border:"none", background:"var(--accent)", color:"var(--bg)", cursor:"pointer", fontSize:"13px", fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:"6px" }}>
-                <Plus size={14} /> Añadir
-              </button>
+            <div style={{ lineHeight:1.7, color:C.text }}>
+              <div style={{ textAlign:"center", marginBottom:"20px", paddingBottom:"18px", borderBottom:`1px solid ${C.border}` }}>
+                <div style={{ fontSize:"22px", fontWeight:900, color:C.accent, letterSpacing:"0.12em" }}>RAXISLAB</div>
+                <div style={{ fontSize:"11px", color:C.mid }}>Marketing & Creación de Contenido · raxislab.com · +34 654 835 593</div>
+              </div>
+              <h3 style={{ fontSize:"15px", margin:"0 0 4px" }}>Propuesta de Contenido Profesional</h3>
+              <p style={{ fontSize:"12px", color:C.muted, margin:"0 0 18px" }}>Para: Jagger Club · Fecha: {new Date().toLocaleDateString("es")}</p>
+              <p style={{ fontSize:"12px", color:C.mid, margin:"0 0 16px" }}>
+                Hola,<br/><br/>
+                Gracias por la oportunidad de trabajar juntos. Adjunto nuestra propuesta de creación de contenido profesional para vuestro local.
+              </p>
+              {[
+                { nom:"Sesión Suelta",         precio:eur(jRes.precio),        desc:`${data.jaggerCalc.nVideos} reels verticales (Reels/TikTok) · ${data.jaggerCalc.horas}h de grabación · Edición profesional · Entrega en 48h`, tag:"" },
+                { nom:"Pack Mensual (×4)",     precio:eur(jRes.precioMensual), desc:`4 sesiones/mes · ${data.jaggerCalc.nVideos*4}+ reels editados · Precio preferente (-10%) · Prioridad de entrega`, tag:"Recomendado" },
+                { nom:"Estándar + Meta Ads",   precio:"Consultar",             desc:"Contenido + gestión campañas Meta Ads para atraer más gente al local. Segmentación, creativos, reporting mensual.", tag:"" },
+              ].map(({ nom,precio,desc,tag }) => (
+                <div key={nom} style={{ padding:"12px 14px", border:`1px solid ${C.border}`, borderRadius:"7px", marginBottom:"8px" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"4px" }}>
+                    <span style={{ fontWeight:700, color:C.text, fontSize:"13px" }}>{nom} {tag&&<span style={{ ...badge(C.accent), marginLeft:"8px" }}>{tag}</span>}</span>
+                    <span style={{ ...S.mono, color:C.accent, fontWeight:800, fontSize:"14px" }}>{precio}</span>
+                  </div>
+                  <div style={{ fontSize:"11px", color:C.muted }}>{desc}</div>
+                </div>
+              ))}
+              <div style={{ marginTop:"16px", fontSize:"11px", color:C.muted, lineHeight:1.8, borderTop:`1px solid ${C.border}`, paddingTop:"14px" }}>
+                <strong style={{ color:C.mid }}>✓ Incluye:</strong> grabación profesional, edición, formato optimizado Reels/TikTok<br/>
+                <strong style={{ color:C.mid }}>✗ No incluye:</strong> publicación en redes sociales del cliente (el material se entrega listo para publicar)<br/><br/>
+                <strong style={{ color:C.accent }}>René Benegas</strong> · raxislab.com · renebenegas.rb@gmail.com · +34 654 835 593
+              </div>
             </div>
           </div>
         </div>
