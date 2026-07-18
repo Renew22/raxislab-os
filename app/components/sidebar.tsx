@@ -8,6 +8,7 @@ import {
   ChevronLeft, ChevronRight,
   LayoutDashboard, Users, Megaphone, Globe, Package, Sparkles,
   TrendingUp, FolderKanban, Workflow, Wallet, FileText, Crosshair,
+  ScanSearch, Camera,
 } from "lucide-react";
 
 const NAV = [
@@ -15,10 +16,12 @@ const NAV = [
   { href: "/clientes",         label: "Clientes",         Icon: Users           },
   { href: "/campanas",         label: "Campañas",         Icon: Megaphone       },
   { href: "/google",           label: "Google",           Icon: Globe           },
+  { href: "/auditoria",        label: "Auditoría",        Icon: ScanSearch      },
   { href: "/last-mile",        label: "Last Mile",        Icon: Package         },
   { href: "/propuestas",       label: "Propuestas",       Icon: FileText        },
   { href: "/contenido",        label: "Contenido",        Icon: Sparkles        },
   { href: "/captacion",        label: "Captación",        Icon: Crosshair       },
+  { href: "/filmmaking",       label: "Filmmaking",       Icon: Camera          },
   { href: "/raxis-investor",   label: "Inversión",        Icon: TrendingUp      },
   { href: "/proyectos",        label: "Proyectos",        Icon: FolderKanban    },
   { href: "/finanzas",         label: "Finanzas",         Icon: Wallet          },
