@@ -431,7 +431,15 @@ export default function LastMilePage() {
     try {
       const r = await fetch('/api/google/metrics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: GOOGLE_ADS_CUSTOMER_ID, days: 30 }) });
       const d = await r.json();
-      if (d._pending) { setAdsError('developer_token'); } else if (d.error) { setAdsError(d.error); } else { setAdsData(d); }
+      if (d._pending) { setAdsError('developer_token'); }
+      else if (d.error) {
+        const e: string = d.error;
+        if (e.includes('UNAUTHENTICATED') || e.toLowerCase().includes('token') || e.toLowerCase().includes('credential') || e.includes('401')) {
+          setAdsError('token_scope');
+        } else {
+          setAdsError(e);
+        }
+      } else { setAdsData(d); }
     } catch { setAdsError('conexion'); }
     setAdsLoading(false);
   }
@@ -807,7 +815,17 @@ ${listaProductos}`;
                 </div>
               )}
 
-              {adsError && adsError !== 'developer_token' && (
+              {adsError === 'token_scope' && (
+                <div style={{ padding: '12px', borderRadius: '6px', background: 'rgba(231,76,60,0.07)', border: '1px solid rgba(231,76,60,0.25)' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#E74C3C', marginBottom: '4px' }}>⚠ Token Google sin scope Ads</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                    El GOOGLE_REFRESH_TOKEN en Vercel no tiene el scope <code style={{ color: '#E74C3C' }}>adwords</code>.<br/>
+                    René debe regenerar el token desde <code>/api/auth/google-ads</code> y actualizarlo en Vercel.
+                  </div>
+                </div>
+              )}
+
+              {adsError && adsError !== 'developer_token' && adsError !== 'token_scope' && (
                 <div style={{ fontSize: '12px', color: '#E74C3C' }}>Error: {adsError}</div>
               )}
 
