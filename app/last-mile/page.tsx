@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback } from "react";
 type LeadStatus = 'nuevo' | 'contactado' | 'interesado' | 'propuesta' | 'cerrado';
 type TrackerStatus = 'sin_contactar' | 'primer_contacto' | 'en_conversacion' | 'muestra_enviada' | 'propuesta_enviada' | 'activo' | 'descartado';
 type StockStatus = 'disponible' | 'bajo_pedido' | 'no_disponible';
-type TabType = 'Resumen' | 'Pipeline' | 'Emails' | 'Tracker' | 'Catálogo' | 'Comerciales' | 'Precios' | 'Dossieres' | 'Financiero';
+type TabType = 'Resumen' | 'Pipeline' | 'Emails' | 'Tracker' | 'Catálogo' | 'Comerciales' | 'Precios' | 'Dossieres' | 'Financiero' | 'Documentos';
 
 interface PagoItem { id: string; fecha: string; concepto: string; importe: number; metodo: 'Transferencia' | 'Efectivo' | 'PayPal' | 'Otro'; nota?: string; }
 interface TrabajoItem { id: string; concepto: string; valorMercado: number; valorAplicado: number; descripcion?: string; fecha?: string; }
@@ -29,8 +29,8 @@ const LM_USERS: LMUser[] = [
 ];
 
 function getTabs(role: UserRole): TabType[] {
-  if (role === 'admin')    return ['Resumen', 'Pipeline', 'Dossieres', 'Emails', 'Tracker', 'Catálogo', 'Comerciales', 'Precios', 'Financiero'];
-  if (role === 'comercial') return ['Pipeline', 'Dossieres', 'Emails', 'Catálogo'];
+  if (role === 'admin')    return ['Resumen', 'Pipeline', 'Dossieres', 'Emails', 'Tracker', 'Catálogo', 'Comerciales', 'Precios', 'Financiero', 'Documentos'];
+  if (role === 'comercial') return ['Pipeline', 'Dossieres', 'Emails', 'Catálogo', 'Documentos'];
   return ['Resumen', 'Pipeline', 'Precios'];
 }
 type NivelPrecio = 'A' | 'B' | 'C';
@@ -147,8 +147,9 @@ const INITIAL_CATALOG: CatalogItem[] = [
 ];
 
 const INITIAL_COMERCIALES: Comercial[] = [
-  { id: 'com1', nombre: 'Por contratar', zona: 'Asunción', leadsAsignados: 5, contactosMes: 0, cierresMes: 0, proximaAccion: 'Contratar comercial zona Gran Asunción' },
-  { id: 'com2', nombre: 'Por contratar', zona: 'Interior PY', leadsAsignados: 2, contactosMes: 0, cierresMes: 0, proximaAccion: 'Evaluar Gricelda Boggino + Julio Lois' },
+  { id: 'rosi',  nombre: 'Rosi (Promotora)', zona: 'Paraguay Nacional', leadsAsignados: 8, contactosMes: 0, cierresMes: 0, proximaAccion: '8 comerciales propios — primera ronda contactos distribuidores' },
+  { id: 'com1',  nombre: 'Por contratar', zona: 'Asunción', leadsAsignados: 5, contactosMes: 0, cierresMes: 0, proximaAccion: 'Contratar comercial zona Gran Asunción' },
+  { id: 'com2',  nombre: 'Por contratar', zona: 'Interior PY', leadsAsignados: 2, contactosMes: 0, cierresMes: 0, proximaAccion: 'Evaluar Gricelda Boggino + Julio Lois' },
 ];
 
 const GASTOS_TECNICOS = [
@@ -1999,6 +2000,69 @@ ${listaProductos}`;
           </div>
         </div>
       )}
+
+      {/* ─────────────────── PESTAÑA: DOCUMENTOS ─────────────────────── */}
+      {tab === 'Documentos' && (() => {
+        const docs = [
+          {
+            categoria: 'Catálogos de Productos',
+            items: [
+              { titulo: 'Catálogo Completo 2026', desc: 'Vinos D.O. españoles y Aceites Urzante. Sin precios — para distribuir libremente.', badge: 'Público', url: 'https://lastmiledist.com/wp-content/uploads/2026/07/Catalogo_LastMile_2026.docx', adminOnly: false },
+            ],
+          },
+          {
+            categoria: 'Documentos Comerciales',
+            items: [
+              { titulo: 'Dossier Comercial', desc: 'Presentación de empresa para clientes nuevos. Quiénes somos, qué ofrecemos y por qué elegirnos.', badge: 'Interno', url: 'https://lastmiledist.com/wp-content/uploads/2026/07/Dossier_Comercial_LMD.docx', adminOnly: false },
+              { titulo: 'Briefing del Comercial', desc: 'Manual completo para el equipo de ventas. Productos, argumentario, protocolo de visitas y contactos prioritarios.', badge: 'Interno', url: 'https://lastmiledist.com/wp-content/uploads/2026/07/Briefing_Comercial_LMD.docx', adminOnly: false },
+              { titulo: 'Cuestionario Comercial', desc: 'FAQ para nuevos comerciales. Preguntas frecuentes con respuestas oficiales sobre productos, precios y procesos.', badge: 'Interno', url: 'https://lastmiledist.com/wp-content/uploads/2026/07/Cuestionario_Comercial_LMD.docx', adminOnly: false },
+              { titulo: 'Recopilación BP Paraguay', desc: '26 respuestas oficiales sobre visión, estructura, productos, operación y expectativas. Para candidatos a comercial y distribuidores.', badge: 'Semi-interno', url: 'https://lastmiledist.com/wp-content/uploads/2026/07/Respuestas_Cuestionario_BP_Paraguay.docx', adminOnly: false },
+            ],
+          },
+          {
+            categoria: 'Documentos Confidenciales — Solo Admin',
+            items: [
+              { titulo: 'Estrategia Comercial 2026', desc: 'Plan comercial completo con objetivos, canales, objeciones y leads activos.', badge: 'Confidencial', url: 'https://lastmiledist.com/wp-content/uploads/2026/07/Estrategia_Comercial_LMD.docx', adminOnly: true },
+              { titulo: 'Propuesta de Negocio Juan', desc: 'Propuesta formal con proyecciones financieras y modelo de negocio.', badge: 'Confidencial', url: 'https://lastmiledist.com/wp-content/uploads/2026/07/Propuesta_Negocio_Juan_LMD.docx', adminOnly: true },
+              { titulo: 'Pack Legal Comercial', desc: 'Contrato tipo de colaboración y cláusulas para formalizar acuerdos con distribuidores.', badge: 'Confidencial', url: 'https://lastmiledist.com/wp-content/uploads/2026/07/Pack_Legal_Comercial_LMD.docx', adminOnly: true },
+              { titulo: 'Tarifario en Guaraníes 2026', desc: 'Precios por tramos A/B/C en PYG. Estrictamente confidencial — solo equipo interno.', badge: 'Confidencial', url: 'https://lastmiledist.com/wp-content/uploads/2026/07/Tarifario_Guaranies_LMD.docx', adminOnly: true },
+            ],
+          },
+        ];
+        const badgeColor = (b: string) => b === 'Público' ? { bg: '#e8f5e8', txt: '#2d6a2d', bdr: '#b8d4b8' } : b === 'Confidencial' ? { bg: '#fde8e8', txt: VINO, bdr: '#e8b0b0' } : { bg: '#fef3e2', txt: '#8a5500', bdr: '#f0d080' };
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            {docs.map(cat => {
+              const visibleItems = role === 'admin' ? cat.items : cat.items.filter(i => !i.adminOnly);
+              if (visibleItems.length === 0) return null;
+              return (
+                <div key={cat.categoria}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: VINO, borderBottom: `2px solid ${GOLD}`, paddingBottom: '8px', marginBottom: '16px' }}>{cat.categoria}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+                    {visibleItems.map(doc => {
+                      const bc = badgeColor(doc.badge);
+                      return (
+                        <div key={doc.titulo} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '20px', position: 'relative', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <span style={{ position: 'absolute', top: '10px', right: '10px', fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: bc.bg, color: bc.txt, border: `1px solid ${bc.bdr}`, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{doc.badge}</span>
+                          <div style={{ width: '36px', height: '44px', background: VINO, borderRadius: '4px 4px 0 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <span style={{ color: 'white', fontWeight: 700, fontSize: '14px' }}>W</span>
+                          </div>
+                          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)', lineHeight: 1.3 }}>{doc.titulo}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5, flex: 1 }}>{doc.desc}</div>
+                          <a href={doc.url} download target="_blank" rel="noreferrer" style={{ display: 'inline-block', padding: '8px 16px', background: VINO, color: 'white', textDecoration: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, marginTop: '4px', textAlign: 'center' }}>Descargar Word</a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{ background: '#f9f5ee', borderLeft: `4px solid ${GOLD}`, padding: '14px 18px', borderRadius: '0 8px 8px 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+              Todos los documentos están disponibles también en <a href="https://lastmiledist.com/documentos/" target="_blank" rel="noreferrer" style={{ color: VINO }}>lastmiledist.com/documentos/</a>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
