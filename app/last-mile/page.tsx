@@ -2058,9 +2058,6 @@ ${listaProductos}`;
                 </div>
               );
             })}
-            <div style={{ background: '#f9f5ee', borderLeft: `4px solid ${GOLD}`, padding: '14px 18px', borderRadius: '0 8px 8px 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-              Todos los documentos están disponibles también en <a href="https://lastmiledist.com/documentos/" target="_blank" rel="noreferrer" style={{ color: VINO }}>lastmiledist.com/documentos/</a>
-            </div>
           </div>
         );
       })()}
