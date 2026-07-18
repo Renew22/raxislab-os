@@ -6,8 +6,7 @@
 (function () {
   'use strict';
 
-  var API_URL  = 'http://167.233.72.200:8891/api/salon-ia/analyze';
-  var API_KEY  = 'rxl_salon_k9m4';
+  var API_URL  = 'https://raxislab-os.vercel.app/api/salon-ia/analyze';
   var MAX_SIZE = 1200;
 
   var CSS = `
@@ -154,7 +153,6 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Salon-Key': API_KEY
         },
         body: JSON.stringify({
           image_base64: selectedBase64,
