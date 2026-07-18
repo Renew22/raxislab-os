@@ -5,12 +5,10 @@ const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET ?? "raxislab_fallback_secret_change_in_prod"
 );
 
-// Rutas que requieren auth
 const PROTECTED = ["/cliente", "/admin-saas"];
-// Rutas solo para ADMIN
 const ADMIN_ONLY = ["/admin-saas"];
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const needsAuth = PROTECTED.some((p) => pathname.startsWith(p));
@@ -29,7 +27,6 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/cliente/" + payload.clientSlug, req.url));
     }
 
-    // Clientes solo pueden ver su propio slug
     if (pathname.startsWith("/cliente/") && role === "CLIENT") {
       const slug = pathname.split("/")[2];
       if (slug && slug !== payload.clientSlug) {
