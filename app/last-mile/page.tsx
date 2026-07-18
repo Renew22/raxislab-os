@@ -2026,6 +2026,7 @@ ${listaProductos}`;
               { titulo: 'Propuesta de Negocio Juan', desc: 'Propuesta formal con proyecciones financieras y modelo de negocio.', badge: 'Confidencial', url: 'https://lastmiledist.com/wp-content/uploads/2026/07/Propuesta_Negocio_Juan_LMD.docx', adminOnly: true },
               { titulo: 'Pack Legal Comercial', desc: 'Contrato tipo de colaboración y cláusulas para formalizar acuerdos con distribuidores.', badge: 'Confidencial', url: 'https://lastmiledist.com/wp-content/uploads/2026/07/Pack_Legal_Comercial_LMD.docx', adminOnly: true },
               { titulo: 'Tarifario en Guaraníes 2026', desc: 'Precios por tramos A/B/C en PYG. Estrictamente confidencial — solo equipo interno.', badge: 'Confidencial', url: 'https://lastmiledist.com/wp-content/uploads/2026/07/Tarifario_Guaranies_LMD.docx', adminOnly: true },
+              { titulo: 'Análisis de Precios Paraguay 2026', desc: 'Benchmarking de vinos importados y AOVE en Asunción. Posicionamiento recomendado de LMD vs competencia con precios sugeridos en PYG.', badge: 'Confidencial', url: 'https://lastmiledist.com/wp-content/uploads/2026/07/Analisis_Precios_Mercado_Paraguay_2026.docx', adminOnly: true },
             ],
           },
         ];
