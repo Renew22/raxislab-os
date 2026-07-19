@@ -33,7 +33,7 @@ const STORAGE = "raxis_finanzas_v1";
 
 const SEED: FinData = {
   ingresos: [
-    { id:"i1", cliente:"Jorge DeSancho", concepto:"Servicio agencia mensual (Workana)", importe:637, metodo:"Workana → banco", estado:"activo", nota:"Promedio 4 meses: 635.44/636.27/639.59/640.43€. UN solo cliente — no dos entidades distintas.", paquete:"premium", confirmado:true },
+    { id:"i1", cliente:"Jorge DeSancho", concepto:"Agencia marketing completa (Workana) — todo incluido: web, Meta, Google, contenido", importe:637, metodo:"Workana → banco", estado:"activo", nota:"Promedio 4 meses: 635.44/636.27/639.59/640.43€. Paga por TODO el trabajo de agencia, no por vídeos sueltos. No cobrar por vídeo = ya va dentro.", paquete:"premium", confirmado:true },
   ],
   suscripciones: [
     { id:"s1",  servicio:"Canva Pro",          importe:12.00, frecuencia:"mensual",  metodo:"PayPal",         confirmado:true,  nota:"Confirmado banco (CANVAPTYLIM)" },
@@ -41,10 +41,10 @@ const SEED: FinData = {
     { id:"s3",  servicio:"ChatGPT Plus",       importe:8.00,  frecuencia:"mensual",  metodo:"PayPal",         confirmado:true,  nota:"Recurrente" },
     { id:"s4",  servicio:"OpenAI API",         importe:17.00, frecuencia:"variable", metodo:"Tarjeta directa",confirmado:true,  nota:"Variable: 10.88–23.99€/mes. Media estimada 17€" },
     { id:"s5",  servicio:"Anthropic / Claude", importe:21.53, frecuencia:"mensual",  metodo:"Tarjeta directa",confirmado:true,  nota:"Cargo visto 22/06/2026" },
-    { id:"s6",  servicio:"Cloudflare",         importe:3.43,  frecuencia:"mensual",  metodo:"PayPal",         confirmado:false, nota:"⚠️ Visto 1 vez (20/04). ¿Mensual o puntual?" },
-    { id:"s7",  servicio:"Zoho Corp",          importe:59.87, frecuencia:"mensual",  metodo:"PayPal",         confirmado:false, nota:"⚠️ 1 cargo (19/06). ¿Qué servicio Zoho? ¿CRM/Mail? ¿Recurrente?" },
-    { id:"s8",  servicio:"Apple.com/bill",     importe:0,     frecuencia:"mensual",  metodo:"Tarjeta directa",confirmado:false, nota:"⚠️ Múltiples líneas: 1.99/8.99/9.99/22/23.99€. Revisar iPhone → Ajustes → Suscripciones" },
-    { id:"s9",  servicio:"Hetzner (servidor)", importe:0,     frecuencia:"mensual",  metodo:"Por confirmar",  confirmado:false, nota:"⚠️ ¿Cuánto pagas de servidor Hetzner al mes?" },
+    { id:"s6",  servicio:"Cloudflare",         importe:0,     frecuencia:"mensual",  metodo:"—",              confirmado:true,  nota:"No paga actualmente — sin cargo recurrente" },
+    { id:"s7",  servicio:"Zoho Corp (DeSancho)",importe:0,   frecuencia:"mensual",  metodo:"PayPal",         confirmado:true,  nota:"✓ Adelantado por René, reembolsado por DeSancho — NO es gasto propio" },
+    { id:"s8",  servicio:"Apple (móvil/iCloud/Drive)", importe:0, frecuencia:"mensual", metodo:"Tarjeta directa",confirmado:true, nota:"Personal: teléfono + iCloud + Google Drive memoria — NO gasto de negocio" },
+    { id:"s9",  servicio:"Hetzner (servidor)", importe:5,     frecuencia:"mensual",  metodo:"Por confirmar",  confirmado:true,  nota:"~5€/mes confirmado" },
   ],
   editores: [
     { id:"e1", nombre:"Maitena Altesor",        concepto:"Edición vídeo / diseño redes",    importes:[40.62,111.99,66.34,100,59], moneda:"USD", tarifa_variable:true,  tarifa_nota:"Pagos variables. Media ~76€/lote. ⚠️ Confirmar tarifa real: ¿por vídeo, hora o proyecto?" },
@@ -54,19 +54,19 @@ const SEED: FinData = {
     { id:"e5", nombre:"Francisco Jose Herrera", concepto:"Sin concepto especificado",       importes:[30],                          moneda:"USD", tarifa_variable:false, tarifa_nota:"Pago puntual PayPal" },
   ],
   prospectos: [
-    { id:"p1", nombre:"Jagger Club",         tipo:"Discoteca / Venue",  paquete:"Básico (producción vídeo/foto)",       estado:"En negociación — primera noche muestra", nota:"Usar calculadora para precio exacto. NO incluye publicación redes." },
+    { id:"p1", nombre:"Jagger Club",         tipo:"Discoteca / Venue",  paquete:"Básico (producción vídeo/foto)",       estado:"En negociación — primera noche muestra", nota:"Sin factura = cobro informal/efectivo. Precio real: 80–150€/noche para empezar. Ver calculadora." },
     { id:"p2", nombre:"David / Captura Más", tipo:"Contenido",          paquete:"Por definir",                           estado:"Pendiente alcance exacto",                nota:"¿Solo producción o también ads?" },
   ],
   personales: [
     { id:"pp1", concepto:"Interflora Italia",                importe:51.96,  esNegocio:false, nota:"Florería — personal" },
-    { id:"pp2", concepto:"Trainline.com (tren)",             importe:53.91,  esNegocio:null,  nota:"¿Viaje de trabajo (grabación fuera)?" },
-    { id:"pp3", concepto:"Booking.com",                      importe:109.35, esNegocio:null,  nota:"¿Alojamiento viaje de trabajo?" },
+    { id:"pp2", concepto:"Trainline.com (tren)",             importe:53.91,  esNegocio:false, nota:"Ocio / personal" },
+    { id:"pp3", concepto:"Booking.com",                      importe:109.35, esNegocio:false, nota:"Ocio / personal" },
     { id:"pp4", concepto:"Headout Europe (actividades)",     importe:76.98,  esNegocio:false, nota:"Turismo — personal" },
     { id:"pp5", concepto:"Remitly (x2: 96.59 + 74.99)",    importe:171.58, esNegocio:false, nota:"Envíos al extranjero" },
     { id:"pp6", concepto:"Xoom / Luis Benegas (varios)",    importe:0,      esNegocio:null,  nota:"⚠️ ¿Eres tú enviándote dinero o remesas familia? Varios cargos 200–550€" },
     { id:"pp7", concepto:"Payoneer Europe",                  importe:150.00, esNegocio:null,  nota:"¿Cobro de cliente externo? ¿Transferencia propia?" },
   ],
-  jaggerCalc: { nVideos:4, horas:5, valorHora:65, ayudante:100, desplaz:20, margen:0.5, costeEditor:40 },
+  jaggerCalc: { nVideos:3, horas:4, valorHora:25, ayudante:0, desplaz:10, margen:0.4, costeEditor:15 },
 };
 
 // Inventario real del Excel inventario_equipo.xlsx
@@ -131,7 +131,16 @@ export default function FinanzasPage() {
   const [showProp, setShowProp]   = useState(false);
 
   useEffect(() => {
-    try { const d = JSON.parse(localStorage.getItem(STORAGE) || "{}"); if (d.ingresos) setData(d); } catch {}
+    try {
+      const raw = localStorage.getItem(STORAGE);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      // version bump: reset if old data (v1 had Zoho sin corregir)
+      if (d.ingresos && d.suscripciones?.find((s: {id:string}) => s.id==="s7")?.importe > 0) {
+        localStorage.removeItem(STORAGE); return;
+      }
+      if (d.ingresos) setData(d);
+    } catch {}
   }, []);
 
   const persist = useCallback((next: FinData) => {
@@ -533,12 +542,13 @@ export default function FinanzasPage() {
             </div>
 
             <div style={{ ...S.card, border:`1px solid ${C.accent}33`, background:`${C.accent}05` }}>
-              <h3 style={{ fontSize:"12px", fontWeight:700, color:C.accent, margin:"0 0 10px" }}>Estrategia Jagger Club</h3>
+              <h3 style={{ fontSize:"12px", fontWeight:700, color:C.accent, margin:"0 0 10px" }}>Estrategia Jagger Club (realista)</h3>
               <div style={{ fontSize:"11px", color:C.mid, lineHeight:1.9 }}>
-                <div>• <strong style={{ color:C.text }}>Hoy:</strong> primera noche muestra → 3-4 reels en 24h → muestras calidad real</div>
-                <div>• <strong style={{ color:C.text }}>Semana siguiente:</strong> propuesta formal (sesión suelta {eur(jRes.precio)} o pack {eur(jRes.precioMensual)}/mes)</div>
-                <div>• <strong style={{ color:C.text }}>No incluye</strong> publicación en redes del cliente — ellos publican el contenido que entregas</div>
-                <div>• <strong style={{ color:C.text }}>Meta Ads:</strong> ofrecer en 2-3 meses si quieren más gente en el local (+300-400€/mes)</div>
+                <div>• <strong style={{ color:C.amber }}>Sin factura</strong> = cobro en efectivo/Bizum. Normal para empezar con un club.</div>
+                <div>• <strong style={{ color:C.text }}>Hoy gratis:</strong> primera noche → 3 reels en 24h → muestras lo que puedes hacer</div>
+                <div>• <strong style={{ color:C.text }}>Precio real mercado:</strong> 80–120€/noche para arrancar. Subir cuando vean valor.</div>
+                <div>• <strong style={{ color:C.text }}>Semana siguiente:</strong> propuesta informal — "50€/noche o 150€ los 4 viernes del mes"</div>
+                <div>• <strong style={{ color:C.text }}>Escalar:</strong> cuando haya confianza, subir precio y plantear factura / empresa</div>
               </div>
               <button onClick={()=>setShowProp(true)} style={{ ...S.btn, marginTop:"12px", width:"100%", justifyContent:"center" }}>
                 <FileText size={13}/> Ver propuesta (imprimir / PDF)
