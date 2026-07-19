@@ -41,10 +41,13 @@ const SEED: FinData = {
     { id:"s3",  servicio:"ChatGPT Plus",       importe:8.00,  frecuencia:"mensual",  metodo:"PayPal",         confirmado:true,  nota:"Recurrente" },
     { id:"s4",  servicio:"OpenAI API",         importe:17.00, frecuencia:"variable", metodo:"Tarjeta directa",confirmado:true,  nota:"Variable: 10.88–23.99€/mes. Media estimada 17€" },
     { id:"s5",  servicio:"Anthropic / Claude", importe:21.53, frecuencia:"mensual",  metodo:"Tarjeta directa",confirmado:true,  nota:"Cargo visto 22/06/2026" },
-    { id:"s6",  servicio:"Cloudflare",         importe:0,     frecuencia:"mensual",  metodo:"—",              confirmado:true,  nota:"No paga actualmente — sin cargo recurrente" },
-    { id:"s7",  servicio:"Zoho Corp (DeSancho)",importe:0,   frecuencia:"mensual",  metodo:"PayPal",         confirmado:true,  nota:"✓ Adelantado por René, reembolsado por DeSancho — NO es gasto propio" },
-    { id:"s8",  servicio:"Apple (móvil/iCloud/Drive)", importe:0, frecuencia:"mensual", metodo:"Tarjeta directa",confirmado:true, nota:"Personal: teléfono + iCloud + Google Drive memoria — NO gasto de negocio" },
+    { id:"s6",  servicio:"Cloudflare",         importe:3.43,  frecuencia:"mensual",  metodo:"PayPal",         confirmado:false, nota:"⚠️ Visto 1 vez banco (20/04/2026, 3,43€) — pendiente confirmar si es recurrente mensual" },
+    { id:"s7",  servicio:"Zoho Corp",          importe:59.87, frecuencia:"variable", metodo:"PayPal",         confirmado:false, nota:"⚠️ Visto 1 vez banco (19/06/2026, 59,87€) — pendiente aclarar: ¿CRM/email/otro? ¿mensual o pago único? ¿negocio o no?" },
+    { id:"s8",  servicio:"Apple.com/bill (sin desglosar)", importe:0, frecuencia:"mensual", metodo:"Tarjeta directa", confirmado:false, nota:"⚠️ 215,83€ en 3 meses (múltiples suscripciones Apple). Desglosar desde iPhone Ajustes > Suscripciones" },
     { id:"s9",  servicio:"Hetzner (servidor)", importe:5,     frecuencia:"mensual",  metodo:"Por confirmar",  confirmado:true,  nota:"~5€/mes confirmado" },
+    { id:"s10", servicio:"Windsor.ai",         importe:0,     frecuencia:"mensual",  metodo:"Tarjeta directa",confirmado:false, nota:"⚠️ CANCELAR — aparece en extracto banco 3 meses. Regla: usar Meta Ads API directa, no Windsor.ai" },
+    { id:"s11", servicio:"Genspark",           importe:0,     frecuencia:"mensual",  metodo:"Tarjeta directa",confirmado:false, nota:"Aparece en extracto banco 3 meses — confirmar importe exacto y si sigue activo" },
+    { id:"s12", servicio:"Renting Tec (equipo)", importe:0,   frecuencia:"mensual",  metodo:"Por confirmar",  confirmado:false, nota:"Aparece en extracto banco 3 meses — confirmar importe y si ya terminó el contrato" },
   ],
   editores: [
     { id:"e1", nombre:"Maitena Altesor",        concepto:"Edición vídeo / diseño redes",    importes:[40.62,111.99,66.34,100,59], moneda:"USD", tarifa_variable:true,  tarifa_nota:"Pagos variables. Media ~76€/lote. ⚠️ Confirmar tarifa real: ¿por vídeo, hora o proyecto?" },
@@ -58,13 +61,19 @@ const SEED: FinData = {
     { id:"p2", nombre:"David / Captura Más", tipo:"Contenido",          paquete:"Por definir",                           estado:"Pendiente alcance exacto",                nota:"¿Solo producción o también ads?" },
   ],
   personales: [
-    { id:"pp1", concepto:"Interflora Italia",                importe:51.96,  esNegocio:false, nota:"Florería — personal" },
-    { id:"pp2", concepto:"Trainline.com (tren)",             importe:53.91,  esNegocio:false, nota:"Ocio / personal" },
-    { id:"pp3", concepto:"Booking.com",                      importe:109.35, esNegocio:false, nota:"Ocio / personal" },
-    { id:"pp4", concepto:"Headout Europe (actividades)",     importe:76.98,  esNegocio:false, nota:"Turismo — personal" },
-    { id:"pp5", concepto:"Remitly (x2: 96.59 + 74.99)",    importe:171.58, esNegocio:false, nota:"Envíos al extranjero" },
-    { id:"pp6", concepto:"Xoom / Luis Benegas (varios)",    importe:0,      esNegocio:null,  nota:"⚠️ ¿Eres tú enviándote dinero o remesas familia? Varios cargos 200–550€" },
-    { id:"pp7", concepto:"Payoneer Europe",                  importe:150.00, esNegocio:null,  nota:"¿Cobro de cliente externo? ¿Transferencia propia?" },
+    // ── Extracto bancario completo 3 meses (abr–jul 2026) ──
+    { id:"pp-nom", concepto:"🟢 Nómina Recaba Inversiones Turísticas S.L.",  importe:-2885,  esNegocio:false, nota:"INGRESO personal (NO Raxislab): 1.385€ + 1.500€ en 3 meses. Trabajo por cuenta ajena aparte de la agencia. No mezclar con P&L." },
+    { id:"pp8",  concepto:"Apuestas: Bet365 + Pokerstars (3 meses)",         importe:632.00, esNegocio:false, nota:"Total 3 meses. Personal — no es gasto de negocio." },
+    { id:"pp9",  concepto:"Transferencias/Bizum familia (3 meses)",          importe:1485.00,esNegocio:null,  nota:"Múltiples transferencias/Bizum a familia. ⚠️ Confirmar si son remesas, préstamos o algo más." },
+    { id:"pp10", concepto:"Compras online / tiendas (3 meses)",              importe:1477.10,esNegocio:null,  nota:"Amazon + otras tiendas. ⚠️ ¿Hay algún equipo de negocio comprado aquí? Revisar." },
+    { id:"pp11", concepto:"Restaurantes / bares / ocio nocturno (3 meses)", importe:360.74, esNegocio:null,  nota:"⚠️ ¿Alguna cena de trabajo o reunión con cliente?" },
+    { id:"pp1",  concepto:"Interflora Italia",                               importe:51.96,  esNegocio:false, nota:"Florería — personal" },
+    { id:"pp2",  concepto:"Trainline.com (tren)",                            importe:53.91,  esNegocio:null,  nota:"⚠️ ¿Viaje de trabajo / grabación fuera o personal?" },
+    { id:"pp3",  concepto:"Booking.com",                                     importe:109.35, esNegocio:null,  nota:"⚠️ ¿Alojamiento de trabajo o vacaciones?" },
+    { id:"pp4",  concepto:"Headout Europe (actividades turísticas)",         importe:76.98,  esNegocio:false, nota:"Turismo — personal" },
+    { id:"pp5",  concepto:"Remitly (x2: 96.59 + 74.99)",                   importe:171.58, esNegocio:false, nota:"Envíos al extranjero — personal" },
+    { id:"pp6",  concepto:"Xoom / Luis Benegas (varios pagos 200–550€)",   importe:0,      esNegocio:null,  nota:"⚠️ ¿Eres tú enviándote dinero a ti mismo, o remesas familia?" },
+    { id:"pp7",  concepto:"Payoneer Europe",                                 importe:150.00, esNegocio:null,  nota:"⚠️ ¿Cobro de cliente externo, transferencia propia o comisión?" },
   ],
   jaggerCalc: { nVideos:3, horas:4, valorHora:25, ayudante:0, desplaz:10, margen:0.4, costeEditor:15 },
 };
@@ -135,8 +144,8 @@ export default function FinanzasPage() {
       const raw = localStorage.getItem(STORAGE);
       if (!raw) return;
       const d = JSON.parse(raw);
-      // version bump: reset if old data (v1 had Zoho sin corregir)
-      if (d.ingresos && d.suscripciones?.find((s: {id:string}) => s.id==="s7")?.importe > 0) {
+      // version v2: reset if missing Windsor.ai (s10) — new subs added jul-19
+      if (!d.suscripciones?.find((s: {id:string}) => s.id==="s10")) {
         localStorage.removeItem(STORAGE); return;
       }
       if (d.ingresos) setData(d);
@@ -156,12 +165,18 @@ export default function FinanzasPage() {
   const equipoCats  = [...new Set(EQUIPO.map(e => e.cat))];
 
   const pendientes = [
-    ...data.suscripciones.filter(s => !s.confirmado).map(s => ({ txt:`${s.servicio}: ${s.nota}`, w:true })),
+    { txt:"Windsor.ai: CANCELAR — aparece en banco 3 meses. Regla: usar Meta API directa.", w:true },
+    { txt:"Zoho Corp (59,87€): ¿qué servicio? ¿CRM, email, otro? ¿mensual o pago único?", w:true },
+    { txt:"Apple.com/bill: desglosar desde iPhone Ajustes > Suscripciones (215,83€ en 3 meses)", w:true },
+    { txt:"Cloudflare (3,43€): ¿cargo recurrente mensual o puntual?", w:false },
+    { txt:"Genspark + Renting Tec: confirmar importe exacto y si siguen activos", w:true },
     { txt:"David Urrutia: tarifa por vídeo sin confirmar", w:true },
     { txt:"Maitena Altesor: ¿tarifa por vídeo, hora o proyecto?", w:false },
-    { txt:"Desglose Apple.com/bill → iPhone Ajustes → Suscripciones", w:true },
-    { txt:"Xoom / Luis Benegas: ¿enviándote a ti mismo o remesas?", w:false },
+    { txt:"Xoom / Luis Benegas: ¿enviándote a ti mismo o remesas familia?", w:false },
     { txt:"Booking/Trainline/Headout: ¿viaje de trabajo o personal?", w:false },
+    { txt:"Transferencias Bizum familia -1.485€: ¿remesas, préstamos o qué?", w:false },
+    { txt:"Compras online -1.477€: ¿hay algún equipo de negocio aquí?", w:false },
+    { txt:"Workana: ¿cuánto has retirado al banco en estos 3 meses? Cruzar con P&L.", w:true },
   ];
 
   return (
@@ -289,6 +304,31 @@ export default function FinanzasPage() {
                   <div style={{ ...S.mono, fontSize:"22px", fontWeight:900, color:c }}>{v}</div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Extracto bancario 3 meses */}
+          <div style={{ ...S.card, border:`1px solid ${C.blue}33`, background:`${C.blue}06` }}>
+            <h3 style={{ fontSize:"12px", fontWeight:700, color:C.blue, margin:"0 0 12px" }}>Extracto banco confirmado — 3 meses (abr–jul 2026)</h3>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"10px", marginBottom:"10px" }}>
+              {[
+                { l:"Ingresos negocio en banco",  v:"0 €",          c:C.amber, note:"Workana retenido — no retirado al banco aún" },
+                { l:"Ingresos Workana (estimado)", v:"~1.911 €",    c:C.green, note:"637€/mes × 3 — pendiente verificar retiradas" },
+                { l:"Gastos negocio confirmados",  v:"-791,49 €",   c:C.red,   note:"Susc. -318,82€ + Editores -472,67€" },
+                { l:"Neto 3 meses (estimado)",     v:"~1.119 €",    c:C.green, note:"Si Workana se retira. ~373€/mes" },
+              ].map(({l,v,c,note})=>(
+                <div key={l} style={{ background:C.bg, borderRadius:"7px", padding:"10px 12px", border:`1px solid ${C.border}` }}>
+                  <div style={{ fontSize:"10px", color:C.muted, marginBottom:"3px" }}>{l}</div>
+                  <div style={{ ...S.mono, fontSize:"15px", fontWeight:800, color:c }}>{v}</div>
+                  <div style={{ fontSize:"10px", color:C.muted, marginTop:"3px", lineHeight:1.4 }}>{note}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize:"11px", color:C.amber, lineHeight:1.6 }}>
+              ⚠️ <strong>El banco muestra 0€ de ingresos de Raxislab</strong> porque Jorge DeSancho paga vía Workana y el dinero se queda en Workana/PayPal sin retirar al banco todavía. Confirma cuánto has retirado de Workana en este periodo para cruzar los datos.
+            </div>
+            <div style={{ marginTop:"8px", fontSize:"11px", color:C.mid, lineHeight:1.6 }}>
+              🏢 <strong style={{color:C.text}}>Nómina Recaba Inversiones:</strong> 2.885€ en 3 meses (ingresos por cuenta ajena, NO de Raxislab). Fuente de estabilidad personal, tratar por separado en tab Personales.
             </div>
           </div>
 
@@ -570,30 +610,38 @@ export default function FinanzasPage() {
                 {["Concepto","Importe","¿Negocio?","Nota"].map(h=><th key={h} style={{ padding:"9px 16px", textAlign:"left", color:C.muted, fontWeight:600, fontSize:"10px", textTransform:"uppercase", letterSpacing:"0.07em" }}>{h}</th>)}
               </tr></thead>
               <tbody>
-                {data.personales.map(p => (
-                  <tr key={p.id} style={{ borderBottom:`1px solid ${C.border}22` }}>
-                    <td style={{ padding:"9px 16px", fontWeight:600, color:C.text }}>{p.concepto}</td>
-                    <td style={{ padding:"9px 16px", ...S.mono, color:p.importe?C.text:C.muted }}>{p.importe?eurD(p.importe):"?"}</td>
-                    <td style={{ padding:"9px 16px" }}>
-                      <div style={{ display:"flex", gap:"8px" }}>
-                        {([true,false,null] as const).map(v=>(
-                          <label key={String(v)} style={{ display:"flex", alignItems:"center", gap:"4px", cursor:"pointer", fontSize:"11px", color:p.esNegocio===v?C.accent:C.muted }}>
-                            <input type="radio" checked={p.esNegocio===v}
-                              onChange={()=>persist({ ...data, personales:data.personales.map(x=>x.id===p.id?{...x,esNegocio:v}:x) })}
-                              style={{ accentColor:C.accent }} />
-                            {v===true?"Sí":v===false?"No":"?"}
-                          </label>
-                        ))}
-                      </div>
-                    </td>
-                    <td style={{ padding:"9px 16px", color:C.muted, fontSize:"11px" }}>{p.nota}</td>
-                  </tr>
-                ))}
+                {data.personales.map(p => {
+                  const esIngreso = p.importe < 0;
+                  return (
+                    <tr key={p.id} style={{ borderBottom:`1px solid ${C.border}22`, background:esIngreso?`${C.green}06`:undefined }}>
+                      <td style={{ padding:"9px 16px", fontWeight:600, color:esIngreso?C.green:C.text }}>{p.concepto}</td>
+                      <td style={{ padding:"9px 16px", ...S.mono, color:esIngreso?C.green:p.importe?C.text:C.muted }}>
+                        {esIngreso ? `+${eurD(Math.abs(p.importe))}` : p.importe ? eurD(p.importe) : "?"}
+                      </td>
+                      <td style={{ padding:"9px 16px" }}>
+                        {esIngreso
+                          ? <span style={{ fontSize:"10px", color:C.green, fontWeight:700 }}>INGRESO</span>
+                          : <div style={{ display:"flex", gap:"8px" }}>
+                              {([true,false,null] as const).map(v=>(
+                                <label key={String(v)} style={{ display:"flex", alignItems:"center", gap:"4px", cursor:"pointer", fontSize:"11px", color:p.esNegocio===v?C.accent:C.muted }}>
+                                  <input type="radio" checked={p.esNegocio===v}
+                                    onChange={()=>persist({ ...data, personales:data.personales.map(x=>x.id===p.id?{...x,esNegocio:v}:x) })}
+                                    style={{ accentColor:C.accent }} />
+                                  {v===true?"Sí":v===false?"No":"?"}
+                                </label>
+                              ))}
+                            </div>
+                        }
+                      </td>
+                      <td style={{ padding:"9px 16px", color:C.muted, fontSize:"11px" }}>{p.nota}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
           <div style={{ fontSize:"11px", color:C.mid }}>
-            Gastos marcados como negocio: <strong style={{ color:C.text, ...S.mono }}>{eurD(data.personales.filter(p=>p.esNegocio===true).reduce((s,p)=>s+p.importe,0))}</strong> — se añadirán al P&L cuando los confirmes.
+            Gastos marcados como negocio: <strong style={{ color:C.text, ...S.mono }}>{eurD(data.personales.filter(p=>p.esNegocio===true && p.importe>0).reduce((s,p)=>s+p.importe,0))}</strong> — se añadirán al P&L cuando los confirmes.
           </div>
         </div>
       )}

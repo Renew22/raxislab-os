@@ -2,11 +2,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { Camera, Package, Calculator, FileText, Plus, Trash2, Save } from "lucide-react";
 
-/* ── Design tokens ── */
+/* ── Design tokens — matches app globals.css dark theme ── */
 const C = {
-  bg: "#0A0A0F", card: "#13131A", border: "#1E1E2E",
-  accent: "#C8F542", green: "#00C864", red: "#FF3232", amber: "#FFAA00",
-  text: "#E8E8F0", mid: "#9898B0", muted: "#5A5A70",
+  bg: "#0A0A0A", card: "#141414", border: "rgba(255,255,255,0.07)",
+  accent: "#1E9BF0", green: "#00E676", red: "#FF3D71", amber: "#FFB800",
+  text: "#FFFFFF", mid: "#9AA3AD", muted: "#5A6470",
 };
 const S: Record<string, React.CSSProperties> = {
   card:  { background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" },
