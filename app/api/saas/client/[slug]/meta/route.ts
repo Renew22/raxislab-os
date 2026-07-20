@@ -27,9 +27,11 @@ export async function GET(
     return NextResponse.json({ error: "Sin cuenta Meta configurada" }, { status: 404 });
   }
 
-  // Obtener token: primero el del cliente, luego el global
+  // Token: DB → env por cliente (META_TOKEN_DESANCHO, META_TOKEN_IDENTITY…) → global
+  const envKey = `META_TOKEN_${slug.toUpperCase()}`;
   const token =
     integration.accessToken ??
+    process.env[envKey] ??
     process.env.META_ACCESS_TOKEN;
 
   if (!token) return NextResponse.json({ error: "Sin token Meta" }, { status: 500 });
