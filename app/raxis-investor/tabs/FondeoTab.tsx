@@ -146,6 +146,7 @@ export default function FondeoTab() {
   const [showCuentaForm, setShowCuentaForm] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const prevSniperRef = useRef<"red" | "yellow" | "green">("red");
+  const tvLoaded = useRef(false);
 
   useEffect(() => {
     try {
@@ -202,6 +203,41 @@ export default function FondeoTab() {
     prevSniperRef.current = lvl;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [xauSignal]);
+
+  useEffect(() => {
+    if (tab !== "signal") return;
+    const containerId = "raxis-xau-tv";
+    function initTV() {
+      const el = document.getElementById(containerId);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!el || !(window as any).TradingView) return;
+      el.innerHTML = "";
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      new (window as any).TradingView.widget({
+        autosize: true, symbol: "XAUUSD", interval: "15",
+        timezone: "Etc/UTC", theme: "dark", style: "1", locale: "es",
+        enable_publishing: false, allow_symbol_change: false,
+        hide_top_toolbar: false, hide_legend: false,
+        container_id: containerId,
+        studies: ["RSI@tv-basicstudies", "MAExp@tv-basicstudies", "Volume@tv-basicstudies"],
+        studies_overrides: {
+          "moving average exponential.length": 50,
+          "moving average exponential.linewidth": 2,
+        },
+      });
+    }
+    if (tvLoaded.current) { setTimeout(initTV, 80); }
+    else {
+      const existing = document.querySelector('script[src*="tradingview.com/tv.js"]');
+      if (existing) { tvLoaded.current = true; setTimeout(initTV, 80); return; }
+      const s = document.createElement("script");
+      s.src = "https://s3.tradingview.com/tv.js";
+      s.async = true;
+      s.onload = () => { tvLoaded.current = true; initTV(); };
+      document.head.appendChild(s);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   async function fetchBacktest() {
     setBtLoading(true);
@@ -507,6 +543,101 @@ export default function FondeoTab() {
       {/* ══════ TAB: SEÑAL XAU ══════ */}
       {tab === "signal" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+          {/* ── GRÁFICO TRADINGVIEW LIVE ── */}
+          <div style={{ ...CARD, padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--card)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--text)", fontFamily: "monospace" }}>XAU/USD</span>
+                <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "4px", background: "rgba(30,155,240,0.12)", color: "var(--accent)", fontWeight: 600 }}>15 MIN</span>
+                <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "var(--green)", boxShadow: "0 0 5px var(--green)", display: "inline-block" }}/>
+                <span style={{ fontSize: "11px", color: "var(--green)", fontWeight: 600 }}>LIVE</span>
+              </div>
+              <div style={{ display: "flex", gap: "14px", fontSize: "11px", color: "var(--text-muted)" }}>
+                <span>📊 RSI · Volume · EMA</span>
+                <span>|</span>
+                <span title="Para Order Blocks y FVG: añade 'Smart Money Concepts' (Luxalgo) desde el panel de indicadores de TradingView" style={{ cursor: "help" }}>
+                  💡 SMC: busca &quot;Smart Money Concepts&quot; en indicadores
+                </span>
+              </div>
+            </div>
+            <div id="raxis-xau-tv" style={{ height: "460px", width: "100%", background: "#0A0A0A" }} />
+          </div>
+
+          {/* ── MAPA VISUAL DE ZONAS ── */}
+          {xauSignal?.price != null && xauSignal.sr_levels?.length > 0 && (() => {
+            const levels = xauSignal.sr_levels.map(l => l.level);
+            const e1 = nearestSR?.level ?? xauSignal.price;
+            const e2 = xauSignal.ema50 ?? xauSignal.price;
+            const allPts = [...levels, xauSignal.price, e1, e2].filter(Boolean);
+            const minP = Math.min(...allPts) - 12;
+            const maxP = Math.max(...allPts) + 12;
+            const range = maxP - minP;
+            const pct = (p: number) => Math.max(1, Math.min(99, ((p - minP) / range) * 100));
+            const isActive = xauSignal.signal !== "AGUARDAR";
+            return (
+              <div style={CARD}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--text)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Mapa de zonas</span>
+                  <div style={{ display: "flex", gap: "10px", fontSize: "10px" }}>
+                    <span style={{ color: "var(--text-muted)" }}>⬤ Precio</span>
+                    <span style={{ color: "var(--green)" }}>▐ Soporte</span>
+                    <span style={{ color: "var(--red)" }}>▐ Resistencia</span>
+                    {isActive && <span style={{ color: sigColor }}>■ Entradas</span>}
+                  </div>
+                </div>
+                {/* Barra horizontal precio */}
+                <div style={{ position: "relative", height: "64px", marginBottom: "6px" }}>
+                  {/* Track */}
+                  <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: "3px", transform: "translateY(-50%)", background: "var(--border)", borderRadius: "999px" }} />
+                  {/* Session highlight London */}
+                  <div style={{ position: "absolute", top: "50%", left: "20%", width: "30%", height: "20px", transform: "translateY(-50%)", background: "rgba(30,155,240,0.06)", borderRadius: "4px", border: "1px solid rgba(30,155,240,0.15)" }}>
+                    <span style={{ position: "absolute", bottom: "-14px", left: "50%", transform: "translateX(-50%)", fontSize: "9px", color: "rgba(30,155,240,0.5)", whiteSpace: "nowrap" }}>zona London</span>
+                  </div>
+                  {/* S/R levels */}
+                  {xauSignal.sr_levels.map((l, i) => (
+                    <div key={i} style={{ position: "absolute", top: 0, bottom: 0, left: `${pct(l.level)}%`, width: "2px", transform: "translateX(-50%)", background: l.type === "resistance" ? "var(--red)" : "var(--green)", opacity: 0.8 }}>
+                      <span style={{ position: "absolute", top: "2px", left: "4px", fontSize: "9px", whiteSpace: "nowrap", fontFamily: "monospace", color: l.type === "resistance" ? "var(--red)" : "var(--green)", fontWeight: 700 }}>
+                        {l.type === "resistance" ? "R" : "S"} {l.level.toFixed(0)}
+                      </span>
+                    </div>
+                  ))}
+                  {/* Entry zones E1/E2 when signal active */}
+                  {isActive && nearestSR && (
+                    <>
+                      <div style={{ position: "absolute", top: "50%", left: `${pct(e1)}%`, transform: "translateX(-50%) translateY(-50%)", width: "9px", height: "9px", borderRadius: "2px", background: sigColor, zIndex: 3 }}>
+                        <span style={{ position: "absolute", bottom: "12px", left: "50%", transform: "translateX(-50%)", fontSize: "9px", fontFamily: "monospace", color: sigColor, whiteSpace: "nowrap", fontWeight: 700 }}>E1</span>
+                      </div>
+                      {xauSignal.ema50 && (
+                        <div style={{ position: "absolute", top: "50%", left: `${pct(e2)}%`, transform: "translateX(-50%) translateY(-50%)", width: "7px", height: "7px", borderRadius: "2px", background: sigColor, opacity: 0.7, zIndex: 3 }}>
+                          <span style={{ position: "absolute", bottom: "10px", left: "50%", transform: "translateX(-50%)", fontSize: "9px", fontFamily: "monospace", color: sigColor, whiteSpace: "nowrap", fontWeight: 600, opacity: 0.7 }}>E2</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {/* Current price dot */}
+                  <div style={{ position: "absolute", top: "50%", left: `${pct(xauSignal.price)}%`, transform: "translateX(-50%) translateY(-50%)", width: "13px", height: "13px", borderRadius: "50%", background: "var(--accent)", boxShadow: "0 0 9px var(--accent)", zIndex: 4 }}>
+                    <span style={{ position: "absolute", top: "16px", left: "50%", transform: "translateX(-50%)", fontSize: "10px", fontFamily: "monospace", color: "var(--accent)", whiteSpace: "nowrap", fontWeight: 800 }}>${xauSignal.price.toFixed(0)}</span>
+                  </div>
+                </div>
+                {/* Indicadores bajo barra */}
+                <div style={{ display: "flex", gap: "16px", marginTop: "20px", flexWrap: "wrap" }}>
+                  {[
+                    { l: "RSI 14", v: xauSignal.rsi14?.toFixed(1) ?? "—", c: xauSignal.rsi14 != null ? (xauSignal.rsi14 >= 70 ? "var(--red)" : xauSignal.rsi14 <= 30 ? "var(--green)" : "var(--text-mid)") : "var(--text-muted)" },
+                    { l: "EMA 50", v: xauSignal.ema50 ? `$${xauSignal.ema50.toFixed(0)}` : "—", c: xauSignal.price && xauSignal.ema50 ? (xauSignal.price > xauSignal.ema50 ? "var(--green)" : "var(--red)") : "var(--text-mid)" },
+                    { l: "EMA 200", v: xauSignal.ema200 ? `$${xauSignal.ema200.toFixed(0)}` : "—", c: xauSignal.price && xauSignal.ema200 ? (xauSignal.price > xauSignal.ema200 ? "var(--green)" : "var(--red)") : "var(--text-mid)" },
+                    { l: "Tendencia", v: xauSignal.trend === "BULL" ? "↑ ALCISTA" : "↓ BAJISTA", c: xauSignal.trend === "BULL" ? "var(--green)" : "var(--red)" },
+                    { l: "Sesión", v: session.name, c: session.color },
+                  ].map(({ l, v, c }) => (
+                    <div key={l} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em" }}>{l}</span>
+                      <span style={{ fontSize: "14px", fontWeight: 700, color: c, fontFamily: "monospace" }}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── SNIPER PANEL ── */}
           <div style={{ ...CARD, border: `2px solid ${sniperColor}`, background: `${sniperColor}08`, padding: "18px 24px" }}>
