@@ -3,9 +3,9 @@ import { useState, useEffect, useCallback } from "react";
 import { TrendingUp, AlertTriangle, CheckCircle, Edit3, Save, X, FileText } from "lucide-react";
 
 const C = {
-  bg: "#0A0A0F", card: "#13131A", border: "#1E1E2E",
-  accent: "#C8F542", green: "#00C864", red: "#FF3232", amber: "#FFAA00", blue: "#4499FF",
-  text: "#E8E8F0", mid: "#9898B0", muted: "#5A5A70",
+  bg: "var(--bg)", card: "var(--card)", border: "var(--border)",
+  accent: "#1E9BF0", green: "#00E676", red: "#FF3D71", amber: "#FFB800", blue: "#4499FF",
+  text: "var(--text)", mid: "var(--text-mid)", muted: "var(--text-muted)",
 };
 const S: Record<string, React.CSSProperties> = {
   card:  { background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" },
@@ -15,7 +15,7 @@ const S: Record<string, React.CSSProperties> = {
   mono:  { fontFamily: "'Space Mono', monospace" },
   ghost: { padding: "6px 12px", borderRadius: "6px", border: `1px solid ${C.border}`, background: "transparent", color: C.mid, fontSize: "11px", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px" },
 };
-function badge(c: string): React.CSSProperties { return { fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "4px", background: `${c}18`, color: c, border: `1px solid ${c}33` }; }
+function badge(c: string): React.CSSProperties { return { fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "4px", background: `color-mix(in srgb, ${c} 9%, transparent)`, color: c, border: `1px solid color-mix(in srgb, ${c} 20%, transparent)` }; }
 
 function eur(n: number) { return n.toLocaleString("es", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }); }
 function eurD(n: number) { return n.toLocaleString("es", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -62,7 +62,7 @@ const SEED: FinData = {
   ],
   personales: [
     // ── Extracto bancario completo 3 meses (abr–jul 2026) ──
-    { id:"pp-nom", concepto:"🟢 Nómina Recaba Inversiones Turísticas S.L.",  importe:-2885,  esNegocio:false, nota:"INGRESO personal (NO Raxislab): 1.385€ + 1.500€ en 3 meses. Trabajo por cuenta ajena aparte de la agencia. No mezclar con P&L." },
+    { id:"pp-nom", concepto:"⚠️ Nómina Recaba Inversiones (ya no activa desde jul 2026)", importe:0, esNegocio:false, nota:"Era ingreso personal (1.385–1.500€/mes). Contrato terminado. Ahora solo: paro + ingresos clientes Raxislab. Actualiza tus proyecciones de caja." },
     { id:"pp8",  concepto:"Apuestas: Bet365 + Pokerstars (3 meses)",         importe:632.00, esNegocio:false, nota:"Total 3 meses. Personal — no es gasto de negocio." },
     { id:"pp9",  concepto:"Transferencias/Bizum familia (3 meses)",          importe:1485.00,esNegocio:null,  nota:"Múltiples transferencias/Bizum a familia. ⚠️ Confirmar si son remesas, préstamos o algo más." },
     { id:"pp10", concepto:"Compras online / tiendas (3 meses)",              importe:1477.10,esNegocio:null,  nota:"Amazon + otras tiendas. ⚠️ ¿Hay algún equipo de negocio comprado aquí? Revisar." },
@@ -262,7 +262,7 @@ export default function FinanzasPage() {
               <h3 style={{ fontSize:"13px", fontWeight:600, color:C.red, margin:"0 0 12px" }}>↓ Gastos</h3>
               <div style={{ fontSize:"10px", color:C.muted, fontWeight:700, marginBottom:"6px" }}>SUSCRIPCIONES</div>
               {data.suscripciones.filter(s => s.importe > 0).map(s => (
-                <div key={s.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", borderBottom:`1px solid ${C.border}22` }}>
+                <div key={s.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", borderBottom:"1px solid var(--border)" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:"5px" }}>
                     <span style={{ fontSize:"11px", color:s.confirmado?C.mid:C.amber }}>{s.servicio}</span>
                     {!s.confirmado && <span style={{ fontSize:"9px" }}>⚠️</span>}
@@ -278,7 +278,7 @@ export default function FinanzasPage() {
               {data.editores.map(e => {
                 const tot = e.importes.reduce((a,b)=>a+b,0) * (e.moneda==="USD"?0.92:1);
                 return (
-                  <div key={e.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", borderBottom:`1px solid ${C.border}22` }}>
+                  <div key={e.id} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", borderBottom:"1px solid var(--border)" }}>
                     <span style={{ fontSize:"11px", color:C.mid }}>{e.nombre.split(" ")[0]}</span>
                     <span style={{ ...S.mono, fontSize:"11px" }}>{eurD(tot/5)}/mes</span>
                   </div>
@@ -327,8 +327,8 @@ export default function FinanzasPage() {
             <div style={{ fontSize:"11px", color:C.amber, lineHeight:1.6 }}>
               ⚠️ <strong>El banco muestra 0€ de ingresos de Raxislab</strong> porque Jorge DeSancho paga vía Workana y el dinero se queda en Workana/PayPal sin retirar al banco todavía. Confirma cuánto has retirado de Workana en este periodo para cruzar los datos.
             </div>
-            <div style={{ marginTop:"8px", fontSize:"11px", color:C.mid, lineHeight:1.6 }}>
-              🏢 <strong style={{color:C.text}}>Nómina Recaba Inversiones:</strong> 2.885€ en 3 meses (ingresos por cuenta ajena, NO de Raxislab). Fuente de estabilidad personal, tratar por separado en tab Personales.
+            <div style={{ marginTop:"8px", fontSize:"11px", color:C.red, lineHeight:1.6, padding:"7px 10px", background:`color-mix(in srgb, ${C.red} 6%, transparent)`, borderRadius:"6px" }}>
+              🚨 <strong>Recaba Inversiones: contrato terminado julio 2026</strong> — ya no hay nómina. Ingresos actuales = paro + clientes Raxislab. Prioridad: cerrar nuevos clientes para compensar.
             </div>
           </div>
 
@@ -421,7 +421,7 @@ export default function FinanzasPage() {
               </tr></thead>
               <tbody>
                 {data.suscripciones.map(s => (
-                  <tr key={s.id} style={{ borderBottom:`1px solid ${C.border}22` }}>
+                  <tr key={s.id} style={{ borderBottom:"1px solid var(--border)" }}>
                     <td style={{ padding:"8px 14px", fontWeight:600, color:C.text }}>{s.servicio}</td>
                     <td style={{ padding:"8px 14px", ...S.mono, color:s.importe?C.text:C.muted }}>{s.importe?eurD(s.importe):"?"}</td>
                     <td style={{ padding:"8px 14px", color:C.mid }}>{s.frecuencia}</td>
@@ -446,7 +446,7 @@ export default function FinanzasPage() {
             {data.editores.map(e => {
               const tot = e.importes.reduce((a,b)=>a+b,0) * (e.moneda==="USD"?0.92:1);
               return (
-                <div key={e.id} style={{ padding:"12px 18px", borderBottom:`1px solid ${C.border}22` }}>
+                <div key={e.id} style={{ padding:"12px 18px", borderBottom:"1px solid var(--border)" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"3px" }}>
                     <span style={{ fontWeight:700, fontSize:"12px" }}>{e.nombre}</span>
                     <span style={{ ...S.mono, fontSize:"12px", fontWeight:700 }}>{eurD(tot)}</span>
@@ -484,7 +484,7 @@ export default function FinanzasPage() {
               </tr></thead>
               <tbody>
                 {equipoCats.flatMap(cat => EQUIPO.filter(e=>e.cat===cat).map((e,j) => (
-                  <tr key={e.item} style={{ borderBottom:`1px solid ${C.border}22` }}>
+                  <tr key={e.item} style={{ borderBottom:"1px solid var(--border)" }}>
                     {j===0 && <td rowSpan={EQUIPO.filter(x=>x.cat===cat).length} style={{ padding:"9px 16px", verticalAlign:"top" }}>
                       <span style={{ ...badge(cat==="Trabajo"?C.blue:C.accent) }}>{cat}</span>
                     </td>}
@@ -613,7 +613,7 @@ export default function FinanzasPage() {
                 {data.personales.map(p => {
                   const esIngreso = p.importe < 0;
                   return (
-                    <tr key={p.id} style={{ borderBottom:`1px solid ${C.border}22`, background:esIngreso?`${C.green}06`:undefined }}>
+                    <tr key={p.id} style={{ borderBottom:"1px solid var(--border)", background:esIngreso?`${C.green}06`:undefined }}>
                       <td style={{ padding:"9px 16px", fontWeight:600, color:esIngreso?C.green:C.text }}>{p.concepto}</td>
                       <td style={{ padding:"9px 16px", ...S.mono, color:esIngreso?C.green:p.importe?C.text:C.muted }}>
                         {esIngreso ? `+${eurD(Math.abs(p.importe))}` : p.importe ? eurD(p.importe) : "?"}
