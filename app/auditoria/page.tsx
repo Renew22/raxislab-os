@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Search, Zap, Users, RefreshCw, ExternalLink, Copy, CheckCircle, AlertTriangle, XCircle, Globe, Star, Smartphone, Monitor, Phone } from "lucide-react";
+import { Search, Zap, Users, RefreshCw, ExternalLink, Copy, CheckCircle, AlertTriangle, XCircle, Globe, Star, Smartphone, Monitor, Phone, Instagram, ClipboardPaste } from "lucide-react";
 
 /* ── Types ── */
 interface PSScore { performance: number; seo: number; accessibility: number; best_practices: number; fcp?: string; lcp?: string; cls?: string; tbt?: string; speed_index?: string; error?: string }
@@ -19,7 +19,24 @@ interface AuditResult {
 interface DemoResult { demoUrl?: string; slug?: string; business?: { name: string; address?: string; phone?: string; rating?: number }; hasWebsite?: boolean; existingUrl?: string; url?: string; error?: string }
 interface Lead { slug: string; business: string; telefono?: string; demoUrl: string; fecha: string; rating?: number; reviewsTotal?: number; address?: string }
 
-/* ── Design tokens (CSS vars — respetan el tema light/dark) ── */
+/* ── Social media detection ── */
+const SOCIAL_DOMAINS = ["instagram.com", "facebook.com", "fb.com", "tiktok.com", "twitter.com", "x.com", "youtube.com", "linkedin.com", "pinterest.com", "snapchat.com"];
+function isSocialUrl(url: string): string | null {
+  try {
+    const host = new URL(url.startsWith("http") ? url : "https://" + url).hostname.replace("www.", "");
+    const match = SOCIAL_DOMAINS.find(d => host === d || host.endsWith("." + d));
+    if (!match) return null;
+    if (match.includes("instagram")) return "Instagram";
+    if (match.includes("facebook") || match.includes("fb.com")) return "Facebook";
+    if (match.includes("tiktok")) return "TikTok";
+    if (match.includes("twitter") || match.includes("x.com")) return "X / Twitter";
+    if (match.includes("youtube")) return "YouTube";
+    if (match.includes("linkedin")) return "LinkedIn";
+    return match;
+  } catch { return null; }
+}
+
+/* ── Design tokens ── */
 const C = {
   bg: "var(--bg)", card: "var(--card)", border: "var(--border)",
   accent: "var(--accent)", green: "var(--green)", red: "var(--red)", amber: "var(--amber)",
@@ -114,19 +131,23 @@ export default function AuditoriaPage() {
   const [auditing,  setAuditing]  = useState(false);
   const [result,    setResult]    = useState<AuditResult | null>(null);
   const [auditErr,  setAuditErr]  = useState("");
+  const socialDetected = isSocialUrl(auditUrl);
 
   /* Demo */
+  const [demoMode, setDemoMode] = useState<"search" | "manual">("search");
   const [demoBiz,    setDemoBiz]    = useState("");
   const [generating, setGenerating] = useState(false);
   const [demoRes,    setDemoRes]    = useState<DemoResult | null>(null);
   const [demoErr,    setDemoErr]    = useState("");
   const [copied,     setCopied]     = useState(false);
-  const [showManual, setShowManual] = useState(false);
+
+  /* Manual form */
   const [manualName,     setManualName]     = useState("");
   const [manualAddress,  setManualAddress]  = useState("");
   const [manualPhone,    setManualPhone]    = useState("");
   const [manualCategory, setManualCategory] = useState("peluqueria");
   const [manualDesc,     setManualDesc]     = useState("");
+  const [manualImages,   setManualImages]   = useState("");
 
   /* Leads */
   const [leads,        setLeads]        = useState<Lead[]>([]);
@@ -143,7 +164,7 @@ export default function AuditoriaPage() {
   useEffect(() => { if (tab === "leads") loadLeads(); }, [tab, loadLeads]);
 
   async function runAudit() {
-    if (!auditUrl.trim()) return;
+    if (!auditUrl.trim() || socialDetected) return;
     setAuditing(true); setResult(null); setAuditErr("");
     try {
       const r = await fetch("/api/audit/scan", {
@@ -157,21 +178,58 @@ export default function AuditoriaPage() {
     finally { setAuditing(false); }
   }
 
-  async function runDemo(manual = false) {
+  async function runDemoSearch() {
+    if (!demoBiz.trim()) return;
     setGenerating(true); setDemoRes(null); setDemoErr("");
     try {
-      const body: Record<string, unknown> = { business: demoBiz.trim() || manualName.trim() };
-      if (manual) {
-        body.manual = { name: manualName, address: manualAddress, phone: manualPhone, category: manualCategory };
-      }
       const r = await fetch("/api/audit/demo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ business: demoBiz.trim() }),
       });
       const d: DemoResult = await r.json();
-      if (d.error) { setDemoErr(d.error); if (!manual) setShowManual(true); }
-      else { setShowManual(false); setDemoRes(d); }
+      if (d.error) {
+        setDemoErr(d.error);
+        setDemoMode("manual");
+        setManualName(demoBiz.trim());
+      } else {
+        // Si la "web" encontrada es Instagram → tratar como sin web
+        const existingIsSocial = d.existingUrl ? isSocialUrl(d.existingUrl) : null;
+        if (existingIsSocial) {
+          setDemoRes({ ...d, hasWebsite: false, existingUrl: undefined });
+        } else {
+          setDemoRes(d);
+        }
+      }
+    } catch { setDemoErr("Error generando demo"); }
+    finally { setGenerating(false); }
+  }
+
+  async function runDemoManual() {
+    if (!manualName.trim()) return;
+    setGenerating(true); setDemoRes(null); setDemoErr("");
+    const images = manualImages.trim()
+      ? manualImages.split("\n").map(s => s.trim()).filter(Boolean)
+      : undefined;
+    try {
+      const r = await fetch("/api/audit/demo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          business: manualName.trim(),
+          manual: {
+            name: manualName.trim(),
+            address: manualAddress.trim(),
+            phone: manualPhone.trim(),
+            category: manualCategory,
+            description: manualDesc.trim(),
+            images,
+          },
+        }),
+      });
+      const d: DemoResult = await r.json();
+      if (d.error) setDemoErr(d.error);
+      else setDemoRes(d);
     } catch { setDemoErr("Error generando demo"); }
     finally { setGenerating(false); }
   }
@@ -181,10 +239,16 @@ export default function AuditoriaPage() {
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   }
 
+  function goToDemo(prefill?: string) {
+    setTab("demo");
+    setDemoMode("manual");
+    if (prefill) setManualName(prefill);
+  }
+
   const TABS = [
-    { id: "audit", label: "Auditar URL",     Icon: Search },
-    { id: "demo",  label: "Generar Demo Web", Icon: Zap   },
-    { id: "leads", label: "Demos activas",    Icon: Users  },
+    { id: "audit", label: "Auditar URL",      Icon: Search },
+    { id: "demo",  label: "Generar Demo Web",  Icon: Zap   },
+    { id: "leads", label: "Demos activas",     Icon: Users  },
   ] as const;
 
   return (
@@ -217,14 +281,13 @@ export default function AuditoriaPage() {
       {/* ══════ TAB: AUDITAR ══════ */}
       {tab === "audit" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-
-          {/* Input form */}
           <div style={S.card}>
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "12px", marginBottom: "14px" }}>
               <div>
                 <span style={S.lbl}>URL del negocio *</span>
-                <input style={S.input} placeholder="https://desancho.com" value={auditUrl}
-                  onChange={e => setAuditUrl(e.target.value)}
+                <input style={{ ...S.input, borderColor: socialDetected ? C.amber : undefined }}
+                  placeholder="https://desancho.com" value={auditUrl}
+                  onChange={e => { setAuditUrl(e.target.value); setResult(null); setAuditErr(""); }}
                   onKeyDown={e => e.key === "Enter" && runAudit()} />
               </div>
               <div>
@@ -238,24 +301,42 @@ export default function AuditoriaPage() {
                   onChange={e => setCity(e.target.value)} />
               </div>
             </div>
-            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-              <button style={{ ...S.btn, opacity: auditing || !auditUrl.trim() ? 0.6 : 1 }}
-                onClick={runAudit} disabled={auditing || !auditUrl.trim()}>
-                {auditing
-                  ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
-                  : <Search size={14} />}
-                {auditing ? "Analizando..." : "Auditar"}
-              </button>
-              {auditing && <span style={{ fontSize: "12px", color: C.muted }}>PageSpeed + SEO on-page + GBP · ~30 seg</span>}
-              {auditErr && <span style={{ fontSize: "13px", color: C.red }}>⚠ {auditErr}</span>}
-            </div>
+
+            {/* ── Social media warning ── */}
+            {socialDetected ? (
+              <div style={{ padding: "12px 14px", background: `${C.amber}12`, border: `1px solid ${C.amber}44`, borderRadius: "8px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                <Instagram size={16} color={C.amber} style={{ flexShrink: 0, marginTop: "1px" }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: "13px", color: C.amber, fontWeight: 600, margin: "0 0 4px" }}>
+                    Eso es un perfil de {socialDetected}, no una web
+                  </p>
+                  <p style={{ fontSize: "12px", color: C.mid, margin: "0 0 10px" }}>
+                    No se puede auditar una red social. Si el negocio solo tiene {socialDetected}, ve al generador de demos para crearle una web.
+                  </p>
+                  <button style={{ ...S.btn, fontSize: "12px", padding: "8px 14px" }}
+                    onClick={() => goToDemo(bizName)}>
+                    <Zap size={12} /> Generar demo para este negocio →
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                <button style={{ ...S.btn, opacity: auditing || !auditUrl.trim() ? 0.6 : 1 }}
+                  onClick={runAudit} disabled={auditing || !auditUrl.trim()}>
+                  {auditing
+                    ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
+                    : <Search size={14} />}
+                  {auditing ? "Analizando..." : "Auditar"}
+                </button>
+                {auditing && <span style={{ fontSize: "12px", color: C.muted }}>PageSpeed + SEO on-page + GBP · ~30 seg</span>}
+                {auditErr && <span style={{ fontSize: "13px", color: C.red }}>⚠ {auditErr}</span>}
+              </div>
+            )}
           </div>
 
           {/* ── Resultados ── */}
           {result && (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-
-              {/* Score global */}
               <div style={{ ...S.card, display: "flex", gap: "24px", alignItems: "center", border: `1px solid ${scoreColor(result.global_score.score)}44` }}>
                 <ScoreRing value={result.global_score.score} size={82} />
                 <div style={{ flex: 1 }}>
@@ -285,13 +366,11 @@ export default function AuditoriaPage() {
                 )}
               </div>
 
-              {/* PageSpeed */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <PSCard title="Mobile" Icon={Smartphone} data={result.pagespeed?.mobile ?? null} />
                 <PSCard title="Desktop" Icon={Monitor} data={result.pagespeed?.desktop ?? null} />
               </div>
 
-              {/* Issues + SEO */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 {result.summary?.all_issues && result.summary.all_issues.length > 0 && (
                   <div style={S.card}>
@@ -312,12 +391,12 @@ export default function AuditoriaPage() {
                   <h3 style={{ fontSize: "13px", fontWeight: 600, margin: "0 0 12px" }}>SEO On-page</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
                     {[
-                      { l: "Title",             v: result.onpage?.title?.substring(0, 50) + (result.onpage?.title?.length > 50 ? "…" : "") || "—", sub: `${result.onpage?.title_length || 0} chars` },
-                      { l: "Meta desc",          v: result.onpage?.meta_description?.substring(0, 55) + "…" || "—", sub: `${result.onpage?.meta_desc_length || 0} chars` },
-                      { l: "H1",                 v: result.onpage?.h1s?.[0]?.substring(0, 45) || "Sin H1 ⚠", sub: `${result.onpage?.h1s?.length || 0} encontrados` },
-                      { l: "Imágenes sin alt",   v: `${result.onpage?.images?.without_alt || 0} / ${result.onpage?.images?.total || 0}`, sub: result.onpage?.images?.without_alt ? "⚠ Falta alt" : "✅ Ok" },
-                      { l: "Schema.org",         v: result.onpage?.schema_org ? "✅ Sí" : "❌ No", sub: "Datos estructurados" },
-                      { l: "Links internos",     v: String(result.onpage?.links?.internal || 0), sub: `${result.onpage?.links?.external || 0} externos` },
+                      { l: "Title",            v: result.onpage?.title?.substring(0, 50) + (result.onpage?.title?.length > 50 ? "…" : "") || "—", sub: `${result.onpage?.title_length || 0} chars` },
+                      { l: "Meta desc",         v: result.onpage?.meta_description?.substring(0, 55) + "…" || "—", sub: `${result.onpage?.meta_desc_length || 0} chars` },
+                      { l: "H1",                v: result.onpage?.h1s?.[0]?.substring(0, 45) || "Sin H1 ⚠", sub: `${result.onpage?.h1s?.length || 0} encontrados` },
+                      { l: "Imágenes sin alt",  v: `${result.onpage?.images?.without_alt || 0} / ${result.onpage?.images?.total || 0}`, sub: result.onpage?.images?.without_alt ? "⚠ Falta alt" : "✅ Ok" },
+                      { l: "Schema.org",        v: result.onpage?.schema_org ? "✅ Sí" : "❌ No", sub: "Datos estructurados" },
+                      { l: "Links internos",    v: String(result.onpage?.links?.internal || 0), sub: `${result.onpage?.links?.external || 0} externos` },
                     ].map(({ l, v, sub }) => (
                       <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "6px 9px", background: C.bg, borderRadius: "4px", border: `1px solid ${C.border}` }}>
                         <span style={{ color: C.muted, fontWeight: 600, minWidth: "100px" }}>{l}</span>
@@ -331,7 +410,6 @@ export default function AuditoriaPage() {
                 </div>
               </div>
 
-              {/* Técnico + Social + GBP */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
                 <div style={S.card}>
                   <h3 style={{ fontSize: "13px", fontWeight: 600, margin: "0 0 12px" }}>Técnico</h3>
@@ -416,150 +494,190 @@ export default function AuditoriaPage() {
 
       {/* ══════ TAB: GENERAR DEMO ══════ */}
       {tab === "demo" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px", maxWidth: "680px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px", maxWidth: "720px" }}>
           <div style={{ ...S.card, border: `1px solid ${C.accent}33`, background: `${C.accent}05` }}>
             <p style={{ fontSize: "13px", color: C.mid, lineHeight: 1.7, margin: 0 }}>
-              <strong style={{ color: C.accent }}>Para negocios SIN web.</strong> Busca el negocio en Google Business, genera una web one-page con Claude IA usando sus fotos y reseñas reales, y obtienes un enlace para mandarle. La demo caduca en 14 días — suficiente para cerrar.
+              <strong style={{ color: C.accent }}>Para negocios SIN web.</strong> Genera una web one-page con Claude IA y obtienes un enlace para mandarle. La demo caduca en 14 días — suficiente para cerrar.
             </p>
           </div>
 
-          <div style={S.card}>
-            <span style={S.lbl}>Nombre del negocio + ciudad</span>
-            <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-              <input style={{ ...S.input, flex: 1 }} placeholder="Peluquería García Valencia"
-                value={demoBiz} onChange={e => setDemoBiz(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && runDemo()} />
-              <button style={{ ...S.btn, whiteSpace: "nowrap", opacity: generating || !demoBiz.trim() ? 0.6 : 1 }}
-                onClick={() => runDemo(false)} disabled={generating || !demoBiz.trim()}>
-                {generating
-                  ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
-                  : <Zap size={14} />}
-                {generating ? "Generando..." : "Generar Demo"}
-              </button>
-            </div>
-            {generating && (
-              <p style={{ fontSize: "12px", color: C.muted, marginTop: "10px", lineHeight: 1.6 }}>
-                Buscando en Google Business · Descargando fotos y reseñas · Generando web con Claude (~40 seg)
-              </p>
-            )}
+          {/* ── Mode selector ── */}
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button onClick={() => { setDemoMode("search"); setDemoRes(null); setDemoErr(""); }}
+              style={{ ...S.btnGhost, fontWeight: demoMode === "search" ? 700 : 400, background: demoMode === "search" ? C.card : "transparent", color: demoMode === "search" ? C.accent : C.muted, borderColor: demoMode === "search" ? C.accent : undefined }}>
+              <Search size={12} /> Buscar en Google Business
+            </button>
+            <button onClick={() => { setDemoMode("manual"); setDemoRes(null); setDemoErr(""); }}
+              style={{ ...S.btnGhost, fontWeight: demoMode === "manual" ? 700 : 400, background: demoMode === "manual" ? C.card : "transparent", color: demoMode === "manual" ? C.accent : C.muted, borderColor: demoMode === "manual" ? C.accent : undefined }}>
+              <ClipboardPaste size={12} /> Pegar datos de Google Maps
+            </button>
           </div>
 
-          {demoErr && (
-            <div style={{ ...S.card, border: `1px solid ${C.red}44`, background: `${C.red}07` }}>
-              <p style={{ fontSize: "13px", color: C.red, margin: "0 0 8px" }}>⚠ {demoErr}</p>
-              {showManual && <button onClick={() => {}} style={{ fontSize: "12px", color: C.accent, background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}>
-                Introducir datos manualmente →
-              </button>}
+          {/* ── Mode: Search ── */}
+          {demoMode === "search" && (
+            <div style={S.card}>
+              <span style={S.lbl}>Nombre del negocio + ciudad</span>
+              <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+                <input style={{ ...S.input, flex: 1 }} placeholder="Peluquería García Valencia"
+                  value={demoBiz} onChange={e => setDemoBiz(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && runDemoSearch()} />
+                <button style={{ ...S.btn, whiteSpace: "nowrap", opacity: generating || !demoBiz.trim() ? 0.6 : 1 }}
+                  onClick={runDemoSearch} disabled={generating || !demoBiz.trim()}>
+                  {generating ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Zap size={14} />}
+                  {generating ? "Generando..." : "Generar Demo"}
+                </button>
+              </div>
+              {generating && (
+                <p style={{ fontSize: "12px", color: C.muted, marginTop: "10px", lineHeight: 1.6 }}>
+                  Buscando en Google Business · Descargando fotos y reseñas · Generando web con Claude (~40 seg)
+                </p>
+              )}
+              {demoErr && (
+                <div style={{ marginTop: "12px", padding: "10px 14px", background: `${C.red}08`, border: `1px solid ${C.red}33`, borderRadius: "8px" }}>
+                  <p style={{ fontSize: "13px", color: C.red, margin: "0 0 6px" }}>⚠ {demoErr}</p>
+                  <button onClick={() => setDemoMode("manual")}
+                    style={{ fontSize: "12px", color: C.accent, background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}>
+                    Introducir los datos manualmente →
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
-          {showManual && (
-            <div style={{ ...S.card, border: `1px solid ${C.amber}33` }}>
-              <p style={{ fontSize: "13px", fontWeight: 600, color: C.amber, margin: "0 0 14px" }}>Datos manuales del negocio</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div><span style={S.lbl}>Nombre del negocio *</span>
-                  <input style={S.input} placeholder="Ripieno Ibiza" value={manualName} onChange={e => setManualName(e.target.value)} />
+          {/* ── Mode: Manual (pegar datos de Google Maps) ── */}
+          {demoMode === "manual" && (
+            <div style={{ ...S.card, border: `1px solid ${C.accent}33` }}>
+              <p style={{ fontSize: "12px", color: C.muted, margin: "0 0 16px", lineHeight: 1.6 }}>
+                Copia los datos del negocio desde Google Maps y pégalos aquí. No hace falta que tengan web ni que la búsqueda automática funcione.
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div>
+                  <span style={S.lbl}>Nombre del negocio *</span>
+                  <input style={S.input} placeholder="Peluquería García" value={manualName} onChange={e => setManualName(e.target.value)} />
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                  <div><span style={S.lbl}>Dirección</span>
-                    <input style={S.input} placeholder="Calle Principal 12, Ibiza" value={manualAddress} onChange={e => setManualAddress(e.target.value)} />
+                  <div>
+                    <span style={S.lbl}>Dirección</span>
+                    <input style={S.input} placeholder="Calle Mayor 12, Valencia" value={manualAddress} onChange={e => setManualAddress(e.target.value)} />
                   </div>
-                  <div><span style={S.lbl}>Teléfono</span>
+                  <div>
+                    <span style={S.lbl}>Teléfono</span>
                     <input style={S.input} placeholder="+34 600 000 000" value={manualPhone} onChange={e => setManualPhone(e.target.value)} />
                   </div>
                 </div>
-                <div><span style={S.lbl}>Categoría</span>
+                <div>
+                  <span style={S.lbl}>Categoría</span>
                   <select style={S.input} value={manualCategory} onChange={e => setManualCategory(e.target.value)}>
                     <option value="peluqueria">Peluquería / Salón</option>
                     <option value="restaurante">Restaurante / Bar</option>
                     <option value="estetica">Estética / Spa</option>
                     <option value="clinica">Clínica / Salud</option>
                     <option value="retail">Tienda / Retail</option>
+                    <option value="gimnasio">Gimnasio / Fitness</option>
+                    <option value="academia">Academia / Formación</option>
                     <option value="negocio_local">Otro negocio local</option>
                   </select>
                 </div>
+                <div>
+                  <span style={S.lbl}>Descripción breve del negocio (opcional)</span>
+                  <input style={S.input} placeholder="Peluquería familiar especializada en coloración y alisados, 15 años en el barrio..." value={manualDesc} onChange={e => setManualDesc(e.target.value)} />
+                </div>
+                <div>
+                  <span style={S.lbl}>URLs de fotos (opcional · una por línea)</span>
+                  <textarea style={{ ...S.input, height: "80px", resize: "vertical", fontFamily: "inherit" }}
+                    placeholder={"https://lh3.googleusercontent.com/...\nhttps://lh3.googleusercontent.com/..."}
+                    value={manualImages} onChange={e => setManualImages(e.target.value)} />
+                  <span style={{ fontSize: "10px", color: C.muted, marginTop: "4px", display: "block" }}>Copia las URLs de las fotos de Google Maps / Google Business directamente</span>
+                </div>
+                {demoErr && (
+                  <p style={{ fontSize: "12px", color: C.red, margin: 0 }}>⚠ {demoErr}</p>
+                )}
                 <button style={{ ...S.btn, opacity: !manualName.trim() || generating ? 0.6 : 1 }}
-                  onClick={() => runDemo(true)} disabled={!manualName.trim() || generating}>
+                  onClick={runDemoManual} disabled={!manualName.trim() || generating}>
                   {generating ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Zap size={14} />}
-                  {generating ? "Generando..." : "Generar Demo con estos datos"}
+                  {generating ? "Generando demo (~40 seg)..." : "Generar Demo con estos datos"}
                 </button>
               </div>
             </div>
           )}
 
+          {/* ── Demo result ── */}
           {demoRes && !demoRes.error && (
             <div style={{ ...S.card, border: `1px solid ${C.green}44` }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                  {demoRes.hasWebsite && (
-                    <div style={{ padding: "10px 14px", background: `${C.amber}10`, borderRadius: "8px", border: `1px solid ${C.amber}33`, fontSize: "12px", color: C.amber }}>
-                      ⚠ Ya tiene web: <a href={demoRes.existingUrl} target="_blank" rel="noreferrer" style={{ color: C.accent, textDecoration: "none" }}>{demoRes.existingUrl}</a>
-                      <span style={{ color: C.muted }}> — igualmente generamos la demo para mostrarle cómo podría mejorar</span>
-                    </div>
-                  )}
-                  <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                    <CheckCircle size={18} color={C.green} />
-                    <div>
-                      <p style={{ fontSize: "14px", fontWeight: 700, color: C.green, margin: 0 }}>Demo generada</p>
-                      <p style={{ fontSize: "12px", color: C.muted, margin: "2px 0 0" }}>{demoRes.business?.name}</p>
-                    </div>
+                {demoRes.hasWebsite && demoRes.existingUrl && (
+                  <div style={{ padding: "10px 14px", background: `${C.amber}10`, borderRadius: "8px", border: `1px solid ${C.amber}33`, fontSize: "12px", color: C.amber }}>
+                    ⚠ Ya tiene web: <a href={demoRes.existingUrl} target="_blank" rel="noreferrer" style={{ color: C.accent, textDecoration: "none" }}>{demoRes.existingUrl}</a>
+                    <span style={{ color: C.muted }}> — generamos la demo para mostrarle cómo podría mejorar</span>
                   </div>
-                  <div style={{ padding: "12px 14px", background: C.bg, borderRadius: "8px", border: `1px solid ${C.accent}44` }}>
-                    <p style={{ fontSize: "11px", color: C.muted, margin: "0 0 6px", fontWeight: 600, letterSpacing: "0.06em" }}>ENLACE DEMO (14 días)</p>
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                      <a href={demoRes.demoUrl} target="_blank" rel="noreferrer"
-                        style={{ ...S.mono, fontSize: "13px", color: C.accent, textDecoration: "none", flex: 1, wordBreak: "break-all" }}>
-                        {demoRes.demoUrl}
-                      </a>
-                      <button onClick={() => copyLink(demoRes.demoUrl!)} style={S.btnGhost}>
-                        {copied ? <CheckCircle size={11} color={C.green} /> : <Copy size={11} />}
-                        {copied ? "Copiado" : "Copiar"}
-                      </button>
-                      <a href={demoRes.demoUrl} target="_blank" rel="noreferrer" style={S.btnGhost}>
-                        <ExternalLink size={11} /> Ver
-                      </a>
-                    </div>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                    {demoRes.business?.address && (
-                      <div style={{ padding: "8px 10px", background: C.bg, borderRadius: "6px", border: `1px solid ${C.border}`, fontSize: "12px", color: C.muted, display: "flex", gap: "6px", alignItems: "flex-start" }}>
-                        <Globe size={11} style={{ marginTop: "2px", flexShrink: 0 }} />{demoRes.business.address}
-                      </div>
-                    )}
-                    {demoRes.business?.phone && (
-                      <div style={{ padding: "8px 10px", background: C.bg, borderRadius: "6px", border: `1px solid ${C.border}`, fontSize: "12px", color: C.mid, display: "flex", gap: "6px", alignItems: "center" }}>
-                        <Phone size={11} />{demoRes.business.phone}
-                      </div>
-                    )}
-                    {demoRes.business?.rating && (
-                      <div style={{ padding: "8px 10px", background: C.bg, borderRadius: "6px", border: `1px solid ${C.border}`, fontSize: "12px", color: C.amber, display: "flex", gap: "6px", alignItems: "center" }}>
-                        <Star size={11} fill={C.amber} />{demoRes.business.rating.toFixed(1)} en Google Maps
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ fontSize: "12px", color: C.muted, padding: "10px 14px", background: `${C.accent}06`, borderRadius: "6px", border: `1px solid ${C.accent}22`, lineHeight: 1.7 }}>
-                    <strong style={{ color: C.accent }}>Mensaje para enviar:</strong><br />
-                    {`"He preparado una demo de cómo podría quedar tu web. Échale un vistazo: ${demoRes.demoUrl} — caduca en 14 días, si te gusta lo hablamos."`}
+                )}
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                  <CheckCircle size={18} color={C.green} />
+                  <div>
+                    <p style={{ fontSize: "14px", fontWeight: 700, color: C.green, margin: 0 }}>Demo generada</p>
+                    <p style={{ fontSize: "12px", color: C.muted, margin: "2px 0 0" }}>{demoRes.business?.name}</p>
                   </div>
                 </div>
+                <div style={{ padding: "12px 14px", background: C.bg, borderRadius: "8px", border: `1px solid ${C.accent}44` }}>
+                  <p style={{ fontSize: "11px", color: C.muted, margin: "0 0 6px", fontWeight: 600, letterSpacing: "0.06em" }}>ENLACE DEMO (14 días)</p>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <a href={demoRes.demoUrl} target="_blank" rel="noreferrer"
+                      style={{ ...S.mono, fontSize: "13px", color: C.accent, textDecoration: "none", flex: 1, wordBreak: "break-all" }}>
+                      {demoRes.demoUrl}
+                    </a>
+                    <button onClick={() => copyLink(demoRes.demoUrl!)} style={S.btnGhost}>
+                      {copied ? <CheckCircle size={11} color={C.green} /> : <Copy size={11} />}
+                      {copied ? "Copiado" : "Copiar"}
+                    </button>
+                    <a href={demoRes.demoUrl} target="_blank" rel="noreferrer" style={S.btnGhost}>
+                      <ExternalLink size={11} /> Ver
+                    </a>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  {demoRes.business?.address && (
+                    <div style={{ padding: "8px 10px", background: C.bg, borderRadius: "6px", border: `1px solid ${C.border}`, fontSize: "12px", color: C.muted, display: "flex", gap: "6px", alignItems: "flex-start" }}>
+                      <Globe size={11} style={{ marginTop: "2px", flexShrink: 0 }} />{demoRes.business.address}
+                    </div>
+                  )}
+                  {demoRes.business?.phone && (
+                    <div style={{ padding: "8px 10px", background: C.bg, borderRadius: "6px", border: `1px solid ${C.border}`, fontSize: "12px", color: C.mid, display: "flex", gap: "6px", alignItems: "center" }}>
+                      <Phone size={11} />{demoRes.business.phone}
+                    </div>
+                  )}
+                  {demoRes.business?.rating && (
+                    <div style={{ padding: "8px 10px", background: C.bg, borderRadius: "6px", border: `1px solid ${C.border}`, fontSize: "12px", color: C.amber, display: "flex", gap: "6px", alignItems: "center" }}>
+                      <Star size={11} fill={C.amber} />{demoRes.business.rating.toFixed(1)} en Google Maps
+                    </div>
+                  )}
+                </div>
+                <div style={{ fontSize: "12px", color: C.muted, padding: "10px 14px", background: `${C.accent}06`, borderRadius: "6px", border: `1px solid ${C.accent}22`, lineHeight: 1.7 }}>
+                  <strong style={{ color: C.accent }}>Mensaje para enviar:</strong><br />
+                  {`"He preparado una demo de cómo podría quedar tu web. Échale un vistazo: ${demoRes.demoUrl} — caduca en 14 días, si te gusta lo hablamos."`}
+                </div>
+              </div>
             </div>
           )}
 
-          <div style={S.card}>
-            <h3 style={{ fontSize: "13px", fontWeight: 600, margin: "0 0 12px" }}>Flujo de venta</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              {[
-                { n: "1", t: "Generas la demo gratis",   d: "El cliente ve su negocio con web profesional en 10 minutos. Sin pedirle nada." },
-                { n: "2", t: "Mandas el link por WA",    d: "\"He preparado algo para ti...\" — la curiosidad hace el resto. CTR altísimo." },
-                { n: "3", t: "Propuesta en 24h",         d: "Web real desde 490€ · Posicionamiento desde 350€/mes · Pack con Meta Ads desde 650€/mes" },
-                { n: "4", t: "Cierre en 2-3 días",       d: "Ya vio el resultado. La barrera del 'no sé cómo quedaría' está rota." },
-              ].map(({ n, t, d }) => (
-                <div key={n} style={{ display: "flex", gap: "10px", padding: "9px 12px", background: C.bg, borderRadius: "6px", border: `1px solid ${C.border}`, fontSize: "12px" }}>
-                  <span style={{ width: "20px", height: "20px", borderRadius: "50%", background: `${C.accent}18`, color: C.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, flexShrink: 0 }}>{n}</span>
-                  <div><span style={{ color: C.text, fontWeight: 600 }}>{t} — </span><span style={{ color: C.muted }}>{d}</span></div>
-                </div>
-              ))}
+          {/* ── Flujo de venta ── */}
+          {!demoRes && (
+            <div style={S.card}>
+              <h3 style={{ fontSize: "13px", fontWeight: 600, margin: "0 0 12px" }}>Flujo de venta</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {[
+                  { n: "1", t: "Generas la demo gratis",  d: "El cliente ve su negocio con web profesional en 10 minutos. Sin pedirle nada." },
+                  { n: "2", t: "Mandas el link por WA",   d: "\"He preparado algo para ti...\" — la curiosidad hace el resto. CTR altísimo." },
+                  { n: "3", t: "Propuesta en 24h",        d: "Web real desde 490€ · Posicionamiento desde 350€/mes · Pack con Meta Ads desde 650€/mes" },
+                  { n: "4", t: "Cierre en 2-3 días",      d: "Ya vio el resultado. La barrera del 'no sé cómo quedaría' está rota." },
+                ].map(({ n, t, d }) => (
+                  <div key={n} style={{ display: "flex", gap: "10px", padding: "9px 12px", background: C.bg, borderRadius: "6px", border: `1px solid ${C.border}`, fontSize: "12px" }}>
+                    <span style={{ width: "20px", height: "20px", borderRadius: "50%", background: `${C.accent}18`, color: C.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, flexShrink: 0 }}>{n}</span>
+                    <div><span style={{ color: C.text, fontWeight: 600 }}>{t} — </span><span style={{ color: C.muted }}>{d}</span></div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -567,9 +685,7 @@ export default function AuditoriaPage() {
       {tab === "leads" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <p style={{ fontSize: "13px", color: C.muted, margin: 0 }}>
-              {leads.length} demos generadas
-            </p>
+            <p style={{ fontSize: "13px", color: C.muted, margin: 0 }}>{leads.length} demos generadas</p>
             <button onClick={loadLeads} style={S.btnGhost} disabled={leadsLoading}>
               <RefreshCw size={12} style={leadsLoading ? { animation: "spin 1s linear infinite" } : {}} />
               Actualizar
