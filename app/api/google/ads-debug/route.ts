@@ -59,6 +59,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(await res.json());
   }
 
+  // Campaign budget update
+  if (body.action === 'update_budget') {
+    const { customerId, budgetResourceName, amountMicros } = body;
+    const res = await fetch(`${ADS_BASE}/customers/${customerId}/campaignBudgets:mutate`, {
+      method: 'POST', headers: ADS_H,
+      body: JSON.stringify({ operations: [{ update: { resourceName: budgetResourceName, amountMicros }, updateMask: 'amountMicros' }] }),
+      cache: 'no-store',
+    });
+    return NextResponse.json(await res.json());
+  }
+
   // Default: field metadata lookup
   const fieldName = body.field ?? 'campaign.contains_eu_political_advertising';
   const res = await fetch(`${ADS_BASE}/googleAdsFields/${fieldName}`, {
