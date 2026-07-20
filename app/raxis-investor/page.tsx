@@ -571,7 +571,18 @@ export default function RaxisInvestorPage() {
                 <div key={titulo as string} style={{ ...CARD, padding:"16px 20px" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"12px" }}>
                     <p style={{ ...LABEL, margin:0 }}>{titulo}</p>
-                    <button onClick={()=>navigator.clipboard.writeText(contenido as string).then(()=>alert("Copiado ✅"))} style={{ fontSize:"11px", padding:"4px 12px", borderRadius:"4px", background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--border-accent)", cursor:"pointer" }}>Copiar</button>
+                    <div style={{ display:"flex", gap:"6px" }}>
+                      <button onClick={()=>navigator.clipboard.writeText(contenido as string).then(()=>alert("Copiado ✅"))} style={{ fontSize:"11px", padding:"4px 12px", borderRadius:"4px", background:"var(--accent-dim)", color:"var(--accent)", border:"1px solid var(--border-accent)", cursor:"pointer" }}>Copiar</button>
+                      {titulo==="Guión YouTube" && (
+                        <button onClick={()=>{
+                          const msg = `🎬 GUIÓN YOUTUBE\n\n${contenido}`;
+                          fetch("/api/telegram/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:msg.slice(0,4000)})})
+                            .then(r=>r.json()).then(d=>alert(d.success?"Enviado a Telegram ✅":"Error: "+d.error));
+                        }} style={{ fontSize:"11px", padding:"4px 12px", borderRadius:"4px", background:"rgba(0,136,204,0.1)", color:"#0088cc", border:"1px solid rgba(0,136,204,0.3)", cursor:"pointer" }}>
+                          Telegram
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <pre style={{ color:"var(--text-mid)", fontSize:"12px", lineHeight:1.7, whiteSpace:"pre-wrap", ...MONO, margin:0 }}>{contenido}</pre>
                 </div>
