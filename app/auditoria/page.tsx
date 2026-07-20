@@ -19,19 +19,19 @@ interface AuditResult {
 interface DemoResult { demoUrl?: string; slug?: string; business?: { name: string; address?: string; phone?: string; rating?: number }; hasWebsite?: boolean; url?: string; error?: string }
 interface Lead { slug: string; business: string; telefono?: string; demoUrl: string; fecha: string; rating?: number; reviewsTotal?: number; address?: string }
 
-/* ── Design tokens ── */
+/* ── Design tokens (CSS vars — respetan el tema light/dark) ── */
 const C = {
-  bg: "#0A0A0F", card: "#13131A", border: "#1E1E2E",
-  accent: "#C8F542", green: "#00C864", red: "#FF3232", amber: "#FFAA00",
-  text: "#E8E8F0", mid: "#9898B0", muted: "#5A5A70",
+  bg: "var(--bg)", card: "var(--card)", border: "var(--border)",
+  accent: "var(--accent)", green: "var(--green)", red: "var(--red)", amber: "var(--amber)",
+  text: "var(--text)", mid: "var(--text-mid)", muted: "var(--text-muted)",
 };
 const S: Record<string, React.CSSProperties> = {
-  page:     { background: C.bg, minHeight: "100vh", padding: "32px 40px", fontFamily: "'Space Grotesk', sans-serif", color: C.text },
-  card:     { background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" },
-  input:    { width: "100%", padding: "11px 14px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: "8px", color: C.text, fontSize: "14px", outline: "none", boxSizing: "border-box" as const },
-  btn:      { padding: "11px 22px", borderRadius: "8px", border: "none", background: C.accent, color: "#000", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "7px" },
-  btnGhost: { padding: "8px 16px", borderRadius: "6px", border: `1px solid ${C.border}`, background: "transparent", color: C.mid, fontSize: "12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px" },
-  lbl:      { fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: C.muted, marginBottom: "6px", display: "block" },
+  page:     { background: "var(--bg)", minHeight: "100vh", padding: "32px 40px", fontFamily: "'Space Grotesk', sans-serif", color: "var(--text)" },
+  card:     { background: "var(--card)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px" },
+  input:    { width: "100%", padding: "11px 14px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text)", fontSize: "14px", outline: "none", boxSizing: "border-box" as const },
+  btn:      { padding: "11px 22px", borderRadius: "8px", border: "none", background: "var(--accent)", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "7px" },
+  btnGhost: { padding: "8px 16px", borderRadius: "6px", border: "1px solid var(--border)", background: "transparent", color: "var(--text-mid)", fontSize: "12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px" },
+  lbl:      { fontSize: "11px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", marginBottom: "6px", display: "block" },
   mono:     { fontFamily: "'Space Mono', monospace" },
 };
 
