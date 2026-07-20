@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     // MCC login-customer-id = 717-986-5639 (sin guiones)
     const MCC_ID = '7179865639';
     const res = await fetch(
-      `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`,
+      `https://googleads.googleapis.com/v21/customers/${customerId}/googleAds:search`,
       {
         method: 'POST',
         headers: {

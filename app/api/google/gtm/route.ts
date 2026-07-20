@@ -47,7 +47,8 @@ export async function GET() {
             gtmGet(token, `/accounts/${account.accountId}/containers/${container.containerId}/workspaces`),
           ]);
 
-          const tags: { name: string; type: string; paused: boolean; firingRuleId?: string[] }[] =
+          type GTMParam = { key: string; value?: string; type?: string };
+          const tags: { name: string; type: string; paused: boolean; firingRuleId?: string[]; parameter?: GTMParam[] }[] =
             liveData.tag ?? [];
           const triggers: { name: string; type: string }[] = liveData.trigger ?? [];
 
@@ -85,7 +86,17 @@ export async function GET() {
               type:   t.type,
               paused: !!t.paused,
             })),
-            all_tags: tags.map(t => ({ name: t.name, type: t.type, paused: !!t.paused })),
+            all_tags: tags.map(t => {
+              // For HTML tags, extract first 300 chars of code; for googtag extract measurementId
+              const params: Record<string, string> = {};
+              for (const p of t.parameter ?? []) {
+                if (p.key === 'html')           params.html = (p.value ?? '').slice(0, 800);
+                if (p.key === 'measurementId')  params.measurementId = p.value ?? '';
+                if (p.key === 'conversionId')   params.conversionId = p.value ?? '';
+                if (p.key === 'conversionLabel') params.conversionLabel = p.value ?? '';
+              }
+              return { name: t.name, type: t.type, paused: !!t.paused, ...params };
+            }),
           });
         } catch (e) {
           results.push({

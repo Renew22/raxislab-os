@@ -9,11 +9,7 @@ export async function GET() {
     const token = await getGoogleAccessToken();
     const H = { Authorization: `Bearer ${token}` };
 
-    const [ga4Res, scRes, gtmRes] = await Promise.allSettled([
-      // GA4 Admin API — list all accessible properties
-      fetch('https://analyticsadmin.googleapis.com/v1beta/properties?pageSize=50&filter=parent:accounts/-', {
-        headers: H, cache: 'no-store',
-      }),
+    const [scRes, gtmRes] = await Promise.allSettled([
       // Search Console — list all verified sites
       fetch('https://www.googleapis.com/webmasters/v3/sites', {
         headers: H, cache: 'no-store',
@@ -24,19 +20,39 @@ export async function GET() {
       }),
     ]);
 
-    // GA4 properties
-    type GA4Prop = { name: string; displayName: string; timeZone?: string; createTime?: string; parent?: string };
+    // GA4 properties — must first list accounts, then properties per account
+    type GA4Prop = { name: string; displayName: string; timeZone?: string; parent?: string };
     let ga4Properties: { id: string; displayName: string; timeZone: string }[] = [];
-    if (ga4Res.status === 'fulfilled' && ga4Res.value.ok) {
-      const d = await ga4Res.value.json();
-      ga4Properties = (d.properties ?? []).map((p: GA4Prop) => ({
-        id:          p.name.replace('properties/', ''),
-        displayName: p.displayName,
-        timeZone:    p.timeZone ?? '',
-      }));
-    } else if (ga4Res.status === 'fulfilled') {
-      const err = await ga4Res.value.json().catch(() => ({}));
-      ga4Properties = [{ id: 'error', displayName: err?.error?.message ?? 'GA4 Admin error', timeZone: '' }];
+    try {
+      const accsRes = await fetch('https://analyticsadmin.googleapis.com/v1beta/accounts?pageSize=50', {
+        headers: H, cache: 'no-store',
+      });
+      if (accsRes.ok) {
+        const accsData = await accsRes.json();
+        const accounts: { name: string }[] = accsData.accounts ?? [];
+        const propResults = await Promise.allSettled(
+          accounts.map(acc =>
+            fetch(`https://analyticsadmin.googleapis.com/v1beta/properties?pageSize=50&filter=parent:${acc.name}`, {
+              headers: H, cache: 'no-store',
+            }).then(r => r.json())
+          )
+        );
+        for (const r of propResults) {
+          if (r.status === 'fulfilled') {
+            const props: GA4Prop[] = r.value.properties ?? [];
+            ga4Properties.push(...props.map(p => ({
+              id:          p.name?.replace('properties/', '') ?? '',
+              displayName: p.displayName ?? '',
+              timeZone:    p.timeZone ?? '',
+            })));
+          }
+        }
+      } else {
+        const err = await accsRes.json().catch(() => ({}));
+        ga4Properties = [{ id: 'error', displayName: err?.error?.message ?? 'GA4 Admin error', timeZone: '' }];
+      }
+    } catch (e) {
+      ga4Properties = [{ id: 'error', displayName: String(e), timeZone: '' }];
     }
 
     // SC sites

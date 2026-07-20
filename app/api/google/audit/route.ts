@@ -20,16 +20,14 @@ export async function POST(req: Request) {
   const [adsRes, adsAdgroupRes, adsCritRes, scRes, ga4ChanRes, ga4PagesRes] = await Promise.allSettled([
     // Ads: campaign details
     customerId && developerToken ? fetch(
-      `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`,
+      `https://googleads.googleapis.com/v21/customers/${customerId}/googleAds:search`,
       { method: 'POST', headers: adsH, body: JSON.stringify({ query: `
         SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type,
-          campaign.bidding_strategy_type, campaign.target_cpa.target_cpa_micros,
-          campaign.maximize_conversions.target_cpa_micros,
+          campaign.bidding_strategy_type,
           metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.ctr,
           metrics.average_cpc, metrics.conversions, metrics.cost_per_conversion,
           metrics.all_conversions_value, metrics.search_impression_share,
-          metrics.search_budget_lost_impression_share, metrics.search_rank_lost_impression_share,
-          metrics.quality_score
+          metrics.search_budget_lost_impression_share, metrics.search_rank_lost_impression_share
         FROM campaign
         WHERE segments.date BETWEEN '${fmt(start)}' AND '${fmt(end)}'
         ORDER BY metrics.cost_micros DESC
@@ -38,7 +36,7 @@ export async function POST(req: Request) {
 
     // Ads: ad groups
     customerId && developerToken ? fetch(
-      `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`,
+      `https://googleads.googleapis.com/v21/customers/${customerId}/googleAds:search`,
       { method: 'POST', headers: adsH, body: JSON.stringify({ query: `
         SELECT campaign.name, ad_group.id, ad_group.name, ad_group.status,
           ad_group.cpc_bid_micros, metrics.cost_micros, metrics.clicks,
@@ -53,7 +51,7 @@ export async function POST(req: Request) {
 
     // Ads: keywords with quality score
     customerId && developerToken ? fetch(
-      `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`,
+      `https://googleads.googleapis.com/v21/customers/${customerId}/googleAds:search`,
       { method: 'POST', headers: adsH, body: JSON.stringify({ query: `
         SELECT campaign.name, ad_group.name, ad_group_criterion.keyword.text,
           ad_group_criterion.keyword.match_type, ad_group_criterion.quality_info.quality_score,
