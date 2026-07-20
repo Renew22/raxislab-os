@@ -16,7 +16,7 @@ interface AuditResult {
   summary?: { critical_issues: number; improvable_issues: number; all_issues: Array<{ severity: string; msg: string }> };
   error?: string;
 }
-interface DemoResult { demoUrl?: string; slug?: string; business?: { name: string; address?: string; phone?: string; rating?: number }; hasWebsite?: boolean; url?: string; error?: string }
+interface DemoResult { demoUrl?: string; slug?: string; business?: { name: string; address?: string; phone?: string; rating?: number }; hasWebsite?: boolean; existingUrl?: string; url?: string; error?: string }
 interface Lead { slug: string; business: string; telefono?: string; demoUrl: string; fecha: string; rating?: number; reviewsTotal?: number; address?: string }
 
 /* ── Design tokens (CSS vars — respetan el tema light/dark) ── */
@@ -489,21 +489,13 @@ export default function AuditoriaPage() {
 
           {demoRes && !demoRes.error && (
             <div style={{ ...S.card, border: `1px solid ${C.green}44` }}>
-              {demoRes.hasWebsite ? (
-                <div>
-                  <p style={{ fontSize: "13px", fontWeight: 600, color: C.amber, margin: "0 0 8px" }}>
-                    ⚠ Este negocio ya tiene web
-                  </p>
-                  <p style={{ fontSize: "12px", color: C.muted, margin: "0 0 10px" }}>
-                    Usa "Auditar URL" para analizar su web y ofrecer mejoras.
-                  </p>
-                  <a href={demoRes.url} target="_blank" rel="noreferrer"
-                    style={{ fontSize: "13px", color: C.accent, textDecoration: "none", display: "flex", alignItems: "center", gap: "5px" }}>
-                    {demoRes.url} <ExternalLink size={12} />
-                  </a>
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  {demoRes.hasWebsite && (
+                    <div style={{ padding: "10px 14px", background: `${C.amber}10`, borderRadius: "8px", border: `1px solid ${C.amber}33`, fontSize: "12px", color: C.amber }}>
+                      ⚠ Ya tiene web: <a href={demoRes.existingUrl} target="_blank" rel="noreferrer" style={{ color: C.accent, textDecoration: "none" }}>{demoRes.existingUrl}</a>
+                      <span style={{ color: C.muted }}> — igualmente generamos la demo para mostrarle cómo podría mejorar</span>
+                    </div>
+                  )}
                   <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                     <CheckCircle size={18} color={C.green} />
                     <div>
@@ -549,7 +541,6 @@ export default function AuditoriaPage() {
                     {`"He preparado una demo de cómo podría quedar tu web. Échale un vistazo: ${demoRes.demoUrl} — caduca en 14 días, si te gusta lo hablamos."`}
                   </div>
                 </div>
-              )}
             </div>
           )}
 

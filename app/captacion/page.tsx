@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, X, Trash2, ChevronRight } from "lucide-react";
+import { Plus, X, Trash2, ChevronRight, Search, Zap, RefreshCw, Phone, Star, Globe, ExternalLink, Copy, CheckCircle } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -22,6 +22,29 @@ interface Lead {
 type Columna = "Nuevo" | "Contactado" | "Propuesta" | "Cerrado";
 
 // ── Config ────────────────────────────────────────────────────────────────────
+
+// ── Tipos Buscar ─────────────────────────────────────────────────────────────
+
+interface Prospecto {
+  placeId: string;
+  name: string;
+  address: string;
+  phone: string | null;
+  rating: number | null;
+  reviewsTotal: number;
+  hasRealWebsite: boolean;
+  socialLink: string | null;
+  demoUrl?: string;
+  demoGenerating?: boolean;
+  emailSent?: boolean;
+}
+
+const CATEGORIAS_BUSQUEDA = [
+  "Peluquería", "Salón de belleza", "Barbería", "Restaurante", "Bar",
+  "Cafetería", "Gimnasio", "Clínica dental", "Fisioterapia", "Estética",
+  "Floristería", "Pastelería", "Panadería", "Tienda de ropa", "Ferretería",
+  "Fontanería", "Electricista", "Academia", "Autoescuela", "Inmobiliaria",
+];
 
 const COLUMNAS: Columna[] = ["Nuevo", "Contactado", "Propuesta", "Cerrado"];
 
@@ -70,7 +93,7 @@ const INPUT: React.CSSProperties = { width: "100%", padding: "8px 11px", borderR
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function CaptacionPage() {
-  const [tab, setTab]       = useState<"pipeline" | "competencia" | "oportunidades">("pipeline");
+  const [tab, setTab]       = useState<"buscar" | "pipeline" | "competencia" | "oportunidades">("buscar");
   const [leads, setLeads]   = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState("");
@@ -84,6 +107,76 @@ export default function CaptacionPage() {
     como_llego: CANALES[0], necesita: "", notas: "",
   });
   const [saving, setSaving] = useState(false);
+
+  // ── Buscar prospectos ──────────────────────────────────────────────────────
+  const [buscarCategory, setBuscarCategory] = useState("Peluquería");
+  const [buscarCity,     setBuscarCity]     = useState("Valencia");
+  const [buscando,       setBuscando]       = useState(false);
+  const [prospectos,     setProspectos]     = useState<Prospecto[]>([]);
+  const [buscarErr,      setBuscarErr]      = useState("");
+  const [copied,         setCopied]         = useState<string | null>(null);
+  const [emailModal,     setEmailModal]     = useState<Prospecto | null>(null);
+  const [emailAddr,      setEmailAddr]      = useState("");
+  const [emailSending,   setEmailSending]   = useState(false);
+
+  async function buscarProspectos() {
+    setBuscando(true); setProspectos([]); setBuscarErr("");
+    try {
+      const r = await fetch("/api/captacion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: buscarCategory, city: buscarCity }),
+      });
+      const d = await r.json();
+      if (d.error) setBuscarErr(d.error);
+      else setProspectos(d.results || []);
+    } catch { setBuscarErr("Error de conexión"); }
+    finally { setBuscando(false); }
+  }
+
+  async function generarDemo(p: Prospecto) {
+    setProspectos(prev => prev.map(x => x.placeId === p.placeId ? { ...x, demoGenerating: true } : x));
+    try {
+      const r = await fetch("/api/audit/demo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business: `${p.name} ${buscarCity}` }),
+      });
+      const d = await r.json();
+      setProspectos(prev => prev.map(x =>
+        x.placeId === p.placeId ? { ...x, demoGenerating: false, demoUrl: d.demoUrl || undefined } : x
+      ));
+    } catch {
+      setProspectos(prev => prev.map(x => x.placeId === p.placeId ? { ...x, demoGenerating: false } : x));
+    }
+  }
+
+  function copyLink(url: string, id: string) {
+    navigator.clipboard.writeText(url);
+    setCopied(id); setTimeout(() => setCopied(null), 2000);
+  }
+
+  async function enviarEmail(p: Prospecto, email: string) {
+    if (!p.demoUrl || !email) return;
+    setEmailSending(true);
+    try {
+      await fetch("/api/brevo/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: email,
+          subject: `${p.name} — tu web ya está lista (mírala aquí)`,
+          html: `<p>Hola,</p>
+<p>He preparado una demo de cómo podría quedar la web de <strong>${p.name}</strong> con tu información real de Google.</p>
+<p><a href="${p.demoUrl}" style="background:#1E9BF0;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;">Ver mi demo web →</a></p>
+<p>La demo caduca en 14 días. Si te gusta lo que ves, podemos hablar — sin compromiso.</p>
+<p>Un saludo,<br>René · RaxisLab<br>WhatsApp: +34 654 835 593</p>`,
+        }),
+      });
+      setProspectos(prev => prev.map(x => x.placeId === p.placeId ? { ...x, emailSent: true } : x));
+      setEmailModal(null); setEmailAddr("");
+    } finally { setEmailSending(false); }
+  }
 
   const loadLeads = useCallback(async () => {
     setLoading(true);
@@ -164,13 +257,156 @@ export default function CaptacionPage() {
 
       {/* Tabs */}
       <div style={{ display:"flex", gap:"4px", marginBottom:"24px", borderBottom:"1px solid var(--border)", paddingBottom:"0" }}>
-        {([["pipeline","Pipeline"], ["competencia","Competencia"], ["oportunidades","Oportunidades"]] as const).map(([k, label]) => (
+        {([["buscar","Buscar prospectos"], ["pipeline","Pipeline"], ["competencia","Competencia"], ["oportunidades","Oportunidades"]] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             style={{ padding:"8px 16px", borderRadius:"6px 6px 0 0", border:"none", background:tab===k?"var(--card)":"transparent", color:tab===k?"var(--accent)":"var(--text-muted)", fontSize:"13px", fontWeight:tab===k?600:400, cursor:"pointer", borderBottom:tab===k?"2px solid var(--accent)":"2px solid transparent", marginBottom:"-1px" }}>
             {label}
           </button>
         ))}
       </div>
+
+      {/* ══════ BUSCAR PROSPECTOS ══════ */}
+      {tab === "buscar" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
+          {/* Intro */}
+          <div style={{ ...CARD, background:"rgba(30,155,240,0.04)", border:"1px solid rgba(30,155,240,0.15)" }}>
+            <p style={{ fontSize:"13px", color:"var(--text-mid)", lineHeight:1.7, margin:0 }}>
+              <strong style={{ color:"var(--accent)" }}>Negocios sin web en Google Maps.</strong> Busca por categoría y ciudad — filtramos los que NO tienen web real. Genera una demo en segundos y mándala por WhatsApp o email para cerrar el cliente.
+            </p>
+          </div>
+
+          {/* Búsqueda */}
+          <div style={CARD}>
+            <div style={{ display:"grid", gridTemplateColumns:"1.5fr 1fr auto", gap:"12px", alignItems:"flex-end" }}>
+              <div>
+                <p style={{ fontSize:"11px", fontWeight:600, letterSpacing:"0.08em", color:"var(--text-muted)", textTransform:"uppercase", margin:"0 0 5px" }}>Categoría</p>
+                <select value={buscarCategory} onChange={e => setBuscarCategory(e.target.value)} style={INPUT}>
+                  {CATEGORIAS_BUSQUEDA.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <p style={{ fontSize:"11px", fontWeight:600, letterSpacing:"0.08em", color:"var(--text-muted)", textTransform:"uppercase", margin:"0 0 5px" }}>Ciudad</p>
+                <input value={buscarCity} onChange={e => setBuscarCity(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && buscarProspectos()}
+                  placeholder="Valencia" style={INPUT} />
+              </div>
+              <button onClick={buscarProspectos} disabled={buscando}
+                style={{ padding:"9px 20px", borderRadius:"8px", border:"none", background:buscando?"var(--border)":"var(--accent)", color:"#fff", fontSize:"13px", fontWeight:700, cursor:buscando?"not-allowed":"pointer", display:"flex", alignItems:"center", gap:"7px" }}>
+                {buscando ? <RefreshCw size={14} style={{ animation:"spin 1s linear infinite" }} /> : <Search size={14} />}
+                {buscando ? "Buscando..." : "Buscar"}
+              </button>
+            </div>
+            {buscando && <p style={{ fontSize:"12px", color:"var(--text-muted)", marginTop:"10px", margin:"10px 0 0" }}>Consultando Google Maps · filtrando sin web (~15 seg)</p>}
+            {buscarErr && <p style={{ fontSize:"13px", color:"var(--red)", margin:"10px 0 0" }}>⚠ {buscarErr}</p>}
+          </div>
+
+          {/* Resultados */}
+          {prospectos.length > 0 && (
+            <div>
+              <p style={{ fontSize:"13px", color:"var(--text-muted)", margin:"0 0 12px" }}>
+                {prospectos.length} negocios sin web en "{buscarCategory}" · {buscarCity}
+              </p>
+              <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
+                {prospectos.map(p => (
+                  <div key={p.placeId} style={{ ...CARD, display:"flex", gap:"16px", alignItems:"flex-start" }}>
+                    {/* Info */}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap" }}>
+                        <p style={{ fontSize:"14px", fontWeight:700, color:"var(--text)", margin:0 }}>{p.name}</p>
+                        {p.rating && (
+                          <span style={{ display:"flex", alignItems:"center", gap:"3px", fontSize:"12px", color:"var(--amber)" }}>
+                            <Star size={11} fill="var(--amber)" />{p.rating.toFixed(1)} ({p.reviewsTotal})
+                          </span>
+                        )}
+                        {p.socialLink && (
+                          <span style={{ fontSize:"10px", padding:"2px 7px", borderRadius:"999px", background:"rgba(251,191,36,0.1)", color:"var(--amber)", border:"1px solid rgba(251,191,36,0.2)" }}>Solo RRSS</span>
+                        )}
+                        {p.emailSent && (
+                          <span style={{ fontSize:"10px", padding:"2px 7px", borderRadius:"999px", background:"rgba(0,230,118,0.1)", color:"var(--green)", border:"1px solid rgba(0,230,118,0.2)" }}>Email enviado</span>
+                        )}
+                      </div>
+                      {p.address && <p style={{ fontSize:"12px", color:"var(--text-muted)", margin:"4px 0 0" }}>{p.address}</p>}
+                      {p.phone && (
+                        <p style={{ fontSize:"12px", color:"var(--text-mid)", margin:"4px 0 0", display:"flex", alignItems:"center", gap:"5px" }}>
+                          <Phone size={11} />{p.phone}
+                        </p>
+                      )}
+                      {p.demoUrl && (
+                        <div style={{ display:"flex", alignItems:"center", gap:"8px", marginTop:"8px", padding:"8px 10px", background:"var(--bg)", borderRadius:"6px", border:"1px solid rgba(30,155,240,0.3)" }}>
+                          <a href={p.demoUrl} target="_blank" rel="noreferrer"
+                            style={{ fontSize:"12px", color:"var(--accent)", textDecoration:"none", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontFamily:"monospace" }}>
+                            {p.demoUrl}
+                          </a>
+                          <button onClick={() => copyLink(p.demoUrl!, p.placeId)}
+                            style={{ padding:"4px 8px", borderRadius:"4px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", fontSize:"11px", cursor:"pointer", display:"flex", alignItems:"center", gap:"4px" }}>
+                            {copied === p.placeId ? <CheckCircle size={10} color="var(--green)" /> : <Copy size={10} />}
+                            {copied === p.placeId ? "Copiado" : "Copiar"}
+                          </button>
+                          <a href={p.demoUrl} target="_blank" rel="noreferrer"
+                            style={{ padding:"4px 8px", borderRadius:"4px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", fontSize:"11px", cursor:"pointer", display:"flex", alignItems:"center", gap:"4px", textDecoration:"none" }}>
+                            <ExternalLink size={10} /> Ver
+                          </a>
+                          <button onClick={() => setEmailModal(p)}
+                            style={{ padding:"4px 10px", borderRadius:"4px", border:"none", background:"var(--accent)", color:"#fff", fontSize:"11px", cursor:"pointer" }}>
+                            Enviar email
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {/* Acciones */}
+                    <div style={{ display:"flex", flexDirection:"column", gap:"6px", flexShrink:0 }}>
+                      {!p.demoUrl && (
+                        <button onClick={() => generarDemo(p)} disabled={p.demoGenerating}
+                          style={{ padding:"7px 14px", borderRadius:"6px", border:"none", background:p.demoGenerating?"var(--border)":"var(--accent)", color:"#fff", fontSize:"12px", fontWeight:600, cursor:p.demoGenerating?"not-allowed":"pointer", display:"flex", alignItems:"center", gap:"5px", whiteSpace:"nowrap" }}>
+                          {p.demoGenerating ? <RefreshCw size={12} style={{ animation:"spin 1s linear infinite" }} /> : <Zap size={12} />}
+                          {p.demoGenerating ? "Generando..." : "Generar Demo"}
+                        </button>
+                      )}
+                      {p.phone && (
+                        <a href={`https://wa.me/${p.phone.replace(/\D/g,"")}`} target="_blank" rel="noreferrer"
+                          style={{ padding:"7px 14px", borderRadius:"6px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-mid)", fontSize:"12px", cursor:"pointer", display:"flex", alignItems:"center", gap:"5px", textDecoration:"none", whiteSpace:"nowrap" }}>
+                          <Globe size={12} /> WhatsApp
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!buscando && prospectos.length === 0 && !buscarErr && (
+            <div style={{ textAlign:"center", padding:"48px 24px", color:"var(--text-muted)", fontSize:"13px" }}>
+              Busca por categoría y ciudad para ver negocios sin web
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Email Modal */}
+      {emailModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:500, display:"flex", alignItems:"center", justifyContent:"center" }}
+          onClick={e => { if (e.target === e.currentTarget) setEmailModal(null); }}>
+          <div style={{ ...CARD, width:460, maxWidth:"94vw" }}>
+            <p style={{ fontSize:"15px", fontWeight:700, color:"var(--text)", margin:"0 0 4px" }}>Enviar demo por email</p>
+            <p style={{ fontSize:"12px", color:"var(--text-muted)", margin:"0 0 16px" }}>{emailModal.name}</p>
+            <p style={{ fontSize:"11px", fontWeight:600, letterSpacing:"0.08em", color:"var(--text-muted)", textTransform:"uppercase", margin:"0 0 5px" }}>Email del negocio</p>
+            <input value={emailAddr} onChange={e => setEmailAddr(e.target.value)}
+              placeholder="info@negocio.com" style={{ ...INPUT, marginBottom:"12px" }} />
+            <div style={{ padding:"10px 12px", background:"var(--bg)", borderRadius:"6px", border:"1px solid var(--border)", fontSize:"12px", color:"var(--text-muted)", marginBottom:"16px" }}>
+              <p style={{ margin:"0 0 4px", fontWeight:600, color:"var(--text-mid)" }}>Asunto: {emailModal.name} — tu web ya está lista (mírala aquí)</p>
+              <p style={{ margin:0 }}>Demo URL: {emailModal.demoUrl}</p>
+            </div>
+            <div style={{ display:"flex", gap:"8px" }}>
+              <button onClick={() => setEmailModal(null)} style={{ flex:1, padding:"9px", borderRadius:"6px", border:"1px solid var(--border)", background:"transparent", color:"var(--text-muted)", cursor:"pointer", fontSize:"13px" }}>Cancelar</button>
+              <button onClick={() => enviarEmail(emailModal, emailAddr)} disabled={emailSending || !emailAddr.includes("@")}
+                style={{ flex:2, padding:"9px", borderRadius:"6px", border:"none", background:emailSending||!emailAddr.includes("@")?"var(--border)":"var(--accent)", color:"#fff", cursor:"pointer", fontSize:"13px", fontWeight:600 }}>
+                {emailSending ? "Enviando..." : "Enviar email"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pipeline Kanban */}
       {tab === "pipeline" && (
