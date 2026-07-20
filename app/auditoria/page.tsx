@@ -121,6 +121,12 @@ export default function AuditoriaPage() {
   const [demoRes,    setDemoRes]    = useState<DemoResult | null>(null);
   const [demoErr,    setDemoErr]    = useState("");
   const [copied,     setCopied]     = useState(false);
+  const [showManual, setShowManual] = useState(false);
+  const [manualName,     setManualName]     = useState("");
+  const [manualAddress,  setManualAddress]  = useState("");
+  const [manualPhone,    setManualPhone]    = useState("");
+  const [manualCategory, setManualCategory] = useState("peluqueria");
+  const [manualDesc,     setManualDesc]     = useState("");
 
   /* Leads */
   const [leads,        setLeads]        = useState<Lead[]>([]);
@@ -151,17 +157,21 @@ export default function AuditoriaPage() {
     finally { setAuditing(false); }
   }
 
-  async function runDemo() {
-    if (!demoBiz.trim()) return;
+  async function runDemo(manual = false) {
     setGenerating(true); setDemoRes(null); setDemoErr("");
     try {
+      const body: Record<string, unknown> = { business: demoBiz.trim() || manualName.trim() };
+      if (manual) {
+        body.manual = { name: manualName, address: manualAddress, phone: manualPhone, category: manualCategory };
+      }
       const r = await fetch("/api/audit/demo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ business: demoBiz.trim() }),
+        body: JSON.stringify(body),
       });
       const d: DemoResult = await r.json();
-      if (d.error) setDemoErr(d.error); else setDemoRes(d);
+      if (d.error) { setDemoErr(d.error); if (!manual) setShowManual(true); }
+      else { setShowManual(false); setDemoRes(d); }
     } catch { setDemoErr("Error generando demo"); }
     finally { setGenerating(false); }
   }
@@ -420,7 +430,7 @@ export default function AuditoriaPage() {
                 value={demoBiz} onChange={e => setDemoBiz(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && runDemo()} />
               <button style={{ ...S.btn, whiteSpace: "nowrap", opacity: generating || !demoBiz.trim() ? 0.6 : 1 }}
-                onClick={runDemo} disabled={generating || !demoBiz.trim()}>
+                onClick={() => runDemo(false)} disabled={generating || !demoBiz.trim()}>
                 {generating
                   ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
                   : <Zap size={14} />}
@@ -436,7 +446,44 @@ export default function AuditoriaPage() {
 
           {demoErr && (
             <div style={{ ...S.card, border: `1px solid ${C.red}44`, background: `${C.red}07` }}>
-              <p style={{ fontSize: "13px", color: C.red, margin: 0 }}>⚠ {demoErr}</p>
+              <p style={{ fontSize: "13px", color: C.red, margin: "0 0 8px" }}>⚠ {demoErr}</p>
+              {showManual && <button onClick={() => {}} style={{ fontSize: "12px", color: C.accent, background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}>
+                Introducir datos manualmente →
+              </button>}
+            </div>
+          )}
+
+          {showManual && (
+            <div style={{ ...S.card, border: `1px solid ${C.amber}33` }}>
+              <p style={{ fontSize: "13px", fontWeight: 600, color: C.amber, margin: "0 0 14px" }}>Datos manuales del negocio</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div><span style={S.lbl}>Nombre del negocio *</span>
+                  <input style={S.input} placeholder="Ripieno Ibiza" value={manualName} onChange={e => setManualName(e.target.value)} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                  <div><span style={S.lbl}>Dirección</span>
+                    <input style={S.input} placeholder="Calle Principal 12, Ibiza" value={manualAddress} onChange={e => setManualAddress(e.target.value)} />
+                  </div>
+                  <div><span style={S.lbl}>Teléfono</span>
+                    <input style={S.input} placeholder="+34 600 000 000" value={manualPhone} onChange={e => setManualPhone(e.target.value)} />
+                  </div>
+                </div>
+                <div><span style={S.lbl}>Categoría</span>
+                  <select style={S.input} value={manualCategory} onChange={e => setManualCategory(e.target.value)}>
+                    <option value="peluqueria">Peluquería / Salón</option>
+                    <option value="restaurante">Restaurante / Bar</option>
+                    <option value="estetica">Estética / Spa</option>
+                    <option value="clinica">Clínica / Salud</option>
+                    <option value="retail">Tienda / Retail</option>
+                    <option value="negocio_local">Otro negocio local</option>
+                  </select>
+                </div>
+                <button style={{ ...S.btn, opacity: !manualName.trim() || generating ? 0.6 : 1 }}
+                  onClick={() => runDemo(true)} disabled={!manualName.trim() || generating}>
+                  {generating ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Zap size={14} />}
+                  {generating ? "Generando..." : "Generar Demo con estos datos"}
+                </button>
+              </div>
             </div>
           )}
 
