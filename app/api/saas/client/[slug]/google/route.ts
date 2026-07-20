@@ -28,7 +28,10 @@ export async function GET(
   }
 
   // Reutilizar el motor de auditoría existente
-  const auditRes = await fetch(`${process.env.NEXT_PUBLIC_URL ?? "http://localhost:3000"}/api/google/audit`, {
+  const base = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : (process.env.NEXT_PUBLIC_URL ?? "http://localhost:3000");
+  const auditRes = await fetch(`${base}/api/google/audit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
