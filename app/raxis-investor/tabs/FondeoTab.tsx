@@ -207,10 +207,16 @@ export default function FondeoTab() {
   useEffect(() => {
     if (tab !== "signal") return;
     const containerId = "raxis-xau-tv";
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout>;
+
     function initTV() {
       const el = document.getElementById(containerId);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (!el || !(window as any).TradingView) return;
+      if (!el || !(window as any).TradingView) {
+        if (++attempts < 40) timer = setTimeout(initTV, 150);
+        return;
+      }
       el.innerHTML = "";
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       new (window as any).TradingView.widget({
@@ -226,16 +232,20 @@ export default function FondeoTab() {
         },
       });
     }
-    if (tvLoaded.current) { setTimeout(initTV, 80); }
-    else {
+
+    if (!tvLoaded.current) {
       const existing = document.querySelector('script[src*="tradingview.com/tv.js"]');
-      if (existing) { tvLoaded.current = true; setTimeout(initTV, 80); return; }
-      const s = document.createElement("script");
-      s.src = "https://s3.tradingview.com/tv.js";
-      s.async = true;
-      s.onload = () => { tvLoaded.current = true; initTV(); };
-      document.head.appendChild(s);
+      if (existing) {
+        tvLoaded.current = true;
+      } else {
+        const s = document.createElement("script");
+        s.src = "https://s3.tradingview.com/tv.js";
+        s.async = true;
+        document.head.appendChild(s);
+      }
     }
+    timer = setTimeout(initTV, 120);
+    return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
