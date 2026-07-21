@@ -6,7 +6,7 @@ import { ThemeProvider } from "./theme-provider";
 import Sidebar from "./Sidebar";
 import Topbar from "./topbar";
 
-const NO_SHELL_ROUTES = ["/comercial"];
+const NO_SHELL_ROUTES = ["/comercial", "/cliente", "/login-saas"];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
