@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-const NOTION_TOKEN = process.env.NOTION_TOKEN || ''
+const NOTION_TOKEN = process.env.NOTION_TOKEN || process.env.notion_token || ''
 const NOTION_DB_ID = process.env.NOTION_BRIEFING_DB_ID || '9b54956601ff46e4a44b4c8ad1509f8e'
 
 export interface BriefingEntry {
