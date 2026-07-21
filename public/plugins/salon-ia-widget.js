@@ -1,5 +1,5 @@
 /*!
- * RaxisLab Salon IA Widget v1.0
+ * RaxisLab Salon IA Widget v2.0 — con historial de conversación
  * Uso: <div id="salon-ia-widget" data-salon="desancho" data-cta-url="https://desancho.com/reservar"></div>
  *      <script src="https://raxislab-os.vercel.app/plugins/salon-ia-widget.js"></script>
  */
@@ -45,6 +45,19 @@
 .sia-cta:hover{opacity:.88}
 .sia-reset{display:block;text-align:center;margin-top:10px;color:#9ca3af;font-size:.8rem;cursor:pointer;text-decoration:underline}
 .sia-error{display:none;margin:0 16px 16px;padding:12px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:.85rem}
+.sia-chat{margin:0 16px 16px;border-top:1px solid #e5e7eb;padding-top:14px;display:none}
+.sia-chat-title{font-size:.78rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.sia-chat-msgs{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;max-height:220px;overflow-y:auto;padding-right:2px}
+.sia-bubble{padding:10px 13px;border-radius:12px;font-size:.875rem;line-height:1.5;max-width:90%;word-break:break-word}
+.sia-bubble.user{background:#0f3460;color:#fff;align-self:flex-end;border-bottom-right-radius:3px}
+.sia-bubble.bot{background:#f3f4f6;color:#374151;align-self:flex-start;border-bottom-left-radius:3px}
+.sia-bubble.typing{background:#f3f4f6;color:#9ca3af;align-self:flex-start;letter-spacing:4px;font-size:1.1rem;padding:10px 14px}
+.sia-chat-row{display:flex;gap:8px}
+.sia-chat-row input{flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:.88rem;outline:none;transition:border .2s}
+.sia-chat-row input:focus{border-color:#0f3460}
+.sia-chat-row button{background:#0f3460;color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:.85rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .2s}
+.sia-chat-row button:hover{background:#16213e}
+.sia-chat-row button:disabled{background:#9ca3af;cursor:not-allowed}
 `;
 
   function init() {
@@ -82,19 +95,32 @@
       '</div>',
       '<div class="sia-error" id="sia-error"></div>',
       '<div class="sia-result" id="sia-result"></div>',
+      '<div class="sia-chat" id="sia-chat">',
+        '<p class="sia-chat-title">💬 ¿Tienes más preguntas?</p>',
+        '<div class="sia-chat-msgs" id="sia-chat-msgs"></div>',
+        '<div class="sia-chat-row">',
+          '<input type="text" id="sia-chat-q" placeholder="Pregunta lo que quieras sobre tu look..." maxlength="200">',
+          '<button id="sia-chat-send">Enviar</button>',
+        '</div>',
+      '</div>',
     ].join('');
 
-    var fileInput   = root.querySelector('#sia-file');
-    var dropZone    = root.querySelector('#sia-drop');
-    var previewWrap = root.querySelector('#sia-preview-wrap');
-    var previewImg  = root.querySelector('#sia-preview-img');
-    var questionBox = root.querySelector('#sia-question');
-    var analyzeBtn  = root.querySelector('#sia-btn');
-    var loader      = root.querySelector('#sia-loader');
-    var resultDiv   = root.querySelector('#sia-result');
-    var errorDiv    = root.querySelector('#sia-error');
+    var fileInput    = root.querySelector('#sia-file');
+    var dropZone     = root.querySelector('#sia-drop');
+    var previewWrap  = root.querySelector('#sia-preview-wrap');
+    var previewImg   = root.querySelector('#sia-preview-img');
+    var questionBox  = root.querySelector('#sia-question');
+    var analyzeBtn   = root.querySelector('#sia-btn');
+    var loader       = root.querySelector('#sia-loader');
+    var resultDiv    = root.querySelector('#sia-result');
+    var errorDiv     = root.querySelector('#sia-error');
+    var chatSection  = root.querySelector('#sia-chat');
+    var chatMsgs     = root.querySelector('#sia-chat-msgs');
+    var chatInput    = root.querySelector('#sia-chat-q');
+    var chatSendBtn  = root.querySelector('#sia-chat-send');
 
-    var selectedBase64 = null;
+    var selectedBase64     = null;
+    var conversationHistory = [];
 
     // Drag & drop
     dropZone.addEventListener('dragover', function (e) { e.preventDefault(); dropZone.classList.add('drag'); });
@@ -111,6 +137,11 @@
     });
 
     analyzeBtn.addEventListener('click', function () { analyze(salon, ctaUrl); });
+
+    chatSendBtn.addEventListener('click', function () { sendChat(salon); });
+    chatInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') sendChat(salon);
+    });
 
     function processFile(file) {
       if (file.size > 8 * 1024 * 1024) {
@@ -133,7 +164,10 @@
           analyzeBtn.style.display  = 'block';
           dropZone.style.display    = 'none';
           resultDiv.style.display   = 'none';
+          chatSection.style.display = 'none';
           errorDiv.style.display    = 'none';
+          conversationHistory       = [];
+          chatMsgs.innerHTML        = '';
         };
         img.src = e.target.result;
       };
@@ -145,15 +179,14 @@
       analyzeBtn.disabled = true;
       loader.style.display = 'block';
       resultDiv.style.display = 'none';
+      chatSection.style.display = 'none';
       errorDiv.style.display = 'none';
 
       var question = root.querySelector('#sia-q').value.trim();
 
       fetch(API_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image_base64: selectedBase64,
           salon: salonName,
@@ -165,6 +198,17 @@
         loader.style.display = 'none';
         analyzeBtn.disabled = false;
         if (data.error) { showError(data.error); return; }
+
+        // Guardar primera vuelta en el historial
+        var initText = question || 'Analiza mi look';
+        var initResponse = data.analisis + (data.sugerencias && data.sugerencias.length
+          ? ' Te recomendé: ' + data.sugerencias.map(function(s){ return s.titulo; }).join(', ') + '.'
+          : '');
+        conversationHistory = [
+          { role: 'user', text: initText },
+          { role: 'assistant', text: initResponse }
+        ];
+
         renderResult(data, cta);
       })
       .catch(function () {
@@ -172,6 +216,53 @@
         analyzeBtn.disabled = false;
         showError('No se pudo conectar. Inténtalo de nuevo.');
       });
+    }
+
+    function sendChat(salonName) {
+      var userText = chatInput.value.trim();
+      if (!userText || chatSendBtn.disabled) return;
+
+      chatInput.value = '';
+      appendBubble('user', userText);
+      conversationHistory.push({ role: 'user', text: userText });
+
+      chatSendBtn.disabled = true;
+      var typingEl = document.createElement('div');
+      typingEl.className = 'sia-bubble typing';
+      typingEl.textContent = '···';
+      chatMsgs.appendChild(typingEl);
+      chatMsgs.scrollTop = chatMsgs.scrollHeight;
+
+      fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          salon: salonName,
+          image_base64: selectedBase64,
+          conversation: conversationHistory
+        })
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        typingEl.remove();
+        chatSendBtn.disabled = false;
+        var response = data.respuesta || data.analisis || 'Lo siento, no pude procesar tu pregunta.';
+        conversationHistory.push({ role: 'assistant', text: response });
+        appendBubble('bot', response);
+      })
+      .catch(function () {
+        typingEl.remove();
+        chatSendBtn.disabled = false;
+        appendBubble('bot', 'Error de conexión. Inténtalo de nuevo.');
+      });
+    }
+
+    function appendBubble(type, text) {
+      var el = document.createElement('div');
+      el.className = 'sia-bubble ' + type;
+      el.textContent = text;
+      chatMsgs.appendChild(el);
+      chatMsgs.scrollTop = chatMsgs.scrollHeight;
     }
 
     function renderResult(data, cta) {
@@ -193,14 +284,19 @@
         '<span class="sia-reset" id="sia-reset">Analizar otra foto</span>';
 
       resultDiv.style.display = 'block';
+      chatSection.style.display = 'block';
+      chatInput.focus();
 
       root.querySelector('#sia-reset').addEventListener('click', function () {
-        selectedBase64 = null;
-        fileInput.value = '';
+        selectedBase64          = null;
+        conversationHistory     = [];
+        chatMsgs.innerHTML      = '';
+        fileInput.value         = '';
         previewWrap.style.display = 'none';
         questionBox.style.display = 'none';
         analyzeBtn.style.display  = 'none';
         resultDiv.style.display   = 'none';
+        chatSection.style.display = 'none';
         dropZone.style.display    = 'block';
         root.querySelector('#sia-q').value = '';
       });
