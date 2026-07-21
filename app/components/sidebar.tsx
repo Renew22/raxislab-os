@@ -88,11 +88,11 @@ export default function Sidebar({ mobileOpen = false, onMobileClose = () => {} }
         flexShrink: 0,
       }}>
         <Image
-          src="/apple-icon.png"
+          src="/raxislab-icon.svg"
           alt="Raxislab"
           width={32}
           height={32}
-          style={{ borderRadius: "6px", flexShrink: 0 }}
+          style={{ flexShrink: 0 }}
         />
         <span style={{
           fontFamily: "'Space Grotesk', sans-serif",
