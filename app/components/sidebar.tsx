@@ -227,11 +227,13 @@ export default function Sidebar({ mobileOpen = false, onMobileClose = () => {} }
           width: "32px",
           height: "32px",
           borderRadius: "50%",
-          overflow: "hidden",
           border: "1px solid var(--border-accent)",
           flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}>
-          <Image src="/apple-icon.png" alt="Raxislab" width={32} height={32} style={{ display: "block" }} />
+          <Image src="/raxislab-icon.svg" alt="Raxislab" width={26} height={26} style={{ display: "block" }} />
         </div>
         <div style={{
           opacity: collapsed ? 0 : 1,

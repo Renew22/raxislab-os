@@ -41,8 +41,8 @@ function LoginForm() {
 
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <div style={{ margin: "0 auto 14px", width: "56px", height: "56px", borderRadius: "12px", overflow: "hidden", display: "inline-block" }}>
-            <Image src="/apple-icon.png" alt="Raxislab" width={56} height={56} style={{ display: "block" }} />
+          <div style={{ margin: "0 auto 14px", width: "56px", height: "56px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Image src="/raxislab-icon.svg" alt="Raxislab" width={56} height={56} style={{ display: "block" }} />
           </div>
           <h1 style={{ fontSize: "20px", fontWeight: 700, margin: 0 }}>RaxisLab</h1>
           <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>Accede a tu panel</p>
