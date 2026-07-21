@@ -1,12 +1,12 @@
 /*!
- * RaxisLab Salon IA Widget v2.0 — con historial de conversación
+ * RaxisLab Salon IA Widget v2.1 — chat, camara, historial
  * Uso: <div id="salon-ia-widget" data-salon="desancho" data-cta-url="https://desancho.com/reservar"></div>
- *      <script src="https://raxislab-os.vercel.app/plugins/salon-ia-widget.js"></script>
+ *      <script src="https://raxislab-os-v2.vercel.app/plugins/salon-ia-widget.js"></script>
  */
 (function () {
   'use strict';
 
-  var API_URL  = 'https://raxislab-os.vercel.app/api/salon-ia/analyze';
+  var API_URL  = 'https://raxislab-os-v2.vercel.app/api/salon-ia/analyze';
   var MAX_SIZE = 1200;
 
   var CSS = `
@@ -77,9 +77,9 @@
         '<p>Sube una foto y te recomendamos los mejores cambios para ti</p>',
       '</div>',
       '<div class="sia-drop" id="sia-drop">',
-        '<input type="file" id="sia-file" accept="image/*">',
+        '<input type="file" id="sia-file" accept="image/*" capture="environment">',
         '<span class="sia-drop-icon">📷</span>',
-        '<p>Arrastra tu foto aquí o <strong>haz clic para seleccionar</strong></p>',
+        '<p>Toca para <strong>hacer una foto</strong> o sube desde galería</p>',
         '<small>JPG, PNG, WEBP · Máx 8MB</small>',
       '</div>',
       '<div class="sia-preview-wrap" id="sia-preview-wrap">',
