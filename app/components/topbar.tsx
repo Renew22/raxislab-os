@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Search, Bell, Wallet, Menu } from "lucide-react";
 import { useState } from "react";
@@ -179,17 +180,12 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
           width: "32px",
           height: "32px",
           borderRadius: "50%",
-          background: "var(--accent-dim)",
+          overflow: "hidden",
           border: "1px solid var(--border-accent)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           flexShrink: 0,
           cursor: "pointer",
         }}>
-          <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent)", fontFamily: "'Space Mono', monospace" }}>
-            RB
-          </span>
+          <Image src="/apple-icon.png" alt="Raxislab" width={32} height={32} style={{ display: "block" }} />
         </div>
       </div>
     </header>

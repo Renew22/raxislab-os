@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight,
   LayoutDashboard, Users, Megaphone, Globe, Package, Sparkles,
   TrendingUp, FolderKanban, Workflow, Wallet, FileText, Crosshair,
-  ScanSearch, Camera,
+  ScanSearch, Camera, CalendarDays,
 } from "lucide-react";
 
 const NAV = [
@@ -16,6 +16,7 @@ const NAV = [
   { href: "/clientes",         label: "Clientes",         Icon: Users           },
   { href: "/campanas",         label: "Campañas",         Icon: Megaphone       },
   { href: "/google",           label: "Google",           Icon: Globe           },
+  { href: "/semana",           label: "Plan Semanal",     Icon: CalendarDays    },
   { href: "/auditoria",        label: "Auditoría",        Icon: ScanSearch      },
   { href: "/last-mile",        label: "Last Mile",        Icon: Package         },
   { href: "/propuestas",       label: "Propuestas",       Icon: FileText        },
@@ -226,14 +227,11 @@ export default function Sidebar({ mobileOpen = false, onMobileClose = () => {} }
           width: "32px",
           height: "32px",
           borderRadius: "50%",
-          background: "var(--accent-dim)",
+          overflow: "hidden",
           border: "1px solid var(--border-accent)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           flexShrink: 0,
         }}>
-          <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent)", fontFamily: "'Space Mono', monospace" }}>RB</span>
+          <Image src="/apple-icon.png" alt="Raxislab" width={32} height={32} style={{ display: "block" }} />
         </div>
         <div style={{
           opacity: collapsed ? 0 : 1,
