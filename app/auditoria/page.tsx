@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Search, Zap, Users, RefreshCw, ExternalLink, Copy, CheckCircle, AlertTriangle, XCircle, Globe, Star, Smartphone, Monitor, Phone, Instagram, ClipboardPaste } from "lucide-react";
+import { Search, Zap, Users, RefreshCw, ExternalLink, Copy, CheckCircle, AlertTriangle, XCircle, Globe, Star, Smartphone, Monitor, Phone, Share2, ClipboardPaste } from "lucide-react";
 
 /* ── Types ── */
 interface PSScore { performance: number; seo: number; accessibility: number; best_practices: number; fcp?: string; lcp?: string; cls?: string; tbt?: string; speed_index?: string; error?: string }
@@ -305,7 +305,7 @@ export default function AuditoriaPage() {
             {/* ── Social media warning ── */}
             {socialDetected ? (
               <div style={{ padding: "12px 14px", background: `${C.amber}12`, border: `1px solid ${C.amber}44`, borderRadius: "8px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                <Instagram size={16} color={C.amber} style={{ flexShrink: 0, marginTop: "1px" }} />
+                <Share2 size={16} color={C.amber} style={{ flexShrink: 0, marginTop: "1px" }} />
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: "13px", color: C.amber, fontWeight: 600, margin: "0 0 4px" }}>
                     Eso es un perfil de {socialDetected}, no una web
