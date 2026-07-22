@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import {
   RefreshCw, Tag, AlertTriangle, CheckCircle, XCircle,
   ChevronDown, ChevronUp, ExternalLink, Zap, Search, BarChart2,
-  TrendingUp, TrendingDown, Target, Globe
+  TrendingUp, TrendingDown, Target, Globe, MapPin, Star, Send
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -459,9 +459,172 @@ function RecsTab({ recs }: { recs: Rec[] }) {
   );
 }
 
+// ── GMB Tab ────────────────────────────────────────────────────────────────────
+
+interface GmbReview { name: string; starRating: string; comment: string; _draft?: string; _hasReply: boolean; reviewer?: { displayName: string }; updateTime: string }
+
+function GmbTab({ client }: { client: typeof CLIENTS[number] }) {
+  const [setup, setSetup]       = useState<{ auth_url?: string; error?: string } | null>(null);
+  const [reviews, setReviews]   = useState<GmbReview[]>([]);
+  const [location, setLocation] = useState("");
+  const [posting, setPosting]   = useState(false);
+  const [postText, setPostText] = useState("");
+  const [postUrl, setPostUrl]   = useState("");
+  const [msg, setMsg]           = useState("");
+  const [loadingRev, setLoadingRev] = useState(false);
+
+  const C = { muted: "var(--text-muted)", border: "var(--border)", bg: "var(--bg)", card: "var(--card)", text: "var(--text)" };
+
+  // Comprobar si GMB está configurado
+  useEffect(() => {
+    fetch("/api/google/gmb-setup").then(r => r.json()).then(d => setSetup(d));
+  }, []);
+
+  const loadReviews = async () => {
+    if (!location) return;
+    setLoadingRev(true);
+    const r = await fetch(`/api/google/gmb-reviews?location=${encodeURIComponent(location)}`);
+    const d = await r.json();
+    setReviews(d.reviews ?? []);
+    setLoadingRev(false);
+  };
+
+  const replyToReview = async (reviewName: string, comment: string) => {
+    const r = await fetch("/api/google/gmb-reviews", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reviewName, comment }),
+    });
+    const d = await r.json();
+    if (d.success) { setMsg("✅ Respuesta publicada"); loadReviews(); }
+    else setMsg(`❌ ${d.error}`);
+  };
+
+  const publishPost = async () => {
+    if (!location || !postText) return;
+    setPosting(true);
+    const r = await fetch("/api/google/gmb-autopost", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locationName: location, title: postText, excerpt: "", url: postUrl || client.siteUrl, salon: client.id }),
+    });
+    const d = await r.json();
+    setPosting(false);
+    if (d.success) { setMsg("✅ Post GMB publicado"); setPostText(""); setPostUrl(""); }
+    else setMsg(`❌ ${d.error}`);
+  };
+
+  const stars = (rating: string) => ({ FIVE: 5, FOUR: 4, THREE: 3, TWO: 2, ONE: 1 }[rating] ?? 0);
+
+  // Si no hay token GBP
+  if (setup && !setup.auth_url?.includes("accounts.google.com") && setup.error !== undefined) {
+    return (
+      <div style={{ textAlign: "center", padding: 30 }}>
+        <p style={{ color: C.muted, fontSize: 13 }}>Error al obtener URL de setup: {setup.error}</p>
+      </div>
+    );
+  }
+
+  const tokenOk = !setup?.error && setup?.auth_url; // si hay auth_url, token NO está aún configurado
+
+  return (
+    <div>
+      {/* Setup banner si falta token */}
+      {tokenOk && (
+        <div style={{ background: "#854d0e20", border: "1px solid #854d0e60", borderRadius: 8, padding: "12px 16px", marginBottom: 20 }}>
+          <p style={{ margin: 0, fontSize: 13, color: "#fbbf24", fontWeight: 600 }}>⚠️ GMB no autorizado aún</p>
+          <p style={{ margin: "4px 0 10px", fontSize: 12, color: C.muted }}>Haz click en el botón, autoriza con tu cuenta Google y añade el token a Vercel.</p>
+          <a href={setup!.auth_url} target="_blank" rel="noopener noreferrer"
+            style={{ display: "inline-block", padding: "8px 16px", background: "#4285F4", color: "#fff", borderRadius: 6, fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+            🔑 Autorizar Google Business Profile
+          </a>
+          <p style={{ margin: "8px 0 0", fontSize: 11, color: C.muted }}>
+            Tras autorizar ve a: <strong>Vercel → Settings → Env Vars → GOOGLE_GBP_REFRESH_TOKEN</strong>
+          </p>
+        </div>
+      )}
+
+      {/* Location input */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
+        <input value={location} onChange={e => setLocation(e.target.value)} placeholder="accounts/…/locations/…"
+          style={{ flex: 1, minWidth: 240, padding: "6px 10px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12 }} />
+        <button onClick={loadReviews} disabled={!location || loadingRev}
+          style={{ padding: "7px 14px", background: client.color, color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+          {loadingRev ? "…" : "Cargar reseñas"}
+        </button>
+        <a href="https://business.google.com" target="_blank" rel="noopener noreferrer"
+          style={{ fontSize: 11, color: C.muted, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+          <ExternalLink size={10}/> business.google.com
+        </a>
+      </div>
+
+      {msg && <div style={{ padding: "8px 12px", background: msg.startsWith("✅") ? "#16a34a20" : "#dc262620", border: `1px solid ${msg.startsWith("✅") ? "#16a34a60" : "#dc262660"}`, borderRadius: 6, marginBottom: 16, fontSize: 13 }}>{msg}</div>}
+
+      {/* Reseñas */}
+      {reviews.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <h4 style={{ fontSize: 13, margin: "0 0 10px", color: C.muted, textTransform: "uppercase", letterSpacing: 1 }}>
+            Reseñas — {reviews.filter(r => !r._hasReply).length} sin responder
+          </h4>
+          {reviews.map(rev => (
+            <ReviewCard key={rev.name} rev={rev} stars={stars} color={client.color} onReply={replyToReview} />
+          ))}
+        </div>
+      )}
+
+      {/* Publicar post manual */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: "14px 16px" }}>
+        <h4 style={{ fontSize: 13, margin: "0 0 10px", color: C.muted, textTransform: "uppercase", letterSpacing: 1 }}>
+          <Send size={11} style={{ marginRight: 5 }}/>Publicar post GMB
+        </h4>
+        <textarea value={postText} onChange={e => setPostText(e.target.value)} placeholder="Texto del post (máx 1500 caracteres)…"
+          style={{ width: "100%", minHeight: 80, padding: "8px 10px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 13, resize: "vertical", boxSizing: "border-box" }} />
+        <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+          <input value={postUrl} onChange={e => setPostUrl(e.target.value)} placeholder={`URL (ej: ${client.siteUrl})`}
+            style={{ flex: 1, minWidth: 180, padding: "6px 10px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 12 }} />
+          <button onClick={publishPost} disabled={!postText || !location || posting}
+            style={{ padding: "7px 18px", background: client.color, color: "#fff", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: (!postText || !location) ? 0.5 : 1 }}>
+            {posting ? "Publicando…" : "Publicar en GMB"}
+          </button>
+        </div>
+        {!location && <p style={{ margin: "6px 0 0", fontSize: 11, color: C.muted }}>Introduce el location ID arriba para habilitar.</p>}
+      </div>
+    </div>
+  );
+}
+
+function ReviewCard({ rev, stars, color, onReply }: { rev: GmbReview; stars: (r: string) => number; color: string; onReply: (name: string, comment: string) => void }) {
+  const [draft, setDraft] = useState(rev._draft ?? "");
+  const [expanded, setExpanded] = useState(!rev._hasReply);
+  const n = stars(rev.starRating);
+
+  return (
+    <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, cursor: "pointer" }} onClick={() => setExpanded(p => !p)}>
+        <div>
+          <span style={{ fontWeight: 700, fontSize: 13 }}>{rev.reviewer?.displayName ?? "Anónimo"}</span>
+          <span style={{ marginLeft: 8, fontSize: 12, color: "#facc15" }}>{"★".repeat(n)}{"☆".repeat(5-n)}</span>
+          {rev._hasReply && <span style={{ marginLeft: 8, fontSize: 11, color: "#4ade80" }}>✅ Respondida</span>}
+        </div>
+        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{rev.updateTime?.slice(0,10)}</span>
+      </div>
+      <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 8px" }}>{rev.comment ?? "Sin comentario"}</p>
+      {expanded && !rev._hasReply && (
+        <div>
+          <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 4px" }}>💬 Borrador Claude:</p>
+          <textarea value={draft} onChange={e => setDraft(e.target.value)}
+            style={{ width: "100%", minHeight: 60, padding: "6px 8px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 5, color: "var(--text)", fontSize: 12, resize: "vertical", boxSizing: "border-box" }} />
+          <button onClick={() => onReply(rev.name, draft)} disabled={!draft}
+            style={{ marginTop: 6, padding: "6px 14px", background: color, color: "#fff", border: "none", borderRadius: 5, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Publicar respuesta
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Client Panel ───────────────────────────────────────────────────────────────
 
-type SubTab = 'recs' | 'campaigns' | 'keywords' | 'seo' | 'analytics';
+type SubTab = 'recs' | 'campaigns' | 'keywords' | 'seo' | 'analytics' | 'gmb';
 
 function ClientPanel({
   client, ga4Id, siteUrl, onConfig,
@@ -508,6 +671,7 @@ function ClientPanel({
     { id: 'keywords',  label: `Keywords${audit ? ` (${audit.keywords.length})` : ''}`,      icon: <TrendingUp size={10}/> },
     { id: 'seo',       label: `SEO${audit ? ` (${audit.scKeywords.length})` : ''}`,         icon: <Search size={10}/> },
     { id: 'analytics', label: 'Analytics',                                                    icon: <BarChart2 size={10}/> },
+    { id: 'gmb',       label: 'GMB',                                                          icon: <MapPin size={10}/> },
   ];
 
   return (
@@ -577,6 +741,7 @@ function ClientPanel({
             {subTab === 'keywords'  && <KeywordsTab data={audit} color={client.color}/>}
             {subTab === 'seo'       && <SeoTab data={audit}/>}
             {subTab === 'analytics' && <AnalyticsTab data={audit}/>}
+            {subTab === 'gmb'       && <GmbTab client={client}/>}
           </div>
         </div>
       )}

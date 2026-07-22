@@ -90,3 +90,30 @@ export async function getGoogleAccessToken(): Promise<string> {
 export function googleNotConfigured() {
   return !process.env.GOOGLE_SERVICE_ACCOUNT_JSON && !process.env.GOOGLE_REFRESH_TOKEN;
 }
+
+// Token específico para Google Business Profile (scope business.manage)
+// Requiere GOOGLE_GBP_REFRESH_TOKEN (OAuth token con scope GBP)
+export async function getGMBToken(): Promise<string> {
+  const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_GBP_REFRESH_TOKEN } = process.env;
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_GBP_REFRESH_TOKEN) {
+    throw new Error("GBP no configurado: falta GOOGLE_GBP_REFRESH_TOKEN. Ve a /api/google/gmb-setup para autorizarlo.");
+  }
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id:     GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+      refresh_token: GOOGLE_GBP_REFRESH_TOKEN,
+      grant_type:    "refresh_token",
+    }),
+    cache: "no-store",
+  });
+  const data = await res.json();
+  if (!data.access_token) throw new Error(data.error_description ?? "Error token GBP");
+  return data.access_token as string;
+}
+
+export function gmbConfigured() {
+  return !!process.env.GOOGLE_GBP_REFRESH_TOKEN;
+}
