@@ -5,12 +5,13 @@ import dynamic from "next/dynamic";
 
 // ── Lazy-load heavy tabs ──────────────────────────────────────────────────────
 
-const CarteraTab  = dynamic(() => import("./tabs/CarteraTab"),  { ssr:false });
-const CryptoTab   = dynamic(() => import("./tabs/CryptoTab"),   { ssr:false });
-const M9Tab       = dynamic(() => import("./tabs/M9Tab"),       { ssr:false });
-const BotsTab     = dynamic(() => import("./tabs/BotsTab"),     { ssr:false });
-const ScoreTab    = dynamic(() => import("./tabs/ScoreTab"),    { ssr:false });
-const FondeoTab   = dynamic(() => import("./tabs/FondeoTab"),   { ssr:false });
+const CarteraTab      = dynamic(() => import("./tabs/CarteraTab"),      { ssr:false });
+const CryptoTab       = dynamic(() => import("./tabs/CryptoTab"),       { ssr:false });
+const M9Tab           = dynamic(() => import("./tabs/M9Tab"),           { ssr:false });
+const BotsTab         = dynamic(() => import("./tabs/BotsTab"),         { ssr:false });
+const ScoreTab        = dynamic(() => import("./tabs/ScoreTab"),        { ssr:false });
+const FondeoTab       = dynamic(() => import("./tabs/FondeoTab"),       { ssr:false });
+const SuperSignalTab  = dynamic(() => import("./tabs/SuperSignalTab"),  { ssr:false });
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -18,13 +19,14 @@ type Tab =
   | "Dashboard" | "Cartera" | "Crypto" | "M9/Stokers"
   | "Técnico" | "Diario" | "Dividendos" | "Calendario"
   | "Prompts" | "Publicar" | "Imagen" | "Telegram"
-  | "Bots" | "Score" | "Fondeo";
+  | "Bots" | "Score" | "Fondeo" | "SuperSignal";
 
 const TABS: [Tab, string][] = [
-  ["Dashboard",  "Dashboard"],
-  ["Bots",       "Bots Cripto"],
-  ["Score",      "Score Engine"],
-  ["Fondeo",     "Fondeo"],
+  ["Dashboard",   "Dashboard"],
+  ["SuperSignal", "SuperSignal"],
+  ["Bots",        "Bots Cripto"],
+  ["Score",       "Score Engine"],
+  ["Fondeo",      "Fondeo"],
   ["Cartera",    "Cartera IBKR"],
   ["Crypto",     "Crypto"],
   ["M9/Stokers", "M9 · Stokers"],
@@ -257,6 +259,9 @@ export default function RaxisInvestorPage() {
           </div>
         </div>
       )}
+
+      {/* ── SUPERSIGNAL ──────────────────────────────────────────────────────── */}
+      {tab==="SuperSignal" && <SuperSignalTab/>}
 
       {/* ── BOTS CRIPTO ──────────────────────────────────────────────────────── */}
       {tab==="Bots" && <BotsTab/>}
