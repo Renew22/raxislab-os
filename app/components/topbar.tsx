@@ -95,8 +95,9 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
         <Menu size={16} strokeWidth={1.8} />
       </button>
 
-      {/* ── Breadcrumb ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+      {/* ── Logo + Breadcrumb ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+        <Image src="/raxislab-icon.svg" alt="Raxislab" width={24} height={24} style={{ flexShrink: 0 }} />
         <span className="topbar-brand" style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "'Space Grotesk', sans-serif" }}>
           Raxislab
         </span>

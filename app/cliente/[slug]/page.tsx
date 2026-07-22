@@ -97,7 +97,7 @@ export default function ClienteDashboard() {
       {/* Header */}
       <header style={{ background: "var(--card)", borderBottom: "1px solid var(--border)", padding: "0 24px", height: "56px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <Image src="/apple-icon.png" alt="Raxislab" width={32} height={32} style={{ borderRadius: "7px" }} />
+          <Image src="/raxislab-icon.svg" alt="Raxislab" width={32} height={32} />
           <div>
             <p style={{ fontSize: "14px", fontWeight: 700, margin: 0 }}>{client.name}</p>
             <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>{client.plan}</p>
